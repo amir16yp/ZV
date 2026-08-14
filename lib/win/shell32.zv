@@ -1,0 +1,244 @@
+// shell32.zv
+//
+// Auto-generated ZV bindings from shellapi.h
+// DLL: shell32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "shell32_types.zv"
+
+// Numeric constants extracted from header
+#define ABM_NEW 0x00000000
+#define ABM_REMOVE 0x00000001
+#define ABM_QUERYPOS 0x00000002
+#define ABM_SETPOS 0x00000003
+#define ABM_GETSTATE 0x00000004
+#define ABM_GETTASKBARPOS 0x00000005
+#define ABM_ACTIVATE 0x00000006
+#define ABM_GETAUTOHIDEBAR 0x00000007
+#define ABM_SETAUTOHIDEBAR 0x00000008
+#define ABM_WINDOWPOSCHANGED 0x0000009
+#define ABM_SETSTATE 0x0000000a
+#define ABM_GETAUTOHIDEBAREX 0x0000000b
+#define ABM_SETAUTOHIDEBAREX 0x0000000c
+#define ABN_STATECHANGE 0x0000000
+#define ABN_POSCHANGED 0x0000001
+#define ABN_FULLSCREENAPP 0x0000002
+#define ABN_WINDOWARRANGE 0x0000003
+#define ABS_AUTOHIDE 0x0000001
+#define ABS_ALWAYSONTOP 0x0000002
+#define ABE_LEFT 0
+#define ABE_TOP 1
+#define ABE_RIGHT 2
+#define ABE_BOTTOM 3
+#define ABC_OVERLAYDESKTOPICONS 0x00000001
+#define FO_MOVE 0x0001
+#define FO_COPY 0x0002
+#define FO_DELETE 0x0003
+#define FO_RENAME 0x0004
+#define FOF_MULTIDESTFILES 0x0001
+#define FOF_CONFIRMMOUSE 0x0002
+#define FOF_SILENT 0x0004
+#define FOF_RENAMEONCOLLISION 0x0008
+#define FOF_NOCONFIRMATION 0x0010
+#define FOF_WANTMAPPINGHANDLE 0x0020
+#define FOF_ALLOWUNDO 0x0040
+#define FOF_FILESONLY 0x0080
+#define FOF_SIMPLEPROGRESS 0x0100
+#define FOF_NOCONFIRMMKDIR 0x0200
+#define FOF_NOERRORUI 0x0400
+#define FOF_NOCOPYSECURITYATTRIBS 0x0800
+#define FOF_NORECURSION 0x1000
+#define FOF_NO_CONNECTED_ELEMENTS 0x2000
+#define FOF_WANTNUKEWARNING 0x4000
+#define FOF_NORECURSEREPARSE 0x8000
+#define PO_DELETE 0x0013
+#define PO_RENAME 0x0014
+#define PO_PORTCHANGE 0x0020
+#define PO_REN_PORT 0x0034
+#define SE_ERR_FNF 2
+#define SE_ERR_PNF 3
+#define SE_ERR_ACCESSDENIED 5
+#define SE_ERR_OOM 8
+#define SE_ERR_DLLNOTFOUND 32
+#define SE_ERR_SHARE 26
+#define SE_ERR_ASSOCINCOMPLETE 27
+#define SE_ERR_DDETIMEOUT 28
+#define SE_ERR_DDEFAIL 29
+#define SE_ERR_DDEBUSY 30
+#define SE_ERR_NOASSOC 31
+#define SEE_MASK_DEFAULT 0x00000000
+#define SEE_MASK_CLASSNAME 0x00000001
+#define SEE_MASK_CLASSKEY 0x00000003
+#define SEE_MASK_IDLIST 0x00000004
+#define SEE_MASK_INVOKEIDLIST 0x0000000c
+#define SEE_MASK_ICON 0x00000010
+#define SEE_MASK_HOTKEY 0x00000020
+#define SEE_MASK_NOCLOSEPROCESS 0x00000040
+#define SEE_MASK_CONNECTNETDRV 0x00000080
+#define SEE_MASK_NOASYNC 0x00000100
+#define SEE_MASK_DOENVSUBST 0x00000200
+#define SEE_MASK_FLAG_NO_UI 0x00000400
+#define SEE_MASK_UNICODE 0x00004000
+#define SEE_MASK_NO_CONSOLE 0x00008000
+#define SEE_MASK_ASYNCOK 0x00100000
+#define SEE_MASK_HMONITOR 0x00200000
+#define SEE_MASK_NOZONECHECKS 0x00800000
+#define SEE_MASK_NOQUERYCLASSSTORE 0x01000000
+#define SEE_MASK_WAITFORINPUTIDLE 0x02000000
+#define SEE_MASK_FLAG_LOG_USAGE 0x04000000
+#define SEE_MASK_FLAG_HINST_IS_SITE 0x08000000
+#define SHERB_NOCONFIRMATION 0x00000001
+#define SHERB_NOPROGRESSUI 0x00000002
+#define SHERB_NOSOUND 0x00000004
+#define NINF_KEY 0x1
+#define NIM_ADD 0x00000000
+#define NIM_MODIFY 0x00000001
+#define NIM_DELETE 0x00000002
+#define NIM_SETFOCUS 0x00000003
+#define NIM_SETVERSION 0x00000004
+#define NOTIFYICON_VERSION 3
+#define NOTIFYICON_VERSION_4 4
+#define NIF_MESSAGE 0x00000001
+#define NIF_ICON 0x00000002
+#define NIF_TIP 0x00000004
+#define NIF_STATE 0x00000008
+#define NIF_INFO 0x00000010
+#define NIF_GUID 0x00000020
+#define NIF_REALTIME 0x00000040
+#define NIF_SHOWTIP 0x00000080
+#define NIS_HIDDEN 0x00000001
+#define NIS_SHAREDICON 0x00000002
+#define NIIF_NONE 0x00000000
+#define NIIF_INFO 0x00000001
+#define NIIF_WARNING 0x00000002
+#define NIIF_ERROR 0x00000003
+#define NIIF_USER 0x00000004
+#define NIIF_ICON_MASK 0x0000000F
+#define NIIF_NOSOUND 0x00000010
+#define NIIF_LARGE_ICON 0x00000020
+#define NIIF_RESPECT_QUIET_TIME 0x00000080
+#define SHGFI_ICON 0x000000100
+#define SHGFI_DISPLAYNAME 0x000000200
+#define SHGFI_TYPENAME 0x000000400
+#define SHGFI_ATTRIBUTES 0x000000800
+#define SHGFI_ICONLOCATION 0x000001000
+#define SHGFI_EXETYPE 0x000002000
+#define SHGFI_SYSICONINDEX 0x000004000
+#define SHGFI_LINKOVERLAY 0x000008000
+#define SHGFI_SELECTED 0x000010000
+#define SHGFI_ATTR_SPECIFIED 0x000020000
+#define SHGFI_LARGEICON 0x000000000
+#define SHGFI_SMALLICON 0x000000001
+#define SHGFI_OPENICON 0x000000002
+#define SHGFI_SHELLICONSIZE 0x000000004
+#define SHGFI_PIDL 0x000000008
+#define SHGFI_USEFILEATTRIBUTES 0x000000010
+#define SHGFI_ADDOVERLAYS 0x000000020
+#define SHGFI_OVERLAYINDEX 0x000000040
+#define SHGSI_ICONLOCATION 0
+#define SHGNLI_PIDL 0x000000001
+#define SHGNLI_PREFIXNAME 0x000000002
+#define SHGNLI_NOUNIQUE 0x000000004
+#define SHGNLI_NOLNK 0x000000008
+#define SHGNLI_NOLOCNAME 0x000000010
+#define SHGNLI_USEURLEXT 0x000000020
+#define PRINTACTION_OPEN 0
+#define PRINTACTION_PROPERTIES 1
+#define PRINTACTION_NETINSTALL 2
+#define PRINTACTION_NETINSTALLLINK 3
+#define PRINTACTION_TESTPAGE 4
+#define PRINTACTION_OPENNETPRN 5
+#define PRINTACTION_DOCUMENTDEFAULTS 6
+#define PRINTACTION_SERVERPROPERTIES 7
+#define PRINT_PROP_FORCE_NAME 0x01
+#define OFFLINE_STATUS_LOCAL 0x0001
+#define OFFLINE_STATUS_REMOTE 0x0002
+#define OFFLINE_STATUS_INCOMPLETE 0x0004
+#define SHIL_LARGE 0
+#define SHIL_SMALL 1
+#define SHIL_EXTRALARGE 2
+#define SHIL_SYSSMALL 3
+#define SHIL_JUMBO 4
+#define SEE_MASK_FLAG_DDEWAIT 0x00000100
+#define SHGSI_ICON 0x000000100
+#define SHGSI_SYSICONINDEX 0x000004000
+#define SHGSI_LINKOVERLAY 0x000008000
+#define SHGSI_SELECTED 0x000010000
+#define SHGSI_LARGEICON 0x000000000
+#define SHGSI_SMALLICON 0x000000001
+#define SHGSI_SHELLICONSIZE 0x000000004
+#define SHIL_LAST 3
+
+extern "shell32.dll" {
+    PTR<WSTRING> CommandLineToArgvW(WSTRING lpCmdLine, PTR<INT32> pNumArgs);
+    UINT32 DragQueryFileA(HDROP hDrop, UINT32 iFile, LPSTR lpszFile, UINT32 cch);
+    UINT32 DragQueryFileW(HDROP hDrop, UINT32 iFile, WSTRING lpszFile, UINT32 cch);
+    BOOL32 DragQueryPoint(HDROP hDrop, PTR<VOID> arg1);
+    VOID DragFinish(HDROP hDrop);
+    VOID DragAcceptFiles(HWND hWnd, BOOL32 fAccept);
+    HINSTANCE ShellExecuteA(HWND hwnd, LPCSTR lpOperation, LPCSTR lpFile, LPCSTR lpParameters, LPCSTR lpDirectory, INT32 nShowCmd);
+    HINSTANCE ShellExecuteW(HWND hwnd, WSTRING lpOperation, WSTRING lpFile, WSTRING lpParameters, WSTRING lpDirectory, INT32 nShowCmd);
+    HINSTANCE FindExecutableA(LPCSTR lpFile, LPCSTR lpDirectory, LPSTR lpResult);
+    HINSTANCE FindExecutableW(WSTRING lpFile, WSTRING lpDirectory, WSTRING lpResult);
+    INT32 ShellAboutA(HWND hWnd, LPCSTR szApp, LPCSTR szOtherStuff, HICON hIcon);
+    INT32 ShellAboutW(HWND hWnd, WSTRING szApp, WSTRING szOtherStuff, HICON hIcon);
+    HICON DuplicateIcon(HINSTANCE hInst, HICON hIcon);
+    HICON ExtractAssociatedIconA(HINSTANCE hInst, LPSTR pszIconPath, PTR<VOID> arg2);
+    HICON ExtractAssociatedIconW(HINSTANCE hInst, WSTRING pszIconPath, PTR<VOID> arg2);
+    HICON ExtractAssociatedIconExA(HINSTANCE hInst, LPSTR pszIconPath, PTR<VOID> arg2, PTR<VOID> arg3);
+    HICON ExtractAssociatedIconExW(HINSTANCE hInst, WSTRING pszIconPath, PTR<VOID> arg2, PTR<VOID> arg3);
+    HICON ExtractIconA(HINSTANCE hInst, LPCSTR pszExeFileName, UINT32 nIconIndex);
+    HICON ExtractIconW(HINSTANCE hInst, WSTRING pszExeFileName, UINT32 nIconIndex);
+    UINT_PTR SHAppBarMessage(DWORD dwMessage, PTR<VOID> pData);
+    DWORD DoEnvironmentSubstA(LPSTR pszSrc, UINT32 cchSrc);
+    DWORD DoEnvironmentSubstW(WSTRING pszSrc, UINT32 cchSrc);
+    UINT32 ExtractIconExA(LPCSTR lpszFile, INT32 nIconIndex, PTR<VOID> arg2, PTR<VOID> arg3, UINT32 nIcons);
+    UINT32 ExtractIconExW(WSTRING lpszFile, INT32 nIconIndex, PTR<VOID> arg2, PTR<VOID> arg3, UINT32 nIcons);
+    INT32 SHFileOperationA(PTR<VOID> lpFileOp);
+    INT32 SHFileOperationW(PTR<VOID> lpFileOp);
+    VOID SHFreeNameMappings(HANDLE hNameMappings);
+    BOOL32 ShellExecuteExA(PTR<VOID> arg0);
+    BOOL32 ShellExecuteExW(PTR<VOID> arg0);
+    BOOL32 SHCreateProcessAsUserW(PTR<VOID> pscpi);
+    HRESULT SHEvaluateSystemCommandTemplate(WSTRING pszCmdTemplate, PTR<VOID> arg1, PTR<VOID> arg2, PTR<VOID> arg3);
+    HRESULT AssocCreateForClasses(PTR<VOID> arg0, ULONG cClasses, PTR<VOID> riid, PTR<VOID> arg3);
+    HRESULT SHQueryRecycleBinA(LPCSTR pszRootPath, PTR<VOID> pSHQueryRBInfo);
+    HRESULT SHQueryRecycleBinW(WSTRING pszRootPath, PTR<VOID> pSHQueryRBInfo);
+    HRESULT SHEmptyRecycleBinA(HWND hwnd, LPCSTR pszRootPath, DWORD dwFlags);
+    HRESULT SHEmptyRecycleBinW(HWND hwnd, WSTRING pszRootPath, DWORD dwFlags);
+    HRESULT SHQueryUserNotificationState(PTR<VOID> arg0);
+    HRESULT SHGetPropertyStoreForWindow(HWND hwnd, PTR<VOID> riid, PTR<VOID> ppv);
+    BOOL32 Shell_NotifyIconA(DWORD dwMessage, PTR<VOID> lpData);
+    BOOL32 Shell_NotifyIconW(DWORD dwMessage, PTR<VOID> lpData);
+    HRESULT Shell_NotifyIconGetRect(PTR<VOID> identifier, PTR<VOID> iconLocation);
+    SIZE_T SHGetFileInfoA(LPCSTR pszPath, DWORD dwFileAttributes, PTR<VOID> arg2, UINT32 cbFileInfo, UINT32 uFlags);
+    SIZE_T SHGetFileInfoW(WSTRING pszPath, DWORD dwFileAttributes, PTR<VOID> arg2, UINT32 cbFileInfo, UINT32 uFlags);
+    HRESULT SHGetStockIconInfo(UINT32 siid, UINT32 uFlags, PTR<VOID> arg2);
+    BOOL32 SHGetDiskFreeSpaceExA(LPCSTR pszDirectoryName, PTR<PTR<VOID>> pulFreeBytesAvailableToCaller, PTR<PTR<VOID>> pulTotalNumberOfBytes, PTR<PTR<VOID>> pulTotalNumberOfFreeBytes);
+    BOOL32 SHGetDiskFreeSpaceExW(WSTRING pszDirectoryName, PTR<PTR<VOID>> pulFreeBytesAvailableToCaller, PTR<PTR<VOID>> pulTotalNumberOfBytes, PTR<PTR<VOID>> pulTotalNumberOfFreeBytes);
+    BOOL32 SHGetNewLinkInfoA(LPCSTR pszLinkTo, LPCSTR pszDir, LPSTR pszName, PTR<VOID> arg3, UINT32 uFlags);
+    BOOL32 SHGetNewLinkInfoW(WSTRING pszLinkTo, WSTRING pszDir, WSTRING pszName, PTR<VOID> arg3, UINT32 uFlags);
+    BOOL32 SHInvokePrinterCommandA(HWND hwnd, UINT32 uAction, LPCSTR lpBuf1, LPCSTR lpBuf2, BOOL32 fModal);
+    BOOL32 SHInvokePrinterCommandW(HWND hwnd, UINT32 uAction, WSTRING lpBuf1, WSTRING lpBuf2, BOOL32 fModal);
+    HRESULT SHLoadNonloadedIconOverlayIdentifiers();
+    HRESULT SHIsFileAvailableOffline(WSTRING pwszPath, PTR<VOID> arg1);
+    HRESULT SHSetLocalizedName(WSTRING pszPath, WSTRING pszResModule, INT32 idsRes);
+    HRESULT SHRemoveLocalizedName(WSTRING pszPath);
+    HRESULT SHGetLocalizedName(WSTRING pszPath, WSTRING pszResModule, UINT32 cch, PTR<VOID> arg3);
+    BOOL32 IsLFNDriveA(LPCSTR pszPath);
+    BOOL32 IsLFNDriveW(WSTRING pszPath);
+    HRESULT SHEnumerateUnreadMailAccountsA(HKEY hKeyUser, DWORD dwIndex, LPSTR pszMailAddress, INT32 cchMailAddress);
+    HRESULT SHEnumerateUnreadMailAccountsW(HKEY hKeyUser, DWORD dwIndex, WSTRING pszMailAddress, INT32 cchMailAddress);
+    HRESULT SHGetUnreadMailCountA(HKEY hKeyUser, LPCSTR pszMailAddress, PTR<VOID> arg2, PTR<VOID> arg3, LPSTR pszShellExecuteCommand, INT32 cchShellExecuteCommand);
+    HRESULT SHGetUnreadMailCountW(HKEY hKeyUser, WSTRING pszMailAddress, PTR<VOID> arg2, PTR<VOID> arg3, WSTRING pszShellExecuteCommand, INT32 cchShellExecuteCommand);
+    HRESULT SHSetUnreadMailCountA(LPCSTR pszMailAddress, DWORD dwCount, LPCSTR pszShellExecuteCommand);
+    HRESULT SHSetUnreadMailCountW(WSTRING pszMailAddress, DWORD dwCount, WSTRING pszShellExecuteCommand);
+    BOOL32 SHTestTokenMembership(HANDLE hToken, ULONG ulRID);
+    HRESULT SHGetImageList(INT32 iImageList, PTR<VOID> riid, PTR<VOID> arg2);
+    BOOL32 InitNetworkAddressControl();
+    HRESULT SHGetDriveMedia(WSTRING pszDrive, PTR<VOID> arg1);
+}

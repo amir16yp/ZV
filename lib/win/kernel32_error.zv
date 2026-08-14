@@ -1,0 +1,32 @@
+// kernel32_error.zv
+//
+// Auto-generated ZV bindings from errhandlingapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "kernel32_error_types.zv"
+
+extern "kernel32.dll" {
+    VOID RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags, DWORD nNumberOfArguments, PTR<SIZE_T> lpArguments);
+    LONG UnhandledExceptionFilter(PTR<VOID> ExceptionInfo);
+    PTR<VOID> SetUnhandledExceptionFilter(PTR<VOID> lpTopLevelExceptionFilter);
+    DWORD GetLastError();
+    VOID SetLastError(DWORD dwErrCode);
+    UINT32 GetErrorMode();
+    UINT32 SetErrorMode(UINT32 uMode);
+    PTR<VOID> AddVectoredExceptionHandler(ULONG First, PTR<VOID> Handler);
+    ULONG RemoveVectoredExceptionHandler(PTR<VOID> Handle);
+    PTR<VOID> AddVectoredContinueHandler(ULONG First, PTR<VOID> Handler);
+    ULONG RemoveVectoredContinueHandler(PTR<VOID> Handle);
+    VOID RestoreLastError(DWORD dwErrCode);
+    VOID RaiseFailFastException(PTR<VOID> pExceptionRecord, PTR<VOID> pContextRecord, DWORD dwFlags);
+    VOID FatalAppExitA(UINT32 uAction, LPCSTR lpMessageText);
+    VOID FatalAppExitW(UINT32 uAction, WSTRING lpMessageText);
+    DWORD GetThreadErrorMode();
+    BOOL32 SetThreadErrorMode(DWORD dwNewMode, PTR<DWORD> lpOldMode);
+    VOID TerminateProcessOnMemoryExhaustion(SIZE_T FailedAllocationSize);
+}

@@ -1,0 +1,432 @@
+// oleaut32.zv
+//
+// Auto-generated ZV bindings from oleauto.h
+// DLL: oleaut32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "oleaut32_types.zv"
+
+// Numeric constants extracted from header
+#define STDOLE_MAJORVERNUM 0x1
+#define STDOLE_MINORVERNUM 0x0
+#define STDOLE_LCID 0x0000
+#define STDOLE2_MAJORVERNUM 0x2
+#define STDOLE2_MINORVERNUM 0x0
+#define STDOLE2_LCID 0x0000
+#define VARIANT_NOVALUEPROP 0x01
+#define VARIANT_ALPHABOOL 0x02
+#define VARIANT_NOUSEROVERRIDE 0x04
+#define VARIANT_CALENDAR_HIJRI 0x08
+#define VARIANT_LOCALBOOL 0x10
+#define VARIANT_CALENDAR_THAI 0x20
+#define VARIANT_CALENDAR_GREGORIAN 0x40
+#define VARIANT_USE_NLS 0x80
+#define LOCALE_USE_NLS 0x10000000
+#define VTDATEGRE_MAX 2958465
+#define VTDATEGRE_MIN -657434
+#define NUMPRS_LEADING_WHITE 0x0001
+#define NUMPRS_TRAILING_WHITE 0x0002
+#define NUMPRS_LEADING_PLUS 0x0004
+#define NUMPRS_TRAILING_PLUS 0x0008
+#define NUMPRS_LEADING_MINUS 0x0010
+#define NUMPRS_TRAILING_MINUS 0x0020
+#define NUMPRS_HEX_OCT 0x0040
+#define NUMPRS_PARENS 0x0080
+#define NUMPRS_DECIMAL 0x0100
+#define NUMPRS_THOUSANDS 0x0200
+#define NUMPRS_CURRENCY 0x0400
+#define NUMPRS_EXPONENT 0x0800
+#define NUMPRS_USE_ALL 0x1000
+#define NUMPRS_STD 0x1FFF
+#define NUMPRS_NEG 0x10000
+#define NUMPRS_INEXACT 0x20000
+#define VARCMP_LT 0
+#define VARCMP_EQ 1
+#define VARCMP_GT 2
+#define VARCMP_NULL 3
+#define ID_DEFAULTINST -2
+#define DISPATCH_METHOD 0x1
+#define DISPATCH_PROPERTYGET 0x2
+#define DISPATCH_PROPERTYPUT 0x4
+#define DISPATCH_PROPERTYPUTREF 0x8
+#define LOAD_TLB_AS_32BIT 0x20
+#define LOAD_TLB_AS_64BIT 0x40
+#define ACTIVEOBJECT_STRONG 0x0
+#define ACTIVEOBJECT_WEAK 0x1
+
+extern "oleaut32.dll" {
+    PTR<VOID> SysAllocString(PTR<UINT16> psz);
+    INT32 SysReAllocString(PTR<PTR<VOID>> pbstr, PTR<UINT16> psz);
+    PTR<VOID> SysAllocStringLen(PTR<UINT16> strIn, UINT32 ui);
+    INT32 SysReAllocStringLen(PTR<PTR<VOID>> pbstr, PTR<UINT16> psz, UINT32 len);
+    HRESULT SysAddRefString(PTR<VOID> bstrString);
+    VOID SysReleaseString(PTR<VOID> bstrString);
+    VOID SysFreeString(PTR<VOID> bstrString);
+    UINT32 SysStringLen(PTR<VOID> pbstr);
+    UINT32 SysStringByteLen(PTR<VOID> bstr);
+    PTR<VOID> SysAllocStringByteLen(LPCSTR psz, UINT32 len);
+    INT32 DosDateTimeToVariantTime(USHORT wDosDate, USHORT wDosTime, PTR<FLOAT64> pvtime);
+    INT32 VariantTimeToDosDateTime(FLOAT64 vtime, PTR<USHORT> pwDosDate, PTR<USHORT> pwDosTime);
+    INT32 SystemTimeToVariantTime(PTR<VOID> lpSystemTime, PTR<VOID> arg1);
+    INT32 VariantTimeToSystemTime(FLOAT64 vtime, PTR<VOID> lpSystemTime);
+    HRESULT SafeArrayAllocDescriptor(UINT32 cDims, PTR<VOID> ppsaOut);
+    HRESULT SafeArrayAllocDescriptorEx(UINT16 vt, UINT32 cDims, PTR<VOID> ppsaOut);
+    HRESULT SafeArrayAllocData(PTR<VOID> psa);
+    PTR<VOID> SafeArrayCreate(UINT16 vt, UINT32 cDims, PTR<VOID> rgsabound);
+    PTR<VOID> SafeArrayCreateEx(UINT16 vt, UINT32 cDims, PTR<VOID> rgsabound, PTR<VOID> pvExtra);
+    HRESULT SafeArrayCopyData(PTR<VOID> arg0, PTR<VOID> arg1);
+    VOID SafeArrayReleaseDescriptor(PTR<VOID> psa);
+    HRESULT SafeArrayDestroyDescriptor(PTR<VOID> psa);
+    VOID SafeArrayReleaseData(PTR<VOID> pData);
+    HRESULT SafeArrayDestroyData(PTR<VOID> psa);
+    HRESULT SafeArrayAddRef(PTR<VOID> psa, PTR<VOID> arg1);
+    HRESULT SafeArrayDestroy(PTR<VOID> psa);
+    HRESULT SafeArrayRedim(PTR<VOID> psa, PTR<VOID> psaboundNew);
+    UINT32 SafeArrayGetDim(PTR<VOID> psa);
+    UINT32 SafeArrayGetElemsize(PTR<VOID> psa);
+    HRESULT SafeArrayGetUBound(PTR<VOID> psa, UINT32 nDim, PTR<LONG> plUbound);
+    HRESULT SafeArrayGetLBound(PTR<VOID> psa, UINT32 nDim, PTR<LONG> plLbound);
+    HRESULT SafeArrayLock(PTR<VOID> psa);
+    HRESULT SafeArrayUnlock(PTR<VOID> psa);
+    HRESULT SafeArrayAccessData(PTR<VOID> psa, PTR<VOID> ppvData);
+    HRESULT SafeArrayUnaccessData(PTR<VOID> psa);
+    HRESULT SafeArrayGetElement(PTR<VOID> psa, PTR<LONG> rgIndices, PTR<VOID> pv);
+    HRESULT SafeArrayPutElement(PTR<VOID> psa, PTR<LONG> rgIndices, PTR<VOID> pv);
+    HRESULT SafeArrayCopy(PTR<VOID> psa, PTR<VOID> ppsaOut);
+    HRESULT SafeArrayPtrOfIndex(PTR<VOID> psa, PTR<LONG> rgIndices, PTR<VOID> ppvData);
+    HRESULT SafeArraySetRecordInfo(PTR<VOID> psa, PTR<VOID> prinfo);
+    HRESULT SafeArrayGetRecordInfo(PTR<VOID> psa, PTR<VOID> prinfo);
+    HRESULT SafeArraySetIID(PTR<VOID> psa, PTR<VOID> guid);
+    HRESULT SafeArrayGetIID(PTR<VOID> psa, PTR<VOID> pguid);
+    HRESULT SafeArrayGetVartype(PTR<VOID> psa, PTR<UINT16> pvt);
+    PTR<VOID> SafeArrayCreateVector(UINT16 vt, LONG lLbound, ULONG cElements);
+    PTR<VOID> SafeArrayCreateVectorEx(UINT16 vt, LONG lLbound, ULONG cElements, PTR<VOID> pvExtra);
+    VOID VariantInit(PTR<VOID> pvarg);
+    HRESULT VariantClear(PTR<VOID> pvarg);
+    HRESULT VariantCopy(PTR<VOID> pvargDest, PTR<VOID> pvargSrc);
+    HRESULT VariantCopyInd(PTR<VOID> pvarDest, PTR<VOID> pvargSrc);
+    HRESULT VariantChangeType(PTR<VOID> pvargDest, PTR<VOID> pvarSrc, USHORT wFlags, UINT16 vt);
+    HRESULT VariantChangeTypeEx(PTR<VOID> pvargDest, PTR<VOID> pvarSrc, DWORD lcid, USHORT wFlags, UINT16 vt);
+    HRESULT VectorFromBstr(PTR<VOID> bstr, PTR<VOID> ppsa);
+    HRESULT BstrFromVector(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarUI1FromI2(SHORT sIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromI4(LONG lIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromI8(INT64 i64In, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromR4(FLOAT32 fltIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromR8(FLOAT64 dblIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromCy(PTR<VOID> cyIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromDate(FLOAT64 dateIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromBool(INT16 boolIn, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarUI1FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarUI1FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarUI1FromUI8(UINT64 ui64In, PTR<BYTE> pbOut);
+    HRESULT VarUI1FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarI2FromUI1(BYTE bIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromI4(LONG lIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromI8(INT64 i64In, PTR<SHORT> psOut);
+    HRESULT VarI2FromR4(FLOAT32 fltIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromR8(FLOAT64 dblIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromCy(PTR<VOID> cyIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromDate(FLOAT64 dateIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<SHORT> psOut);
+    HRESULT VarI2FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<SHORT> psOut);
+    HRESULT VarI2FromBool(INT16 boolIn, PTR<SHORT> psOut);
+    HRESULT VarI2FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarI2FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarI2FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarI2FromUI8(UINT64 ui64In, PTR<SHORT> psOut);
+    HRESULT VarI2FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarI4FromUI1(BYTE bIn, PTR<LONG> plOut);
+    HRESULT VarI4FromI2(SHORT sIn, PTR<LONG> plOut);
+    HRESULT VarI4FromI8(INT64 i64In, PTR<LONG> plOut);
+    HRESULT VarI4FromR4(FLOAT32 fltIn, PTR<LONG> plOut);
+    HRESULT VarI4FromR8(FLOAT64 dblIn, PTR<LONG> plOut);
+    HRESULT VarI4FromCy(PTR<VOID> cyIn, PTR<LONG> plOut);
+    HRESULT VarI4FromDate(FLOAT64 dateIn, PTR<LONG> plOut);
+    HRESULT VarI4FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<LONG> plOut);
+    HRESULT VarI4FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<LONG> plOut);
+    HRESULT VarI4FromBool(INT16 boolIn, PTR<LONG> plOut);
+    HRESULT VarI4FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarI4FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarI4FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarI4FromUI8(UINT64 ui64In, PTR<LONG> plOut);
+    HRESULT VarI4FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarI8FromUI1(BYTE bIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromI2(SHORT sIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromR4(FLOAT32 fltIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromR8(FLOAT64 dblIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromCy(PTR<VOID> cyIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromDate(FLOAT64 dateIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<INT64> pi64Out);
+    HRESULT VarI8FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<INT64> pi64Out);
+    HRESULT VarI8FromBool(INT16 boolIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromI1(INT8 cIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromUI2(USHORT uiIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromUI4(ULONG ulIn, PTR<INT64> pi64Out);
+    HRESULT VarI8FromUI8(UINT64 ui64In, PTR<INT64> pi64Out);
+    HRESULT VarI8FromDec(PTR<VOID> arg0, PTR<INT64> pi64Out);
+    HRESULT VarR4FromUI1(BYTE bIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromI2(SHORT sIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromI4(LONG lIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromI8(INT64 i64In, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromR8(FLOAT64 dblIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromCy(PTR<VOID> cyIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromDate(FLOAT64 dateIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarR4FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromBool(INT16 boolIn, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarR4FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarR4FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarR4FromUI8(UINT64 ui64In, PTR<FLOAT32> pfltOut);
+    HRESULT VarR4FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarR8FromUI1(BYTE bIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromI2(SHORT sIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromI4(LONG lIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromI8(INT64 i64In, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromR4(FLOAT32 fltIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromCy(PTR<VOID> cyIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromDate(FLOAT64 dateIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarR8FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromBool(INT16 boolIn, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarR8FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarR8FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarR8FromUI8(UINT64 ui64In, PTR<FLOAT64> pdblOut);
+    HRESULT VarR8FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarDateFromUI1(BYTE bIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromI2(SHORT sIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromI4(LONG lIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromI8(INT64 i64In, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromR4(FLOAT32 fltIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromR8(FLOAT64 dblIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromCy(PTR<VOID> cyIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarDateFromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromBool(INT16 boolIn, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarDateFromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarDateFromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarDateFromUI8(UINT64 ui64In, PTR<FLOAT64> pdateOut);
+    HRESULT VarDateFromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarCyFromUI1(BYTE bIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromI2(SHORT sIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromI4(LONG lIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromI8(INT64 i64In, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromR4(FLOAT32 fltIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromR8(FLOAT64 dblIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromDate(FLOAT64 dateIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromBool(INT16 boolIn, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarCyFromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarCyFromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarCyFromUI8(UINT64 ui64In, PTR<PTR<VOID>> pcyOut);
+    HRESULT VarCyFromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarBstrFromUI1(BYTE bVal, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromI2(SHORT iVal, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromI4(LONG lIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromI8(INT64 i64In, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromR4(FLOAT32 fltIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromR8(FLOAT64 dblIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromCy(PTR<VOID> cyIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromDate(FLOAT64 dateIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromDisp(PTR<VOID> pdispIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromBool(INT16 boolIn, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromI1(INT8 cIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarBstrFromUI2(USHORT uiIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarBstrFromUI4(ULONG ulIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarBstrFromUI8(UINT64 ui64In, DWORD lcid, ULONG dwFlags, PTR<PTR<VOID>> pbstrOut);
+    HRESULT VarBstrFromDec(PTR<VOID> arg0, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarBoolFromUI1(BYTE bIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromI2(SHORT sIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromI4(LONG lIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromI8(INT64 i64In, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromR4(FLOAT32 fltIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromR8(FLOAT64 dblIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromDate(FLOAT64 dateIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromCy(PTR<VOID> cyIn, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarBoolFromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarBoolFromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarBoolFromUI8(UINT64 i64In, PTR<INT16> pboolOut);
+    HRESULT VarBoolFromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarI1FromUI1(BYTE bIn, PTR<VOID> arg1);
+    HRESULT VarI1FromI2(SHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarI1FromI4(LONG lIn, PTR<VOID> arg1);
+    HRESULT VarI1FromI8(INT64 i64In, PTR<VOID> arg1);
+    HRESULT VarI1FromR4(FLOAT32 fltIn, PTR<VOID> arg1);
+    HRESULT VarI1FromR8(FLOAT64 dblIn, PTR<VOID> arg1);
+    HRESULT VarI1FromDate(FLOAT64 dateIn, PTR<VOID> arg1);
+    HRESULT VarI1FromCy(PTR<VOID> cyIn, PTR<VOID> arg1);
+    HRESULT VarI1FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarI1FromDisp(PTR<VOID> arg0, DWORD lcid, PTR<VOID> arg2);
+    HRESULT VarI1FromBool(INT16 boolIn, PTR<VOID> arg1);
+    HRESULT VarI1FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarI1FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarI1FromUI8(UINT64 i64In, PTR<VOID> arg1);
+    HRESULT VarI1FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarUI2FromUI1(BYTE bIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromI2(SHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromI4(LONG lIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromI8(INT64 i64In, PTR<VOID> arg1);
+    HRESULT VarUI2FromR4(FLOAT32 fltIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromR8(FLOAT64 dblIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromDate(FLOAT64 dateIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromCy(PTR<VOID> cyIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarUI2FromDisp(PTR<VOID> arg0, DWORD lcid, PTR<VOID> arg2);
+    HRESULT VarUI2FromBool(INT16 boolIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarUI2FromUI8(UINT64 i64In, PTR<VOID> arg1);
+    HRESULT VarUI2FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarUI4FromUI1(BYTE bIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromI2(SHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromI4(LONG lIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromI8(INT64 i64In, PTR<VOID> arg1);
+    HRESULT VarUI4FromR4(FLOAT32 fltIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromR8(FLOAT64 dblIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromDate(FLOAT64 dateIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromCy(PTR<VOID> cyIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarUI4FromDisp(PTR<VOID> arg0, DWORD lcid, PTR<VOID> arg2);
+    HRESULT VarUI4FromBool(INT16 boolIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarUI4FromUI8(UINT64 ui64In, PTR<VOID> arg1);
+    HRESULT VarUI4FromDec(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT VarUI8FromUI1(BYTE bIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromI2(SHORT sIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromI4(LONG lIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromI8(INT64 ui64In, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromR4(FLOAT32 fltIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromR8(FLOAT64 dblIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromCy(PTR<VOID> cyIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromDate(FLOAT64 dateIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromDisp(PTR<VOID> pdispIn, DWORD lcid, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromBool(INT16 boolIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromI1(INT8 cIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromUI2(USHORT uiIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromUI4(ULONG ulIn, PTR<UINT64> pi64Out);
+    HRESULT VarUI8FromDec(PTR<VOID> arg0, PTR<UINT64> pi64Out);
+    HRESULT VarDecFromUI1(BYTE bIn, PTR<VOID> arg1);
+    HRESULT VarDecFromI2(SHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarDecFromI4(LONG lIn, PTR<VOID> arg1);
+    HRESULT VarDecFromI8(INT64 i64In, PTR<VOID> arg1);
+    HRESULT VarDecFromR4(FLOAT32 fltIn, PTR<VOID> arg1);
+    HRESULT VarDecFromR8(FLOAT64 dblIn, PTR<VOID> arg1);
+    HRESULT VarDecFromDate(FLOAT64 dateIn, PTR<VOID> arg1);
+    HRESULT VarDecFromCy(PTR<VOID> cyIn, PTR<VOID> arg1);
+    HRESULT VarDecFromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarDecFromDisp(PTR<VOID> arg0, DWORD lcid, PTR<VOID> arg2);
+    HRESULT VarDecFromBool(INT16 boolIn, PTR<VOID> arg1);
+    HRESULT VarDecFromI1(INT8 cIn, PTR<VOID> arg1);
+    HRESULT VarDecFromUI2(USHORT uiIn, PTR<VOID> arg1);
+    HRESULT VarDecFromUI4(ULONG ulIn, PTR<VOID> arg1);
+    HRESULT VarDecFromUI8(UINT64 ui64In, PTR<VOID> arg1);
+    HRESULT VarParseNumFromStr(WSTRING strIn, DWORD lcid, ULONG dwFlags, PTR<VOID> pnumprs, PTR<BYTE> rgbDig);
+    HRESULT VarNumFromParseNum(PTR<VOID> pnumprs, PTR<BYTE> rgbDig, ULONG dwVtBits, PTR<VOID> pvar);
+    HRESULT VarAdd(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarAnd(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarCat(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarDiv(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarEqv(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarIdiv(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarImp(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarMod(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarMul(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarOr(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarPow(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarSub(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarXor(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, PTR<VOID> pvarResult);
+    HRESULT VarAbs(PTR<VOID> pvarIn, PTR<VOID> pvarResult);
+    HRESULT VarFix(PTR<VOID> pvarIn, PTR<VOID> pvarResult);
+    HRESULT VarInt(PTR<VOID> pvarIn, PTR<VOID> pvarResult);
+    HRESULT VarNeg(PTR<VOID> pvarIn, PTR<VOID> pvarResult);
+    HRESULT VarNot(PTR<VOID> pvarIn, PTR<VOID> pvarResult);
+    HRESULT VarRound(PTR<VOID> pvarIn, INT32 cDecimals, PTR<VOID> pvarResult);
+    HRESULT VarCmp(PTR<VOID> pvarLeft, PTR<VOID> pvarRight, DWORD lcid, ULONG dwFlags);
+    HRESULT VarDecAdd(PTR<VOID> pdecLeft, PTR<VOID> pdecRight, PTR<VOID> pdecResult);
+    HRESULT VarDecDiv(PTR<VOID> pdecLeft, PTR<VOID> pdecRight, PTR<VOID> pdecResult);
+    HRESULT VarDecMul(PTR<VOID> pdecLeft, PTR<VOID> pdecRight, PTR<VOID> pdecResult);
+    HRESULT VarDecSub(PTR<VOID> pdecLeft, PTR<VOID> pdecRight, PTR<VOID> pdecResult);
+    HRESULT VarDecAbs(PTR<VOID> pdecIn, PTR<VOID> pdecResult);
+    HRESULT VarDecFix(PTR<VOID> pdecIn, PTR<VOID> pdecResult);
+    HRESULT VarDecInt(PTR<VOID> pdecIn, PTR<VOID> pdecResult);
+    HRESULT VarDecNeg(PTR<VOID> pdecIn, PTR<VOID> pdecResult);
+    HRESULT VarDecRound(PTR<VOID> pdecIn, INT32 cDecimals, PTR<VOID> pdecResult);
+    HRESULT VarDecCmp(PTR<VOID> pdecLeft, PTR<VOID> pdecRight);
+    HRESULT VarDecCmpR8(PTR<VOID> pdecLeft, FLOAT64 dblRight);
+    HRESULT VarCyAdd(PTR<VOID> cyLeft, PTR<VOID> cyRight, PTR<VOID> pcyResult);
+    HRESULT VarCyMul(PTR<VOID> cyLeft, PTR<VOID> cyRight, PTR<VOID> pcyResult);
+    HRESULT VarCyMulI4(PTR<VOID> cyLeft, LONG lRight, PTR<VOID> pcyResult);
+    HRESULT VarCyMulI8(PTR<VOID> cyLeft, INT64 lRight, PTR<VOID> pcyResult);
+    HRESULT VarCySub(PTR<VOID> cyLeft, PTR<VOID> cyRight, PTR<VOID> pcyResult);
+    HRESULT VarCyAbs(PTR<VOID> cyIn, PTR<VOID> pcyResult);
+    HRESULT VarCyFix(PTR<VOID> cyIn, PTR<VOID> pcyResult);
+    HRESULT VarCyInt(PTR<VOID> cyIn, PTR<VOID> pcyResult);
+    HRESULT VarCyNeg(PTR<VOID> cyIn, PTR<VOID> pcyResult);
+    HRESULT VarCyRound(PTR<VOID> cyIn, INT32 cDecimals, PTR<VOID> pcyResult);
+    HRESULT VarCyCmp(PTR<VOID> cyLeft, PTR<VOID> cyRight);
+    HRESULT VarCyCmpR8(PTR<VOID> cyLeft, FLOAT64 dblRight);
+    HRESULT VarBstrCat(PTR<VOID> bstrLeft, PTR<VOID> bstrRight, PTR<VOID> pbstrResult);
+    HRESULT VarBstrCmp(PTR<VOID> bstrLeft, PTR<VOID> bstrRight, DWORD lcid, ULONG dwFlags);
+    HRESULT VarR8Pow(FLOAT64 dblLeft, FLOAT64 dblRight, PTR<VOID> arg2);
+    HRESULT VarR4CmpR8(FLOAT32 fltLeft, FLOAT64 dblRight);
+    HRESULT VarR8Round(FLOAT64 dblIn, INT32 cDecimals, PTR<VOID> arg2);
+    HRESULT VarDateFromUdate(PTR<VOID> arg0, ULONG dwFlags, PTR<VOID> arg2);
+    HRESULT VarDateFromUdateEx(PTR<VOID> arg0, DWORD lcid, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarUdateFromDate(FLOAT64 dateIn, ULONG dwFlags, PTR<VOID> arg2);
+    HRESULT GetAltMonthNames(DWORD lcid, PTR<VOID> prgp);
+    HRESULT VarFormat(PTR<VOID> pvarIn, WSTRING pstrFormat, INT32 iFirstDay, INT32 iFirstWeek, ULONG dwFlags, PTR<VOID> arg5);
+    HRESULT VarFormatDateTime(PTR<VOID> pvarIn, INT32 iNamedFormat, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarFormatNumber(PTR<VOID> pvarIn, INT32 iNumDig, INT32 iIncLead, INT32 iUseParens, INT32 iGroup, ULONG dwFlags, PTR<VOID> arg6);
+    HRESULT VarFormatPercent(PTR<VOID> pvarIn, INT32 iNumDig, INT32 iIncLead, INT32 iUseParens, INT32 iGroup, ULONG dwFlags, PTR<VOID> arg6);
+    HRESULT VarFormatCurrency(PTR<VOID> pvarIn, INT32 iNumDig, INT32 iIncLead, INT32 iUseParens, INT32 iGroup, ULONG dwFlags, PTR<VOID> arg6);
+    HRESULT VarWeekdayName(INT32 iWeekday, INT32 fAbbrev, INT32 iFirstDay, ULONG dwFlags, PTR<VOID> arg4);
+    HRESULT VarMonthName(INT32 iMonth, INT32 fAbbrev, ULONG dwFlags, PTR<VOID> arg3);
+    HRESULT VarFormatFromTokens(PTR<VOID> pvarIn, WSTRING pstrFormat, PTR<BYTE> pbTokCur, ULONG dwFlags, PTR<VOID> arg4, DWORD lcid);
+    HRESULT VarTokenizeFormatString(WSTRING pstrFormat, PTR<BYTE> rgbTok, INT32 cbTok, INT32 iFirstDay, INT32 iFirstWeek, DWORD lcid, PTR<VOID> arg6);
+    ULONG LHashValOfNameSysA(UINT32 syskind, DWORD lcid, LPCSTR szName);
+    ULONG LHashValOfNameSys(UINT32 syskind, DWORD lcid, PTR<UINT16> szName);
+    HRESULT LoadTypeLib(WSTRING szFile, PTR<VOID> pptlib);
+    HRESULT LoadTypeLibEx(WSTRING szFile, UINT32 regkind, PTR<VOID> pptlib);
+    HRESULT LoadRegTypeLib(PTR<VOID> rguid, WORD wVerMajor, WORD wVerMinor, DWORD lcid, PTR<VOID> pptlib);
+    HRESULT QueryPathOfRegTypeLib(PTR<VOID> guid, USHORT wMaj, USHORT wMin, DWORD lcid, PTR<VOID> lpbstrPathName);
+    HRESULT RegisterTypeLib(PTR<VOID> ptlib, WSTRING szFullPath, WSTRING szHelpDir);
+    HRESULT UnRegisterTypeLib(PTR<VOID> libID, WORD wVerMajor, WORD wVerMinor, DWORD lcid, UINT32 syskind);
+    HRESULT RegisterTypeLibForUser(PTR<VOID> arg0, PTR<VOID> arg1, PTR<VOID> arg2);
+    HRESULT UnRegisterTypeLibForUser(PTR<VOID> libID, WORD wMajorVerNum, WORD wMinorVerNum, DWORD lcid, UINT32 syskind);
+    HRESULT CreateTypeLib(UINT32 syskind, WSTRING szFile, PTR<VOID> ppctlib);
+    HRESULT CreateTypeLib2(UINT32 syskind, WSTRING szFile, PTR<VOID> arg2);
+    HRESULT DispGetParam(PTR<VOID> pdispparams, UINT32 position, UINT16 vtTarg, PTR<VOID> pvarResult, PTR<UINT32> puArgErr);
+    HRESULT DispGetIDsOfNames(PTR<VOID> ptinfo, PTR<WSTRING> rgszNames, UINT32 cNames, PTR<INT32> rgdispid);
+    HRESULT DispInvoke(PTR<VOID> _this, PTR<VOID> ptinfo, INT32 dispidMember, WORD wFlags, PTR<VOID> pparams, PTR<VOID> pvarResult, PTR<VOID> pexcepinfo, PTR<UINT32> puArgErr);
+    HRESULT CreateDispTypeInfo(PTR<VOID> pidata, DWORD lcid, PTR<VOID> pptinfo);
+    HRESULT CreateStdDispatch(PTR<VOID> punkOuter, PTR<VOID> pvThis, PTR<VOID> ptinfo, PTR<VOID> ppunkStdDisp);
+    HRESULT DispCallFunc(PTR<VOID> pvInstance, SIZE_T oVft, UINT32 cc, UINT16 vtReturn, UINT32 cActuals, PTR<UINT16> prgvt, PTR<VOID> prgpvarg, PTR<VOID> pvargResult);
+    HRESULT RegisterActiveObject(PTR<VOID> punk, PTR<VOID> rclsid, DWORD dwFlags, PTR<DWORD> pdwRegister);
+    HRESULT RevokeActiveObject(DWORD dwRegister, PTR<VOID> pvReserved);
+    HRESULT GetActiveObject(PTR<VOID> rclsid, PTR<VOID> pvReserved, PTR<VOID> ppunk);
+    HRESULT SetErrorInfo(ULONG dwReserved, PTR<VOID> perrinfo);
+    HRESULT GetErrorInfo(ULONG dwReserved, PTR<VOID> pperrinfo);
+    HRESULT CreateErrorInfo(PTR<VOID> pperrinfo);
+    HRESULT GetRecordInfoFromTypeInfo(PTR<VOID> pTypeInfo, PTR<VOID> ppRecInfo);
+    HRESULT GetRecordInfoFromGuids(PTR<VOID> rGuidTypeLib, ULONG uVerMajor, ULONG uVerMinor, DWORD lcid, PTR<VOID> rGuidTypeInfo, PTR<VOID> ppRecInfo);
+    ULONG OaBuildVersion();
+    VOID ClearCustData(PTR<VOID> pCustData);
+    VOID OaEnablePerUserTLibRegistration();
+}

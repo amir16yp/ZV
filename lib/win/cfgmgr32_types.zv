@@ -1,0 +1,8 @@
+// Header-specific type aliases extracted from source header
+type DEVINSTID = WSTRING;
+newtype PRIORITY = ULONG;
+newtype RANGE_ELEMENT = SIZE_T;
+type PCONFLICT_DETAILS = PTR<VOID>;
+type PIRQ_DES = PTR<VOID>;
+type PIRQ_RESOURCE = PTR<VOID>;
+type PHWPROFILEINFO = PTR<VOID>;

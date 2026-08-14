@@ -1,0 +1,148 @@
+﻿name: Build and Release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Publish
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Publish
+        run: dotnet publish ZV.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o ./publish/${{ matrix.rid }}
+
+      - name: Copy standard library and installer scripts
+        run: |
+          Copy-Item -Recurse -Path lib -Destination ./publish/${{ matrix.rid }}/lib -Force
+          Copy-Item -Recurse -Path setup -Destination ./publish/${{ matrix.rid }}/setup -Force
+        if: matrix.os == 'windows-latest'
+
+      - name: Copy standard library and installer scripts
+        run: |
+          mv ./publish/${{ matrix.rid }}/ZV ./publish/${{ matrix.rid }}/zv
+          cp -R lib ./publish/${{ matrix.rid }}/lib
+          cp -R setup ./publish/${{ matrix.rid }}/setup
+        if: matrix.os != 'windows-latest'
+
+      - name: Publish framework-dependent build for MSI
+        if: matrix.os == 'windows-latest'
+        run: dotnet publish ZV.csproj -c Release -r win-x64 --self-contained false -o ./publish/win-x64-msi
+
+      - name: Build Windows installers (MSI)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $version = ("${{ github.event_name == 'release' && github.ref_name || '0.1.0' }}").TrimStart('v')
+          dotnet tool install --global wix --version 4.0.5
+          wix extension add --global WixToolset.Netfx.wixext/4.0.5
+          wix extension add --global WixToolset.UI.wixext/4.0.5
+          $license = Get-Content LICENSE.md -Raw
+          $escaped = $license -replace '\\', '\\\\' -replace '{', '\\{' -replace '}', '\\}' -replace "`r?`n", '\par '
+          "{\rtf1\ansi\deff0 {\fonttbl {\f0 Courier;}}\f0\fs20 $escaped }" | Out-File -Encoding utf8 installer\LICENSE.rtf
+          Copy-Item -Recurse -Path lib -Destination ./publish/win-x64-msi/lib -Force
+          New-Item -ItemType Directory -Path ./publish/win-x64-msi/setup -Force | Out-Null
+          Copy-Item -Path ./setup/install-deps.ps1 -Destination ./publish/win-x64-msi/setup/install-deps.ps1 -Force
+          powershell -ExecutionPolicy Bypass -File installer\generate-wxs.ps1 -SourceDir .\publish\win-x64-msi -OutFile installer\ZVFiles.wxs
+          wix build -arch x64 installer\ZV.wxs installer\ZVFiles.wxs -ext WixToolset.Netfx.wixext/4.0.5 -ext WixToolset.UI.wixext/4.0.5 -d Version=$version -d InstallScope=perUser -o ZV-Setup-x64.msi
+          wix build -arch x64 installer\ZV.wxs installer\ZVFiles.wxs -ext WixToolset.Netfx.wixext/4.0.5 -ext WixToolset.UI.wixext/4.0.5 -d Version=$version -d InstallScope=perMachine -o ZV-Setup-x64-AllUsers.msi
+
+      - name: Setup Node.js
+        if: matrix.os == 'windows-latest'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build VS Code extension (VSIX)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd ZVCodeExtension
+          npm ci
+          npx vsce package -o ../zvcode.vsix
+
+      - name: Upload VSIX Artifact
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ZV-VSCode-Extension
+          path: zvcode.vsix
+
+      - name: Package release archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Compress-Archive -Path ./publish/${{ matrix.rid }}/* -DestinationPath ZV-${{ matrix.rid }}.zip -Force
+
+      - name: Package release archive (Unix)
+        if: matrix.os != 'windows-latest'
+        run: tar -czf ZV-${{ matrix.rid }}.tar.gz -C ./publish/${{ matrix.rid }} .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ZV-${{ matrix.rid }}
+          path: ./publish/${{ matrix.rid }}
+
+      - name: Upload Installer Artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ZV-Setup
+          path: |
+            ZV-Setup-x64.msi
+            ZV-Setup-x64-AllUsers.msi
+
+      - name: Upload Release Archive
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ZV-${{ matrix.rid }}.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload MSI Installers
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            ZV-Setup-x64.msi
+            ZV-Setup-x64-AllUsers.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload VSIX to Release
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: zvcode.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

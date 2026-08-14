@@ -1,0 +1,2 @@
+// Header-specific type aliases extracted from source header
+type LPTOP_LEVEL_EXCEPTION_FILTER = PTR<VOID>;

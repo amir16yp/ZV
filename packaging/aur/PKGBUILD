@@ -1,0 +1,27 @@
+# Maintainer: amir16yp
+# Prebuilt binary package for the ZV programming language compiler.
+# Also available as `zv-git` for building directly from source.
+
+pkgname=zv-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="ZV programming language compiler (prebuilt binary)"
+arch=('x86_64')
+url="https://github.com/amir16yp/ZV"
+license=('MIT')
+depends=('clang' 'lld')
+provides=('zv')
+conflicts=('zv' 'zv-git')
+source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/ZV-linux-x64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    install -Dm755 zv "$pkgdir/usr/bin/zv"
+
+    mkdir -p "$pkgdir/usr/lib/zv"
+    cp -r lib "$pkgdir/usr/lib/zv/lib"
+    find "$pkgdir/usr/lib/zv/lib" -type f -exec chmod 644 {} \;
+
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

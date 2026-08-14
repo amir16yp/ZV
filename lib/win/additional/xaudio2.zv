@@ -1,0 +1,92 @@
+// xaudio2.zv
+//
+// Auto-generated ZV bindings from xaudio2.h
+// DLL: xaudio2
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "../types.zv"
+
+// Numeric constants extracted from header
+#define XAUDIO2_MAX_BUFFER_BYTES 0x80000000
+#define XAUDIO2_MAX_QUEUED_BUFFERS 64
+#define XAUDIO2_MAX_BUFFERS_SYSTEM 2
+#define XAUDIO2_MAX_AUDIO_CHANNELS 64
+#define XAUDIO2_MIN_SAMPLE_RATE 1000
+#define XAUDIO2_MAX_SAMPLE_RATE 200000
+#define XAUDIO2_MAX_LOOP_COUNT 254
+#define XAUDIO2_MAX_INSTANCES 8
+#define XAUDIO2_MAX_RATIO_TIMES_RATE_XMA_MONO 600000
+#define XAUDIO2_MAX_RATIO_TIMES_RATE_XMA_MULTICHANNEL 300000
+#define XAUDIO2_COMMIT_NOW 0
+#define XAUDIO2_COMMIT_ALL 0
+#define XAUDIO2_INVALID_OPSET (-1)
+#define XAUDIO2_NO_LOOP_REGION 0
+#define XAUDIO2_LOOP_INFINITE 255
+#define XAUDIO2_DEFAULT_CHANNELS 0
+#define XAUDIO2_DEFAULT_SAMPLERATE 0
+#define XAUDIO2_DEBUG_ENGINE 0x0001
+#define XAUDIO2_VOICE_NOPITCH 0x0002
+#define XAUDIO2_VOICE_NOSRC 0x0004
+#define XAUDIO2_VOICE_USEFILTER 0x0008
+#define XAUDIO2_PLAY_TAILS 0x0020
+#define XAUDIO2_END_OF_STREAM 0x0040
+#define XAUDIO2_SEND_USEFILTER 0x0080
+#define XAUDIO2_VOICE_NOSAMPLESPLAYED 0x0100
+#define XAUDIO2_STOP_ENGINE_WHEN_IDLE 0x2000
+#define XAUDIO2_1024_QUANTUM 0x8000
+#define XAUDIO2_NO_VIRTUAL_AUDIO_CLIENT 0x10000
+#define XAUDIO2_QUANTUM_NUMERATOR 1
+#define XAUDIO2_QUANTUM_DENOMINATOR 100
+#define FACILITY_XAUDIO2 0x896
+#define Processor1 0x00000001
+#define Processor2 0x00000002
+#define Processor3 0x00000004
+#define Processor4 0x00000008
+#define Processor5 0x00000010
+#define Processor6 0x00000020
+#define Processor7 0x00000040
+#define Processor8 0x00000080
+#define Processor9 0x00000100
+#define Processor10 0x00000200
+#define Processor11 0x00000400
+#define Processor12 0x00000800
+#define Processor13 0x00001000
+#define Processor14 0x00002000
+#define Processor15 0x00004000
+#define Processor16 0x00008000
+#define Processor17 0x00010000
+#define Processor18 0x00020000
+#define Processor19 0x00040000
+#define Processor20 0x00080000
+#define Processor21 0x00100000
+#define Processor22 0x00200000
+#define Processor23 0x00400000
+#define Processor24 0x00800000
+#define Processor25 0x01000000
+#define Processor26 0x02000000
+#define Processor27 0x04000000
+#define Processor28 0x08000000
+#define Processor29 0x10000000
+#define Processor30 0x20000000
+#define Processor31 0x40000000
+#define Processor32 0x80000000
+#define XAUDIO2_ANY_PROCESSOR 0xffffffff
+#define XAUDIO2_USE_DEFAULT_PROCESSOR 0x00000000
+#define XAUDIO2_LOG_ERRORS 0x0001
+#define XAUDIO2_LOG_WARNINGS 0x0002
+#define XAUDIO2_LOG_INFO 0x0004
+#define XAUDIO2_LOG_DETAIL 0x0008
+#define XAUDIO2_LOG_API_CALLS 0x0010
+#define XAUDIO2_LOG_FUNC_CALLS 0x0020
+#define XAUDIO2_LOG_TIMING 0x0040
+#define XAUDIO2_LOG_LOCKS 0x0080
+#define XAUDIO2_LOG_MEMORY 0x0100
+#define XAUDIO2_LOG_STREAMING 0x1000
+#define XAUDIO2_DEFAULT_PROCESSOR 0x00000001
+
+extern "xaudio2" {
+    HRESULT XAudio2CreateWithVersionInfo(PTR<VOID> ppXAudio2, UINT32 Flags, UINT32 XAudio2Processor, DWORD ntddiVersion);
+    HRESULT XAudio2Create(PTR<VOID> ppXAudio2, UINT32 Flags, UINT32 XAudio2Processor);
+}

@@ -1,0 +1,4 @@
+// Header-specific type aliases extracted from source header
+type PVALUE = PTR<VOID>;
+type PPVALUE = PTR<VOID>;
+type PVALENT = PTR<VOID>;

@@ -1,0 +1,19 @@
+// d2d1.zv
+//
+// Auto-generated ZV bindings from d2d1.h
+// DLL: d2d1.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "../types.zv"
+
+#include "d2d1_types.zv"
+
+extern "d2d1.dll" {
+    HRESULT D2D1CreateFactory(UINT32 factoryType, PTR<VOID> riid, PTR<VOID> arg2, PTR<VOID> arg3);
+    VOID D2D1MakeRotateMatrix(FLOAT32 angle, PTR<VOID> center, PTR<VOID> arg2);
+    VOID D2D1MakeSkewMatrix(FLOAT32 angleX, FLOAT32 angleY, PTR<VOID> center, PTR<VOID> arg3);
+    BOOL32 D2D1IsMatrixInvertible(PTR<VOID> arg0);
+    BOOL32 D2D1InvertMatrix(PTR<VOID> arg0);
+}

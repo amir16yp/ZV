@@ -1,0 +1,2 @@
+// Header-specific type aliases extracted from source header
+newtype D2D1_TAG = UINT64;

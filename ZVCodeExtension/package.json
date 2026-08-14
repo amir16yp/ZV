@@ -1,0 +1,88 @@
+{
+    "name": "zvcode",
+    "displayName": "ZV Language Support",
+    "description": "Language support for the ZV programming language",
+    "version": "0.1.0",
+    "publisher": "your-publisher",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/amir16yp/ZV.git"
+    },
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "onLanguage:zv"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "zv.compileCurrentFile",
+                "title": "Compile Current File",
+                "category": "ZV"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "command": "zv.compileCurrentFile",
+                    "when": "editorLangId == zv",
+                    "group": "zv@1"
+                }
+            ]
+        },
+        "languages": [
+            {
+                "id": "zv",
+                "aliases": [
+                    "ZV",
+                    "zv"
+                ],
+                "extensions": [
+                    ".zv"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "zv",
+                "scopeName": "source.zv",
+                "path": "./syntaxes/zv.tmLanguage.json"
+            }
+        ],
+        "configuration": {
+            "title": "ZV",
+            "properties": {
+                "zv.executablePath": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "description": "Path to the ZV compiler executable. If not set, the extension looks for 'ZV' (or 'ZV.exe' on Windows) on PATH."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "package": "vsce package",
+        "publish": "vsce publish"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.74.0",
+        "typescript": "^5.0.0",
+        "@vscode/vsce": "^3.0.0"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.0"
+    }
+}

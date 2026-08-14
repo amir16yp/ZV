@@ -1,0 +1,36 @@
+// kernel32_env.zv
+//
+// Auto-generated ZV bindings from processenv.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+extern "kernel32.dll" {
+    BOOL32 SetEnvironmentStringsW(PTR<VOID> NewEnvironment);
+    HANDLE GetStdHandle(DWORD nStdHandle);
+    BOOL32 SetStdHandle(DWORD nStdHandle, HANDLE hHandle);
+    BOOL32 SetStdHandleEx(DWORD nStdHandle, HANDLE hHandle, PTR<HANDLE> phPrevValue);
+    LPSTR GetCommandLineA();
+    WSTRING GetCommandLineW();
+    LPSTR GetEnvironmentStrings();
+    PTR<VOID> GetEnvironmentStringsW();
+    BOOL32 FreeEnvironmentStringsA(LPSTR penv);
+    BOOL32 FreeEnvironmentStringsW(PTR<VOID> penv);
+    DWORD GetEnvironmentVariableA(LPCSTR lpName, LPSTR lpBuffer, DWORD nSize);
+    DWORD GetEnvironmentVariableW(WSTRING lpName, WSTRING lpBuffer, DWORD nSize);
+    BOOL32 SetEnvironmentVariableA(LPCSTR lpName, LPCSTR lpValue);
+    BOOL32 SetEnvironmentVariableW(WSTRING lpName, WSTRING lpValue);
+    DWORD ExpandEnvironmentStringsA(LPCSTR lpSrc, LPSTR lpDst, DWORD nSize);
+    DWORD ExpandEnvironmentStringsW(WSTRING lpSrc, WSTRING lpDst, DWORD nSize);
+    BOOL32 SetCurrentDirectoryA(LPCSTR lpPathName);
+    BOOL32 SetCurrentDirectoryW(WSTRING lpPathName);
+    DWORD GetCurrentDirectoryA(DWORD nBufferLength, LPSTR lpBuffer);
+    DWORD GetCurrentDirectoryW(DWORD nBufferLength, WSTRING lpBuffer);
+    DWORD SearchPathW(WSTRING lpPath, WSTRING lpFileName, WSTRING lpExtension, DWORD nBufferLength, WSTRING lpBuffer, PTR<WSTRING> lpFilePart);
+    DWORD SearchPathA(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR lpExtension, DWORD nBufferLength, LPSTR lpBuffer, PTR<LPSTR> lpFilePart);
+    BOOL32 NeedCurrentDirectoryForExePathA(LPCSTR ExeName);
+    BOOL32 NeedCurrentDirectoryForExePathW(WSTRING ExeName);
+}

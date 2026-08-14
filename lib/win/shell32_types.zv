@@ -1,0 +1,9 @@
+// Header-specific type aliases extracted from source header
+type LPDRAGINFO = PTR<VOID>;
+newtype FILEOP_FLAGS = WORD;
+newtype PRINTEROP_FLAGS = WORD;
+type LPSHFILEOPSTRUCT = PTR<VOID>;
+type LPSHNAMEMAPPING = PTR<VOID>;
+type LPSHELLEXECUTEINFO = PTR<VOID>;
+type PNOTIFYICONDATA = PTR<VOID>;
+type POPEN_PRINTER_PROPS_INFO = PTR<VOID>;

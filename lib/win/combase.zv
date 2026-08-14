@@ -1,0 +1,111 @@
+// combase.zv
+//
+// Auto-generated ZV bindings from combaseapi.h
+// DLL: ole32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+// Numeric constants extracted from header
+#define _WIN32_WINNT 0x0500
+#define COM_RIGHTS_EXECUTE 1
+#define COM_RIGHTS_EXECUTE_LOCAL 2
+#define COM_RIGHTS_EXECUTE_REMOTE 4
+#define COM_RIGHTS_ACTIVATE_LOCAL 8
+#define COM_RIGHTS_ACTIVATE_REMOTE 16
+#define COM_RIGHTS_RESERVED1 32
+#define COM_RIGHTS_RESERVED2 64
+#define CWMO_MAX_HANDLES 56
+
+extern "ole32.dll" {
+    HRESULT CoGetMalloc(DWORD dwMemContext, PTR<PTR<VOID>> ppMalloc);
+    HRESULT CreateStreamOnHGlobal(HGLOBAL hGlobal, BOOL32 fDeleteOnRelease, PTR<PTR<VOID>> ppstm);
+    HRESULT GetHGlobalFromStream(PTR<VOID> pstm, PTR<HGLOBAL> phglobal);
+    VOID CoUninitialize();
+    DWORD CoGetCurrentProcess();
+    HRESULT CoInitializeEx(PTR<VOID> pvReserved, DWORD dwCoInit);
+    HRESULT CoGetCallerTID(PTR<DWORD> lpdwTID);
+    HRESULT CoGetCurrentLogicalThreadId(PTR<VOID> pguid);
+    HRESULT CoGetContextToken(PTR<SIZE_T> pToken);
+    HRESULT CoGetDefaultContext(UINT32 aptType, PTR<VOID> riid, PTR<VOID> ppv);
+    HRESULT CoGetApartmentType(PTR<UINT32> pAptType, PTR<VOID> pAptQualifier);
+    HRESULT CoDecodeProxy(DWORD dwClientPid, UINT64 ui64ProxyAddress, PTR<VOID> pServerInformation);
+    HRESULT CoIncrementMTAUsage(PTR<PTR<VOID>> pCookie);
+    HRESULT CoDecrementMTAUsage(PTR<VOID> Cookie);
+    HRESULT CoAllowUnmarshalerCLSID(PTR<VOID> clsid);
+    HRESULT CoGetObjectContext(PTR<VOID> riid, PTR<PTR<VOID>> ppv);
+    HRESULT CoGetClassObject(PTR<VOID> rclsid, DWORD dwClsContext, PTR<VOID> pvReserved, PTR<VOID> riid, PTR<PTR<VOID>> ppv);
+    HRESULT CoRegisterClassObject(PTR<VOID> rclsid, PTR<VOID> pUnk, DWORD dwClsContext, DWORD flags, PTR<DWORD> lpdwRegister);
+    HRESULT CoRevokeClassObject(DWORD dwRegister);
+    HRESULT CoResumeClassObjects();
+    HRESULT CoSuspendClassObjects();
+    ULONG CoAddRefServerProcess();
+    ULONG CoReleaseServerProcess();
+    HRESULT CoGetPSClsid(PTR<VOID> riid, PTR<PTR<VOID>> pClsid);
+    HRESULT CoRegisterPSClsid(PTR<VOID> riid, PTR<VOID> rclsid);
+    HRESULT CoRegisterSurrogate(PTR<VOID> pSurrogate);
+    HRESULT CoGetMarshalSizeMax(PTR<ULONG> pulSize, PTR<VOID> riid, PTR<VOID> pUnk, DWORD dwDestContext, PTR<VOID> pvDestContext, DWORD mshlflags);
+    HRESULT CoMarshalInterface(PTR<VOID> pStm, PTR<VOID> riid, PTR<VOID> pUnk, DWORD dwDestContext, PTR<VOID> pvDestContext, DWORD mshlflags);
+    HRESULT CoUnmarshalInterface(PTR<VOID> pStm, PTR<VOID> riid, PTR<PTR<VOID>> ppv);
+    HRESULT CoMarshalHresult(PTR<VOID> pstm, HRESULT hresult);
+    HRESULT CoUnmarshalHresult(PTR<VOID> pstm, PTR<HRESULT> phresult);
+    HRESULT CoReleaseMarshalData(PTR<VOID> pStm);
+    HRESULT CoDisconnectObject(PTR<VOID> pUnk, DWORD dwReserved);
+    HRESULT CoLockObjectExternal(PTR<VOID> pUnk, BOOL32 fLock, BOOL32 fLastUnlockReleases);
+    HRESULT CoGetStandardMarshal(PTR<VOID> riid, PTR<VOID> pUnk, DWORD dwDestContext, PTR<VOID> pvDestContext, DWORD mshlflags, PTR<PTR<VOID>> ppMarshal);
+    HRESULT CoGetStdMarshalEx(PTR<VOID> pUnkOuter, DWORD smexflags, PTR<PTR<VOID>> ppUnkInner);
+    BOOL32 CoIsHandlerConnected(PTR<VOID> pUnk);
+    HRESULT CoMarshalInterThreadInterfaceInStream(PTR<VOID> riid, PTR<VOID> pUnk, PTR<PTR<VOID>> ppStm);
+    HRESULT CoGetInterfaceAndReleaseStream(PTR<VOID> pStm, PTR<VOID> iid, PTR<PTR<VOID>> ppv);
+    HRESULT CoCreateFreeThreadedMarshaler(PTR<VOID> punkOuter, PTR<PTR<VOID>> ppunkMarshal);
+    VOID CoFreeUnusedLibraries();
+    VOID CoFreeUnusedLibrariesEx(DWORD dwUnloadDelay, DWORD dwReserved);
+    HRESULT CoDisconnectContext(DWORD dwTimeout);
+    HRESULT CoInitializeSecurity(PTR<VOID> pSecDesc, LONG cAuthSvc, PTR<VOID> asAuthSvc, PTR<VOID> pReserved1, DWORD dwAuthnLevel, DWORD dwImpLevel, PTR<VOID> pAuthList, DWORD dwCapabilities, PTR<VOID> pReserved3);
+    HRESULT CoGetCallContext(PTR<VOID> riid, PTR<VOID> ppInterface);
+    HRESULT CoQueryProxyBlanket(PTR<VOID> pProxy, PTR<DWORD> pwAuthnSvc, PTR<DWORD> pAuthzSvc, PTR<WSTRING> pServerPrincName, PTR<DWORD> pAuthnLevel, PTR<DWORD> pImpLevel, PTR<PTR<VOID>> pAuthInfo, PTR<DWORD> pCapabilites);
+    HRESULT CoSetProxyBlanket(PTR<VOID> pProxy, DWORD dwAuthnSvc, DWORD dwAuthzSvc, PTR<UINT16> pServerPrincName, DWORD dwAuthnLevel, DWORD dwImpLevel, PTR<VOID> pAuthInfo, DWORD dwCapabilities);
+    HRESULT CoCopyProxy(PTR<VOID> pProxy, PTR<VOID> ppCopy);
+    HRESULT CoQueryClientBlanket(PTR<DWORD> pAuthnSvc, PTR<DWORD> pAuthzSvc, PTR<WSTRING> pServerPrincName, PTR<DWORD> pAuthnLevel, PTR<DWORD> pImpLevel, PTR<VOID> pPrivs, PTR<DWORD> pCapabilities);
+    HRESULT CoImpersonateClient();
+    HRESULT CoRevertToSelf();
+    HRESULT CoQueryAuthenticationServices(PTR<DWORD> pcAuthSvc, PTR<VOID> asAuthSvc);
+    HRESULT CoSwitchCallContext(PTR<VOID> pNewObject, PTR<VOID> ppOldObject);
+    HRESULT CoCreateInstance(PTR<VOID> rclsid, PTR<VOID> pUnkOuter, DWORD dwClsContext, PTR<VOID> riid, PTR<PTR<VOID>> ppv);
+    HRESULT CoCreateInstanceEx(PTR<VOID> Clsid, PTR<VOID> punkOuter, DWORD dwClsCtx, PTR<VOID> pServerInfo, DWORD dwCount, PTR<VOID> pResults);
+    HRESULT CoCreateInstanceFromApp(PTR<VOID> Clsid, PTR<VOID> punkOuter, DWORD dwClsCtx, PTR<VOID> reserved, DWORD dwCount, PTR<VOID> pResults);
+    HRESULT CoRegisterActivationFilter(PTR<VOID> pActivationFilter);
+    HRESULT CoGetCancelObject(DWORD dwThreadId, PTR<VOID> iid, PTR<VOID> ppUnk);
+    HRESULT CoSetCancelObject(PTR<VOID> pUnk);
+    HRESULT CoCancelCall(DWORD dwThreadId, ULONG ulTimeout);
+    HRESULT CoTestCancel();
+    HRESULT CoEnableCallCancellation(PTR<VOID> pReserved);
+    HRESULT CoDisableCallCancellation(PTR<VOID> pReserved);
+    HRESULT StringFromCLSID(PTR<VOID> rclsid, PTR<WSTRING> lplpsz);
+    HRESULT CLSIDFromString(WSTRING lpsz, PTR<VOID> pclsid);
+    HRESULT StringFromIID(PTR<VOID> rclsid, PTR<WSTRING> lplpsz);
+    HRESULT IIDFromString(WSTRING lpsz, PTR<VOID> lpiid);
+    HRESULT ProgIDFromCLSID(PTR<VOID> clsid, PTR<WSTRING> lplpszProgID);
+    HRESULT CLSIDFromProgID(WSTRING lpszProgID, PTR<VOID> lpclsid);
+    INT32 StringFromGUID2(PTR<VOID> rguid, WSTRING lpsz, INT32 cchMax);
+    HRESULT CoCreateGuid(PTR<VOID> pguid);
+    HRESULT PropVariantCopy(PTR<PTR<VOID>> pvarDest, PTR<PTR<VOID>> pvarSrc);
+    HRESULT PropVariantClear(PTR<PTR<VOID>> pvar);
+    HRESULT FreePropVariantArray(ULONG cVariants, PTR<PTR<VOID>> rgvars);
+    HRESULT CoWaitForMultipleHandles(DWORD dwFlags, DWORD dwTimeout, ULONG cHandles, PTR<HANDLE> pHandles, PTR<DWORD> lpdwindex);
+    HRESULT CoWaitForMultipleObjects(DWORD dwFlags, DWORD dwTimeout, ULONG cHandles, PTR<HANDLE> pHandles, PTR<DWORD> lpdwindex);
+    HRESULT CoGetTreatAsClass(PTR<VOID> clsidOld, PTR<VOID> pClsidNew);
+    HRESULT CoInvalidateRemoteMachineBindings(WSTRING pszMachineName);
+    HRESULT RoGetAgileReference(UINT32 options, PTR<VOID> riid, PTR<VOID> pUnk, PTR<VOID> ppAgileReference);
+    HRESULT DllGetClassObject(PTR<VOID> rclsid, PTR<VOID> riid, PTR<PTR<VOID>> ppv);
+    HRESULT DllCanUnloadNow();
+    PTR<VOID> CoTaskMemAlloc(SIZE_T cb);
+    PTR<VOID> CoTaskMemRealloc(PTR<VOID> pv, SIZE_T cb);
+    VOID CoTaskMemFree(PTR<VOID> pv);
+    HRESULT CoFileTimeNow(PTR<VOID> lpFileTime);
+    HRESULT CLSIDFromProgIDEx(WSTRING lpszProgID, PTR<VOID> lpclsid);
+    HRESULT CoRegisterDeviceCatalog(WSTRING deviceInstanceId, PTR<PTR<VOID>> cookie);
+    HRESULT CoRevokeDeviceCatalog(PTR<VOID> cookie);
+}

@@ -1,0 +1,3 @@
+// Header-specific type aliases extracted from source header
+newtype D3DCOLOR = DWORD;
+newtype REFERENCE_TIME = INT64;

@@ -1,0 +1,17 @@
+// dwrite.zv
+//
+// Auto-generated ZV bindings from dwrite.h
+// DLL: dwrite.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "../types.zv"
+
+// Numeric constants extracted from header
+#define DWRITE_ALPHA_MAX 255
+#define FACILITY_DWRITE 0x898
+#define DWRITE_ERR_BASE 0x5000
+
+extern "dwrite.dll" {
+}

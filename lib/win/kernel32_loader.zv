@@ -1,0 +1,78 @@
+// kernel32_loader.zv
+//
+// Auto-generated ZV bindings from libloaderapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "kernel32_loader_types.zv"
+
+// Numeric constants extracted from header
+#define FIND_RESOURCE_DIRECTORY_TYPES (0x0100)
+#define FIND_RESOURCE_DIRECTORY_NAMES (0x0200)
+#define FIND_RESOURCE_DIRECTORY_LANGUAGES (0x0400)
+#define RESOURCE_ENUM_LN (0x0001)
+#define RESOURCE_ENUM_MUI (0x0002)
+#define RESOURCE_ENUM_MUI_SYSTEM (0x0004)
+#define RESOURCE_ENUM_VALIDATE (0x0008)
+#define RESOURCE_ENUM_MODULE_EXACT (0x0010)
+#define SUPPORT_LANG_NUMBER 32
+#define GET_MODULE_HANDLE_EX_FLAG_PIN (0x00000001)
+#define GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT (0x00000002)
+#define GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS (0x00000004)
+#define CURRENT_IMPORT_REDIRECTION_VERSION 1
+#define DONT_RESOLVE_DLL_REFERENCES 0x00000001
+#define LOAD_LIBRARY_AS_DATAFILE 0x00000002
+#define LOAD_WITH_ALTERED_SEARCH_PATH 0x00000008
+#define LOAD_IGNORE_CODE_AUTHZ_LEVEL 0x00000010
+#define LOAD_LIBRARY_AS_IMAGE_RESOURCE 0x00000020
+#define LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE 0x00000040
+#define LOAD_LIBRARY_REQUIRE_SIGNED_TARGET 0x00000080
+#define LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR 0x00000100
+#define LOAD_LIBRARY_SEARCH_APPLICATION_DIR 0x00000200
+#define LOAD_LIBRARY_SEARCH_USER_DIRS 0x00000400
+#define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+#define LOAD_LIBRARY_SEARCH_DEFAULT_DIRS 0x00001000
+#define LOAD_LIBRARY_SAFE_CURRENT_DIRS 0x00002000
+#define LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER 0x00000800
+#define LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY 0x00008000
+
+extern "kernel32.dll" {
+    BOOL32 DisableThreadLibraryCalls(HMODULE hLibModule);
+    PTR<VOID> FindResourceExW(HMODULE hModule, WSTRING lpType, WSTRING lpName, WORD wLanguage);
+    INT32 FindStringOrdinal(DWORD dwFindStringOrdinalFlags, WSTRING lpStringSource, INT32 cchSource, WSTRING lpStringValue, INT32 cchValue, BOOL32 bIgnoreCase);
+    BOOL32 FreeLibrary(HMODULE hLibModule);
+    VOID FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
+    BOOL32 FreeResource(HGLOBAL hResData);
+    DWORD GetModuleFileNameA(HMODULE hModule, LPSTR lpFilename, DWORD nSize);
+    DWORD GetModuleFileNameW(HMODULE hModule, WSTRING lpFilename, DWORD nSize);
+    HMODULE GetModuleHandleA(LPCSTR lpModuleName);
+    HMODULE GetModuleHandleW(WSTRING lpModuleName);
+    BOOL32 GetModuleHandleExA(DWORD dwFlags, LPCSTR lpModuleName, PTR<HMODULE> phModule);
+    BOOL32 GetModuleHandleExW(DWORD dwFlags, WSTRING lpModuleName, PTR<HMODULE> phModule);
+    PTR<VOID> GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
+    HMODULE LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
+    HMODULE LoadLibraryExW(WSTRING lpLibFileName, HANDLE hFile, DWORD dwFlags);
+    HGLOBAL LoadResource(HMODULE hModule, PTR<VOID> hResInfo);
+    INT32 LoadStringA(HINSTANCE hInstance, UINT32 uID, LPSTR lpBuffer, INT32 cchBufferMax);
+    INT32 LoadStringW(HINSTANCE hInstance, UINT32 uID, WSTRING lpBuffer, INT32 cchBufferMax);
+    PTR<VOID> LockResource(HGLOBAL hResData);
+    DWORD SizeofResource(HMODULE hModule, PTR<VOID> hResInfo);
+    PTR<VOID> AddDllDirectory(WSTRING NewDirectory);
+    BOOL32 RemoveDllDirectory(PTR<VOID> Cookie);
+    BOOL32 SetDefaultDllDirectories(DWORD DirectoryFlags);
+    BOOL32 EnumResourceLanguagesExA(HMODULE hModule, LPCSTR lpType, LPCSTR lpName, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    BOOL32 EnumResourceLanguagesExW(HMODULE hModule, WSTRING lpType, WSTRING lpName, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    BOOL32 EnumResourceNamesExA(HMODULE hModule, LPCSTR lpType, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    BOOL32 EnumResourceNamesExW(HMODULE hModule, WSTRING lpType, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    BOOL32 EnumResourceTypesExA(HMODULE hModule, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    BOOL32 EnumResourceTypesExW(HMODULE hModule, PTR<VOID> lpEnumFunc, SSIZE_T lParam, DWORD dwFlags, UINT16 LangId);
+    PTR<VOID> FindResourceW(HMODULE hModule, WSTRING lpName, WSTRING lpType);
+    HMODULE LoadLibraryA(LPCSTR lpLibFileName);
+    HMODULE LoadLibraryW(WSTRING lpLibFileName);
+    BOOL32 EnumResourceNamesW(HMODULE hModule, WSTRING lpType, PTR<VOID> lpEnumFunc, SSIZE_T lParam);
+    BOOL32 EnumResourceNamesA(HMODULE hModule, LPCSTR lpType, PTR<VOID> lpEnumFunc, SSIZE_T lParam);
+}

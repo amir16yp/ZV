@@ -1,0 +1,5 @@
+// Header-specific type aliases extracted from source header
+type PINIT_ONCE = PTR<VOID>;
+type LPINIT_ONCE = PTR<VOID>;
+type PSYNCHRONIZATION_BARRIER = PTR<VOID>;
+type LPSYNCHRONIZATION_BARRIER = PTR<VOID>;

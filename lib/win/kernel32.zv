@@ -1,0 +1,18 @@
+// kernel32.zv
+//
+// Aggregated ZV bindings for the Windows kernel32.dll core API.
+// Include this file to pull in all generated kernel32 sub-modules.
+
+#include "types.zv"
+
+#include "kernel32_util.zv"
+#include "kernel32_debug.zv"
+#include "kernel32_error.zv"
+#include "kernel32_handle.zv"
+#include "kernel32_synch.zv"
+#include "kernel32_sysinfo.zv"
+#include "kernel32_thread.zv"
+#include "kernel32_file.zv"
+#include "kernel32_memory.zv"
+#include "kernel32_loader.zv"
+#include "kernel32_env.zv"

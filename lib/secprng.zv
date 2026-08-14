@@ -1,0 +1,231 @@
+// secprng.zv
+//
+// A deterministic, platform-independent ChaCha20-based CSPRNG. It does not rely
+// on any OS API, so it works on Windows, freestanding, or any target ZV can
+// compile to.
+//
+// NOTE: This is *not* suitable for cryptographic security in production
+// without a proper entropy source for seeding. It provides a deterministic
+// stream of random bytes from a user-supplied seed.
+//
+// Usage:
+//   #include "lib/secprng.zv"
+//   secprng_seed(0x123456789ABCDEF0);
+//   UINT32 x = secprng_u32();
+//   FLOAT64 f = secprng_f64(); // uniform in [0, 1)
+
+// --- internal state ----------------------------------------------------------
+
+UINT32[16] __secprng_state;
+UINT8[64]  __secprng_output;
+UINT32     __secprng_index = 64; // force block generation on first use
+
+CONST UINT64 __SECPRNG_MASK32 = 0xFFFFFFFF;
+
+// --- 32-bit helpers ----------------------------------------------------------
+
+UINT32 __secprng_add32(UINT32 a, UINT32 b) {
+    return ((a as UINT64 + b as UINT64) & __SECPRNG_MASK32) as UINT32;
+}
+
+UINT32 __secprng_rotl16(UINT32 x) { return (x << 16) | (x >> 16); }
+UINT32 __secprng_rotl12(UINT32 x) { return (x << 12) | (x >> 20); }
+UINT32 __secprng_rotl8 (UINT32 x) { return (x << 8)  | (x >> 24); }
+UINT32 __secprng_rotl7 (UINT32 x) { return (x << 7)  | (x >> 25); }
+
+VOID __secprng_quarter_round(UINT32[16] x, UINT32 a, UINT32 b, UINT32 c, UINT32 d) {
+    x[a] = __secprng_add32(x[a], x[b]); x[d] = x[d] ^ x[a]; x[d] = __secprng_rotl16(x[d]);
+    x[c] = __secprng_add32(x[c], x[d]); x[b] = x[b] ^ x[c]; x[b] = __secprng_rotl12(x[b]);
+    x[a] = __secprng_add32(x[a], x[b]); x[d] = x[d] ^ x[a]; x[d] = __secprng_rotl8(x[d]);
+    x[c] = __secprng_add32(x[c], x[d]); x[b] = x[b] ^ x[c]; x[b] = __secprng_rotl7(x[b]);
+}
+
+// --- core block generation ---------------------------------------------------
+
+VOID ____secprng_generate_block() {
+    UINT32[16] x;
+
+    UINT32 i = 0;
+    while (i < 16) {
+        x[i] = __secprng_state[i];
+        i = i + 1;
+    }
+
+    UINT32 r = 0;
+    while (r < 10) {
+        // column rounds
+        __secprng_quarter_round(x, 0, 4, 8, 12);
+        __secprng_quarter_round(x, 1, 5, 9, 13);
+        __secprng_quarter_round(x, 2, 6, 10, 14);
+        __secprng_quarter_round(x, 3, 7, 11, 15);
+        // diagonal rounds
+        __secprng_quarter_round(x, 0, 5, 10, 15);
+        __secprng_quarter_round(x, 1, 6, 11, 12);
+        __secprng_quarter_round(x, 2, 7, 8, 13);
+        __secprng_quarter_round(x, 3, 4, 9, 14);
+        r = r + 1;
+    }
+
+    i = 0;
+    while (i < 16) {
+        x[i] = __secprng_add32(x[i], __secprng_state[i]);
+        i = i + 1;
+    }
+
+    // serialize the 16 32-bit words to the output buffer (little-endian)
+    i = 0;
+    while (i < 16) {
+        UINT32 w = x[i];
+        UINT32 base = i * 4;
+        __secprng_output[base + 0] = (w & 0xFF) as UINT8;
+        __secprng_output[base + 1] = ((w >> 8) & 0xFF) as UINT8;
+        __secprng_output[base + 2] = ((w >> 16) & 0xFF) as UINT8;
+        __secprng_output[base + 3] = ((w >> 24) & 0xFF) as UINT8;
+        i = i + 1;
+    }
+
+    // increment the 64-bit block counter stored in state[12] / state[13]
+    UINT64 ctr = (__secprng_state[12] as UINT64) | ((__secprng_state[13] as UINT64) << 32);
+    ctr = ctr + 1;
+    __secprng_state[12] = (ctr & __SECPRNG_MASK32) as UINT32;
+    __secprng_state[13] = ((ctr >> 32) & __SECPRNG_MASK32) as UINT32;
+
+    __secprng_index = 0;
+}
+
+// --- seeding -----------------------------------------------------------------
+
+VOID secprng_seed(UINT64 seed) {
+    UINT32 s0 = (seed & __SECPRNG_MASK32) as UINT32;
+    UINT32 s1 = ((seed >> 32) & __SECPRNG_MASK32) as UINT32;
+
+    // ChaCha20 constant "expand 32-byte k"
+    __secprng_state[0] = 0x61707865;
+    __secprng_state[1] = 0x3320646E;
+    __secprng_state[2] = 0x79622D32;
+    __secprng_state[3] = 0x6B206574;
+
+    // Derive an 8-word (256-bit) key from the 64-bit seed.
+    __secprng_state[4] = s0;
+    __secprng_state[5] = s1;
+    __secprng_state[6] = __secprng_add32(s0, 0x9E3779B9);
+    __secprng_state[7] = __secprng_add32(s1, 0x9E3779B9);
+    __secprng_state[8] = __secprng_add32(s0, 0x6A09E667);
+    __secprng_state[9] = __secprng_add32(s1, 0xBB67AE85);
+    __secprng_state[10] = __secprng_add32(s0, 0x3C6EF372);
+    __secprng_state[11] = __secprng_add32(s1, 0xA54FF53A);
+
+    // 64-bit block counter
+    __secprng_state[12] = 0;
+    __secprng_state[13] = 0;
+
+    // nonce (left at zero for this deterministic generator)
+    __secprng_state[14] = 0;
+    __secprng_state[15] = 0;
+
+    __secprng_index = 64; // force output regeneration on next read
+}
+
+// --- raw byte extraction -------------------------------------------------------
+
+UINT8 secprng_u8() {
+    if (__secprng_index >= 64) {
+        __secprng_generate_block();
+    }
+    UINT8 v = __secprng_output[__secprng_index];
+    __secprng_index = __secprng_index + 1;
+    return v;
+}
+
+UINT16 secprng_u16() {
+    if (__secprng_index + 2 > 64) {
+        __secprng_generate_block();
+    }
+    UINT32 i = __secprng_index;
+    UINT16 v = (__secprng_output[i] as UINT16)
+             | ((__secprng_output[i + 1] as UINT16) << 8);
+    __secprng_index = __secprng_index + 2;
+    return v;
+}
+
+UINT32 secprng_u32() {
+    if (__secprng_index + 4 > 64) {
+        __secprng_generate_block();
+    }
+    UINT32 i = __secprng_index;
+    UINT32 v = (__secprng_output[i] as UINT32)
+             | ((__secprng_output[i + 1] as UINT32) << 8)
+             | ((__secprng_output[i + 2] as UINT32) << 16)
+             | ((__secprng_output[i + 3] as UINT32) << 24);
+    __secprng_index = __secprng_index + 4;
+    return v;
+}
+
+UINT64 secprng_u64() {
+    UINT32 lo = secprng_u32();
+    UINT32 hi = secprng_u32();
+    return (lo as UINT64) | ((hi as UINT64) << 32);
+}
+
+INT8 secprng_i8()  { return secprng_u8() as INT8; }
+INT16 secprng_i16() { return secprng_u16() as INT16; }
+INT32 secprng_i32() { return secprng_u32() as INT32; }
+INT64 secprng_i64() { return secprng_u64() as INT64; }
+
+BOOL secprng_bool() { return (secprng_u8() & 1) != 0; }
+
+// --- float variants (half-open [0, 1)) -----------------------------------------
+
+FLOAT64 secprng_f64() {
+    // 53 bits of precision
+    return ((secprng_u64() >> 11) as FLOAT64) / (9007199254740992.0 as FLOAT64);
+}
+
+FLOAT32 secprng_f32() {
+    // 24 bits of precision
+    return ((secprng_u32() >> 8) as FLOAT32) / (16777216.0 as FLOAT32);
+}
+
+// --- ranged variants ---------------------------------------------------------
+// Integer ranges are inclusive on both ends: [min, max].
+// Float ranges are half-open: [min, max).
+
+UINT8 secprng_u8_range(UINT8 min, UINT8 max) {
+    return (min + (secprng_u8() % (max - min + 1))) as UINT8;
+}
+
+UINT16 secprng_u16_range(UINT16 min, UINT16 max) {
+    return (min + (secprng_u16() % (max - min + 1))) as UINT16;
+}
+
+UINT32 secprng_u32_range(UINT32 min, UINT32 max) {
+    return (min + (secprng_u32() % (max - min + 1))) as UINT32;
+}
+
+UINT64 secprng_u64_range(UINT64 min, UINT64 max) {
+    return (min + (secprng_u64() % (max - min + 1))) as UINT64;
+}
+
+INT8 secprng_i8_range(INT8 min, INT8 max) {
+    return (min + (secprng_i8() % (max - min + 1))) as INT8;
+}
+
+INT16 secprng_i16_range(INT16 min, INT16 max) {
+    return (min + (secprng_i16() % (max - min + 1))) as INT16;
+}
+
+INT32 secprng_i32_range(INT32 min, INT32 max) {
+    return (min + (secprng_i32() % (max - min + 1))) as INT32;
+}
+
+INT64 secprng_i64_range(INT64 min, INT64 max) {
+    return (min + (secprng_i64() % (max - min + 1))) as INT64;
+}
+
+FLOAT64 secprng_f64_range(FLOAT64 min, FLOAT64 max) {
+    return min + secprng_f64() * (max - min);
+}
+
+FLOAT32 secprng_f32_range(FLOAT32 min, FLOAT32 max) {
+    return min + secprng_f32() * (max - min);
+}

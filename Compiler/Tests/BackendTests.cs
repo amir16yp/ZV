@@ -1,0 +1,2560 @@
+using Xunit;
+using ZV.Compiler.Lexer;
+using ZV.Compiler.Parser;
+using ZV.Compiler.AST;
+using ZV.Compiler.Backend;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices;
+
+namespace ZV.Compiler.Tests;
+
+public class BackendTests
+{
+    private string Generate(string source)
+    {
+        var lexer = new ZV.Compiler.Lexer.Lexer(source);
+        var tokens = lexer.ScanTokens();
+        var parser = new ZV.Compiler.Parser.Parser(tokens);
+        var statements = parser.Parse();
+        if (parser.HadError)
+        {
+            throw new System.Exception("Parse error(s): " + string.Join("; ", parser.Errors.ConvertAll(e => e.Message)));
+        }
+        using var generator = new LlvmGenerator("test_module");
+        generator.Generate(statements);
+        return generator.EmitToString();
+    }
+
+    // Like Generate(), but also runs LLVM's module verifier. EmitToString() alone won't
+    // catch bugs like a type created in the wrong LLVMContextRef (e.g. the INT16/INT128
+    // context-mismatch bug below) - the textual IR still prints "fine", but LLVM's verifier
+    // (and, further down the pipeline, clang) rejects it.
+    private void GenerateAndVerify(string source)
+    {
+        var lexer = new ZV.Compiler.Lexer.Lexer(source);
+        var tokens = lexer.ScanTokens();
+        var parser = new ZV.Compiler.Parser.Parser(tokens);
+        var statements = parser.Parse();
+        if (parser.HadError)
+        {
+            throw new System.Exception("Parse error(s): " + string.Join("; ", parser.Errors.ConvertAll(e => e.Message)));
+        }
+        using var generator = new LlvmGenerator("test_module");
+        generator.Generate(statements);
+        Assert.True(generator.TryVerify(out var message), $"Module failed LLVM verification: {message}");
+    }
+
+    [Fact]
+    public void TestIfStatementGeneration()
+    {
+        var source = @"
+VOID test(INT32 x) {
+    if (x < 10) {
+        print(1);
+    } else {
+        print(0);
+    }
+}";
+        var ir = Generate(source);
+        Assert.Contains("then:", ir);
+        Assert.Contains("else:", ir);
+        Assert.Contains("ifcont:", ir);
+        Assert.Contains("icmp slt", ir);
+    }
+
+    [Fact]
+    public void TestWhileStatementGeneration()
+    {
+        var source = @"
+VOID test(INT32 n) {
+    INT32 i = 0;
+    while (i < n) {
+        print(i);
+        i = i + 1;
+    }
+}";
+        var ir = Generate(source);
+        Assert.Contains("whilecond:", ir);
+        Assert.Contains("whilebody:", ir);
+        Assert.Contains("whileend:", ir);
+        Assert.Contains("icmp slt", ir);
+    }
+
+    [Fact]
+    public void TestUnaryExpressionGeneration()
+    {
+        var source = @"
+INT32 test(INT32 x) {
+    return -x;
+}";
+        var ir = Generate(source);
+        Assert.Contains("sub i32 0,", ir); // LLVM BuildNeg is often implemented as sub 0, x
+    }
+
+    [Fact]
+    public void TestStructFieldAssignment()
+    {
+        var source = @"
+struct Point {
+    INT32 x;
+    INT32 y;
+}
+
+VOID test() {
+    Point p;
+    p.x = 10;
+    p.y = 20;
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Point = type { i32, i32 }", ir);
+        Assert.Contains("getelementptr", ir);
+        Assert.Contains("store i32 10", ir);
+        Assert.Contains("store i32 20", ir);
+    }
+
+    [Fact]
+    public void TestLogicalAndGeneration()
+    {
+        var source = @"
+BOOL test(BOOL a, BOOL b) {
+    return a && b;
+}";
+        var ir = Generate(source);
+        Assert.Contains("phi i1", ir);
+        Assert.Contains("and_rhs:", ir);
+        Assert.Contains("and_merge:", ir);
+    }
+
+    [Fact]
+    public void TestLogicalOrGeneration()
+    {
+        var source = @"
+BOOL test(BOOL a, BOOL b) {
+    return a || b;
+}";
+        var ir = Generate(source);
+        Assert.Contains("phi i1", ir);
+        Assert.Contains("or_rhs:", ir);
+        Assert.Contains("or_merge:", ir);
+    }
+
+    [Fact]
+    public void TestFunctionCallGeneration()
+    {
+        var source = @"
+INT32 add(INT32 a, INT32 b) {
+    return a + b;
+}
+
+INT32 test() {
+    return add(5, 10);
+}";
+        var ir = Generate(source);
+        Assert.Contains("call i32 @add(i32 5, i32 10)", ir);
+    }
+
+    [Fact]
+    public void TestComplexArithmeticGeneration()
+    {
+        var source = @"
+INT32 test(INT32 a, INT32 b, INT32 c) {
+    return (a + b) * c / 2;
+}";
+        var ir = Generate(source);
+        Assert.Contains("add i32", ir);
+        Assert.Contains("mul i32", ir);
+        Assert.Contains("sdiv i32", ir);
+    }
+
+    [Fact]
+    public void TestForStatementGeneration()
+    {
+        var source = @"
+VOID test(INT32 n) {
+    for (INT32 i = 0; i < n; i = i + 1) {
+        print(i);
+    }
+}";
+        var ir = Generate(source);
+        Assert.Contains("forcond:", ir);
+        Assert.Contains("forbody:", ir);
+        Assert.Contains("forinc:", ir);
+        Assert.Contains("forend:", ir);
+    }
+
+    [Fact]
+    public void TestIncludeDirective()
+    {
+        string headerPath = "test_header.zv";
+        string sourcePath = "test_main.zv";
+        try
+        {
+            File.WriteAllText(headerPath, "INT32 add(INT32 a, INT32 b) { return a + b; }");
+            string mainSource = @"
+#include ""test_header.zv""
+INT32 test() {
+    return add(1, 2);
+}";
+            File.WriteAllText(sourcePath, mainSource);
+
+            var lexer = new ZV.Compiler.Lexer.Lexer(mainSource, Path.GetFullPath(sourcePath));
+            var tokens = lexer.ScanTokens();
+            var parser = new ZV.Compiler.Parser.Parser(tokens);
+            var statements = parser.Parse();
+            
+            using var generator = new LlvmGenerator("test_module");
+            generator.Generate(statements);
+            var ir = generator.EmitToString();
+
+            Assert.Contains("define i32 @add", ir);
+            Assert.Contains("define i32 @test", ir);
+            Assert.Contains("call i32 @add(i32 1, i32 2)", ir);
+        }
+        finally
+        {
+            if (File.Exists(headerPath)) File.Delete(headerPath);
+            if (File.Exists(sourcePath)) File.Delete(sourcePath);
+        }
+    }
+
+    [Fact]
+    public void TestExternFunctionGeneration()
+    {
+        var source = @"
+extern ""test.dll"" {
+    INT32 add(INT32 a, INT32 b);
+    INT32 sub(INT32 a, INT32 b) = ""native_sub"";
+}
+
+INT32 test() {
+    return add(10, 20) + sub(30, 40);
+}";
+        var ir = Generate(source);
+        
+        // Check declarations
+        Assert.Contains("declare i32 @add(i32, i32)", ir);
+        Assert.Contains("declare i32 @native_sub(i32, i32)", ir);
+        
+        // Check calls
+        Assert.Contains("call i32 @add(i32 10, i32 20)", ir);
+        Assert.Contains("call i32 @native_sub(i32 30, i32 40)", ir);
+        
+        // Verify sub is NOT emitted as ZV name
+        Assert.DoesNotContain("declare i32 @sub(", ir);
+    }
+
+    [Fact]
+    public void TestMainDirective()
+    {
+        string source = @"
+@entry
+UINT32 my_entry(CSTRING[] args)
+{
+    return 0;
+}
+";
+        using var generator = new LlvmGenerator("test");
+        var tokens = new ZV.Compiler.Lexer.Lexer(source, "test.zv").ScanTokens();
+        var statements = new ZV.Compiler.Parser.Parser(tokens).Parse();
+        generator.Generate(statements);
+        string llvmIr = generator.EmitToString();
+        
+        // In modern LLVM (with opaque pointers), i8** and i8* both show up as 'ptr'
+        Assert.Contains("define i32 @main(i32", llvmIr);
+        Assert.Matches(@"define i32 @main\(i32 [^,]+, ptr [^)]+\)", llvmIr);
+    }
+
+    [Fact]
+    public void TestIncludeWithMainDirective()
+    {
+        string includePath = "test_include.zv";
+        string mainPath = "test_main.zv";
+        try
+        {
+            File.WriteAllText(includePath, @"
+UINT32 add(UINT32 a, UINT32 b) { return a + b; }
+");
+            File.WriteAllText(mainPath, @"
+#include ""test_include.zv""
+@entry
+UINT32 main_func(CSTRING[] args) {
+    return add(1, 2);
+}
+");
+            var includedFiles = new HashSet<string>();
+            var lexer = new ZV.Compiler.Lexer.Lexer(File.ReadAllText(mainPath), Path.GetFullPath(mainPath), includedFiles);
+            var tokens = lexer.ScanTokens();
+            var parser = new ZV.Compiler.Parser.Parser(tokens, mainPath);
+            var statements = parser.Parse();
+
+            using var generator = new LlvmGenerator("test");
+            generator.Generate(statements);
+            string llvmIr = generator.EmitToString();
+
+            Assert.Contains("define i32 @add(", llvmIr);
+            Assert.Contains("define i32 @main(", llvmIr);
+        }
+        finally
+        {
+            if (File.Exists(includePath)) File.Delete(includePath);
+            if (File.Exists(mainPath)) File.Delete(mainPath);
+        }
+    }
+
+    [Fact]
+    public void TestArrayGeneration()
+    {
+        string source = @"
+VOID test() {
+    INT32[] arr = [1, 2, 3];
+    INT32 x = arr[1];
+    arr[0] = 10;
+}";
+        string ir = Generate(source);
+        Assert.Contains("arrayinit_elements", ir);
+        Assert.Contains("arraystruct", ir);
+        Assert.Contains("extractvalue", ir);
+        Assert.Contains("store i32 10, ptr", ir);
+    }
+
+    [Fact]
+    public void TestStringCast()
+    {
+        string source = @"
+VOID test() {
+    STRING s1 = ""hello"";
+    CSTRING s2 = cstr(s1);
+    INT64 x = 10;
+    INT32 y = x as INT32;
+}";
+        string ir = Generate(source);
+        Assert.Contains("cstrtmp", ir);
+        Assert.Contains("trunctmp", ir);
+    }
+
+    [Fact]
+    public void TestBuiltinGeneration()
+    {
+        var source = @"
+VOID test(PTR<VOID> file, INT8[] buffer) {
+    PTR<VOID> f = fopen(""test.txt"", ""r"");
+    fseek(f, 0, 2);
+    INT64 size = ftell(f);
+    
+    fread(buffer, 1, 4, f);
+    fwrite(buffer, 1, 4, f);
+
+    fclose(f);
+    rename(""test.txt"", ""new.txt"");
+    remove(""new.txt"");
+    mkdir(""test_dir"", 511);
+    rmdir(""test_dir"");
+}";
+        var ir = Generate(source);
+        Assert.Contains("declare ptr @fopen(ptr, ptr)", ir);
+        Assert.Contains("declare i32 @fclose(ptr)", ir);
+        Assert.Contains("declare i32 @fseek(ptr, i64, i32)", ir);
+        Assert.Contains("declare i64 @ftell(ptr)", ir);
+        Assert.Contains("declare i64 @fread(ptr, i64, i64, ptr)", ir);
+        Assert.Contains("declare i64 @fwrite(ptr, i64, i64, ptr)", ir);
+        Assert.Contains("declare i32 @remove(ptr)", ir);
+        Assert.Contains("declare i32 @rename(ptr, ptr)", ir);
+        Assert.Contains("declare i32 @mkdir(ptr, i32)", ir);
+        Assert.Contains("declare i32 @rmdir(ptr)", ir);
+        
+        Assert.Contains("call ptr @fopen", ir);
+        Assert.Contains("call i32 @fseek", ir);
+        Assert.Contains("call i64 @ftell", ir);
+        Assert.Contains("call i64 @fread", ir);
+        Assert.Contains("call i64 @fwrite", ir);
+        Assert.Contains("call i32 @fclose", ir);
+        Assert.Contains("call i32 @rename", ir);
+        Assert.Contains("call i32 @remove", ir);
+        Assert.Contains("call i32 @mkdir", ir);
+        Assert.Contains("call i32 @rmdir", ir);
+    }
+
+    [Fact]
+    public void TestArrayLenGeneration()
+    {
+        var source = @"
+INT32 test() {
+    INT32[] arr = [10, 20, 30, 40, 50];
+    return len(arr) as INT32;
+}";
+        var ir = Generate(source);
+        Assert.Contains("extractvalue", ir);
+        Assert.Contains("i64 5", ir);
+    }
+
+    [Fact]
+    public void TestArrayCopyWholeGeneration()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0];
+    INT32[] src = [1, 2, 3];
+    array_copy(dest, src);
+}";
+        var ir = Generate(source);
+        Assert.Contains("call ptr @memmove", ir);
+        Assert.Contains("ArrayCopyException", ir);
+    }
+
+    [Fact]
+    public void TestArrayCopyRangeGeneration()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0, 0, 0];
+    INT32[] src = [1, 2, 3];
+    array_copy(dest, 1, src, 0, 2);
+}";
+        var ir = Generate(source);
+        Assert.Contains("call ptr @memmove", ir);
+        Assert.Contains("ArrayCopyException", ir);
+    }
+
+    [Fact]
+    public void TestArrayCopyRejectsMismatchedElementTypes()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0];
+    FLOAT64[] src = [1.0, 2.0, 3.0];
+    array_copy(dest, src);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestArrayCopyRejectsStaticallyKnownOverflow()
+    {
+        var source = @"
+VOID test() {
+    array_copy([0, 0], [1, 2, 3]);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestArrayCopyRangeRejectsStaticallyKnownOverflow()
+    {
+        var source = @"
+VOID test() {
+    array_copy([0, 0, 0], 2, [1, 2, 3], 0, 3);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestArrayCopyRejectsNegativeCount()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0];
+    INT32[] src = [1, 2, 3];
+    array_copy(dest, 0, src, 0, -1);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestArrayCopyGeneratesValidModule()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0, 0, 0];
+    INT32[] src = [1, 2, 3];
+    array_copy(dest, src);
+    array_copy(dest, 3, src, 0, 2);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestArrayCopyRejectsNonArrayArgument()
+    {
+        var source = @"
+VOID test() {
+    INT32[] dest = [0, 0, 0];
+    INT32 x = 5;
+    array_copy(dest, x);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestDynamicArrayBoundsCheckGeneration()
+    {
+        string source = @"
+VOID test() {
+    INT32[] arr = [1, 2, 3];
+    INT32 x = arr[1];
+}";
+        string ir = Generate(source);
+        Assert.Contains("icmp uge", ir);
+        Assert.Contains("IndexOutOfBoundsException", ir);
+    }
+
+    [Fact]
+    public void TestFixedArrayConstantOutOfBoundsIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[4] a;
+    a[10] = 5;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("out of bounds", ex.Message);
+    }
+
+    [Fact]
+    public void TestMultiDimensionalFixedArrayScalarFill()
+    {
+        string source = @"
+INT32[3][2] globalM = 7;
+VOID test() {
+    INT32[3][2] localM = 5;
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestFixedArrayCopyByValue()
+    {
+        string source = @"
+VOID test() {
+    INT32[3] a = [1, 2, 3];
+    INT32[3] b = a;
+    b = a;
+    INT32[3][2] m1 = [[1, 2, 3], [4, 5, 6]];
+    INT32[3][2] m2 = m1;
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestLenOnFixedSizeArrays()
+    {
+        string source = @"
+VOID test() {
+    INT32[3] a;
+    INT32[3][2] m;
+    INT32 rowLen = len(a);
+    INT32 rows = len(m);
+    INT32 cols = len(m[0]);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestArrayCopyWithFixedSizeArrays()
+    {
+        string source = @"
+VOID test() {
+    INT32[6] src = [1, 2, 3, 4, 5, 6];
+    INT32[6] dest;
+    array_copy(dest, src);
+    array_copy(dest, 2, src, 1, 3);
+
+    INT32[3][2] mSrc = [[1, 2, 3], [4, 5, 6]];
+    INT32[3][2] mDst;
+    array_copy(mDst, mSrc);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestPartialFixedArrayInitializers()
+    {
+        string source = @"
+INT32[5] globalA = [1, 2];
+INT32[3][2] globalM = [[1], [2, 3]];
+VOID test() {
+    INT32[5] a = [1, 2];
+    INT32[3][2] m = [[1], [2, 3]];
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestFixedArrayRowSlicePassedToFunction()
+    {
+        string source = @"
+VOID printRow(INT32[3] row) {
+    for (INT32 i = 0; i < 3; i = i + 1) {
+        print(row[i]);
+    }
+}
+
+VOID test() {
+    INT32[3][2] matrix = [[1, 2, 3], [4, 5, 6]];
+    printRow(matrix[0]);
+    printRow(matrix[1]);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestHeapAllocatedFixedRowMatrix()
+    {
+        string source = @"
+VOID test() {
+    INT32[3][] rows = INT32[3][2];
+    rows[0][1] = 42;
+    array_copy(rows[1], [7, 8, 9]);
+    print(rows[0][1]);
+    print(rows[1][2]);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestUnsafeSuppressesRuntimeBoundsCheck()
+    {
+        string source = @"
+VOID test() {
+    INT32[] arr = [1, 2, 3];
+    INT32 i = 1;
+    unsafe {
+        INT32 x = arr[i];
+    }
+}";
+        string ir = Generate(source);
+        Assert.DoesNotContain("icmp uge", ir);
+    }
+
+    [Fact]
+    public void TestRawPointerIndexRequiresUnsafe()
+    {
+        string source = @"
+VOID test(PTR<VOID> p) {
+    INT8 x = p[0];
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("unsafe", ex.Message);
+    }
+
+    [Fact]
+    public void TestRawPointerIndexAllowedInUnsafe()
+    {
+        string source = @"
+VOID test(PTR<VOID> p) {
+    unsafe {
+        INT8 x = p[0];
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("getelementptr", ir);
+    }
+
+    [Fact]
+    public void TestPointerToIntCastRequiresUnsafe()
+    {
+        string source = @"
+VOID test(PTR<VOID> p) {
+    UINT64 x = p as UINT64;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("unsafe", ex.Message);
+    }
+
+    [Fact]
+    public void TestPointerToIntCastAllowedInUnsafe()
+    {
+        string source = @"
+VOID test(PTR<VOID> p) {
+    unsafe {
+        UINT64 x = p as UINT64;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("ptrtoint", ir);
+    }
+
+    [Fact]
+    public void TestUseAfterFreeIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[] nums = INT32[10];
+    free(nums);
+    INT32 x = nums[0];
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("freed", ex.Message);
+    }
+
+    [Fact]
+    public void TestDoubleFreeIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[] nums = INT32[10];
+    free(nums);
+    free(nums);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("freed", ex.Message);
+    }
+
+    [Fact]
+    public void TestUseAfterMoveIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    STRING a = ""hi"";
+    STRING b = move(a);
+    STRING c = a;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestUseAfterFreeInOneBranchOnlyIsCompileError()
+    {
+        // free() only happens on one path (the `then` branch); a flow-insensitive checker
+        // would either miss this or wrongly poison the `else` branch. The correct,
+        // conservative answer is: since `nums` may be dead after the if, using it
+        // afterward is an error.
+        string source = @"
+VOID test(BOOL condition) {
+    INT32[] nums = INT32[10];
+    if (condition) {
+        free(nums);
+    }
+    INT32 x = nums[0];
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("freed", ex.Message);
+    }
+
+    [Fact]
+    public void TestFreeInElseBranchDoesNotLeakIntoThenBranch()
+    {
+        // Before per-branch merging, generating the `else` branch against the `then`
+        // branch's (unrelated) leftover state could spuriously mark `nums` dead. Freeing
+        // `nums` in `else` must not affect what happens inside `then`.
+        string source = @"
+VOID test(BOOL condition) {
+    INT32[] nums = INT32[10];
+    if (condition) {
+        INT32 x = nums[0];
+    } else {
+        free(nums);
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @free", ir);
+    }
+
+    [Fact]
+    public void TestFreeInBothBranchesKillsVariableAfterIf()
+    {
+        // If every path frees `nums`, using it afterward must still be rejected.
+        string source = @"
+VOID test(BOOL condition) {
+    INT32[] nums = INT32[10];
+    if (condition) {
+        free(nums);
+    } else {
+        free(nums);
+    }
+    INT32 x = nums[0];
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("freed", ex.Message);
+    }
+
+    [Fact]
+    public void TestFreeInTerminatingBranchDoesNotAffectSurvivingBranch()
+    {
+        // The `then` branch returns, so it never reaches the merge point; only the
+        // `else` branch's state should carry forward past the if.
+        string source = @"
+VOID test(BOOL condition) {
+    INT32[] nums = INT32[10];
+    if (condition) {
+        free(nums);
+        return;
+    }
+    INT32 x = nums[0];
+}";
+        string ir = Generate(source);
+        Assert.Contains("call ptr @malloc", ir);
+    }
+
+    [Fact]
+    public void TestReassignmentRevivesFreedVariable()
+    {
+        string source = @"
+VOID test() {
+    INT32[] nums = INT32[10];
+    free(nums);
+    nums = INT32[5];
+    INT32 x = nums[0];
+}";
+        string ir = Generate(source);
+        Assert.Contains("call ptr @malloc", ir);
+    }
+
+    [Fact]
+    public void TestAutomaticCleanupFreesArrayAtScopeEnd()
+    {
+        string source = @"
+VOID test() {
+    {
+        INT32[] buffer = INT32[1024];
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("call ptr @malloc", ir);
+        Assert.Contains("call void @free", ir);
+    }
+
+    [Fact]
+    public void TestAutomaticCleanupDoesNotDoubleFreeAfterExplicitFree()
+    {
+        string source = @"
+VOID test() {
+    {
+        INT32[] buffer = INT32[1024];
+        free(buffer);
+    }
+}";
+        string ir = Generate(source);
+        // Count free calls to ensure only one
+        int freeCount = ir.Split("call void @free").Length - 1;
+        Assert.Equal(1, freeCount);
+    }
+
+    [Fact]
+    public void TestAutomaticCleanupFreesNestedScopesInReverseOrder()
+    {
+        string source = @"
+VOID test() {
+    {
+        INT32[] a = INT32[10];
+        {
+            INT32[] b = INT32[20];
+        }
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @free", ir);
+        // The inner 'b' allocation is 20*4 = 80 bytes, the outer 'a' is 40.
+        // We verify both sizes appear to confirm both are freed.
+        Assert.Contains("i64 80", ir);
+        Assert.Contains("i64 40", ir);
+    }
+
+    [Fact]
+    public void TestAutomaticCleanupFreesReassignedArrayOnce()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    a = INT32[5];
+}";
+        string ir = Generate(source);
+        int freeCount = ir.Split("call void @free").Length - 1;
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestReturnOfOwnedArrayDoesNotFree()
+    {
+        string source = @"
+INT32[] makeArray() {
+    INT32[] a = INT32[10];
+    return a;
+}";
+        string ir = Generate(source);
+        Assert.DoesNotContain("call void @free", ir);
+        Assert.Contains("ret %array", ir);
+    }
+
+    [Fact]
+    public void TestMoveTransfersOwnershipAndCleansOnce()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32[] b = move(a);
+}";
+        string ir = Generate(source);
+        int freeCount = ir.Split("call void @free").Length - 1;
+        Assert.Equal(1, freeCount);
+    }
+
+    [Fact]
+    public void TestDoubleMoveIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32[] b = move(a);
+    INT32[] c = move(a);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestFreeAfterMoveIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32[] b = move(a);
+    free(a);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestCopyOfOwnedVariableIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32[] b = copy(a);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("Cannot copy()", ex.Message);
+    }
+
+    [Fact]
+    public void TestStructWithArrayFieldIsAutoFreedAtScopeEnd()
+    {
+        string source = @"
+struct Bag {
+    INT32[] data;
+}
+
+VOID test() {
+    Bag b;
+    b.data = INT32[10];
+}";
+        var ir = Generate(source);
+        // The struct's own (stack) storage is never passed to free(); only the owning
+        // array field's data pointer is extracted and freed.
+        Assert.Contains("extractvalue", ir);
+        Assert.Contains("call void @free(", ir);
+    }
+
+    [Fact]
+    public void TestStructWithCstringFieldIsAutoFreedAtScopeEnd()
+    {
+        string source = @"
+struct User {
+    CSTRING name;
+}
+
+VOID test() {
+    User u;
+    u.name = cstr(""Bob"");
+}";
+        var ir = Generate(source);
+        Assert.Contains("call void @free(", ir);
+    }
+
+    [Fact]
+    public void TestNestedOwningStructIsRecursivelyFreed()
+    {
+        string source = @"
+struct A {
+    INT32[] data;
+}
+
+struct B {
+    A a;
+    CSTRING name;
+}
+
+VOID test() {
+    B b;
+    b.a.data = INT32[5];
+    b.name = cstr(""x"");
+}";
+        var ir = Generate(source);
+        var freeCount = System.Text.RegularExpressions.Regex.Matches(ir, "call void @free\\(").Count;
+        // One free for A.data, one for B.name.
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestCopyOfOwningStructIsCompileError()
+    {
+        // 'a' is flow-tracked as owned (a fresh Foo declaration), so this hits the
+        // general owned-variable copy() rejection.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    Foo b = copy(a);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("Cannot copy()", ex.Message);
+    }
+
+    [Fact]
+    public void TestCopyOfImplicitlyMovedOwningStructIsCompileError()
+    {
+        // Plain assignment of an owning struct is now an implicit move(), so 'b' owns
+        // the value moved out of 'a'. copy() of an owned variable is therefore rejected.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Foo b = a;
+    Foo c = copy(b);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("Cannot copy() owned variable 'b'", ex.Message);
+    }
+
+    [Fact]
+    public void TestOwningStructAssignmentIsImplicitMove()
+    {
+        // Foo b = a; should move ownership out of 'a', making later use of 'a' an error.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Foo b = a;
+    a.data[0] = 1;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestOwningArrayAssignmentIsImplicitMove()
+    {
+        // INT32[] b = a; should move ownership out of 'a'.
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32[] b = a;
+    a[0] = 1;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestReassignmentOfOwningStructIsImplicitMove()
+    {
+        // b = a; where both are owning structs should move 'a' into 'b'.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Foo b;
+    b = a;
+    a.data[0] = 1;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestImplicitMoveFreesOnlyOnce()
+    {
+        // After an implicit move, the resource is freed exactly once (by the new owner).
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Foo b = a;
+}";
+        string ir = Generate(source);
+        int freeCount = System.Text.RegularExpressions.Regex.Matches(ir, "call void @free\\(").Count;
+        Assert.Equal(1, freeCount);
+    }
+
+    [Fact]
+    public void TestImplicitMoveOfOwningFieldTransfersOwnership()
+    {
+        // Assigning an owned variable into an owning field should move ownership into the
+        // containing struct, so the source variable is invalidated.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+struct Bar {
+    Foo f;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Bar b;
+    b.f = a;
+    a.data[0] = 1;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("moved", ex.Message);
+    }
+
+    [Fact]
+    public void TestOwningFieldAccessIsImplicitMove()
+    {
+        // INT32[] b = a.data; should move the owning field out of the owned struct 'a',
+        // zeroing a.data so it is not freed twice. The source struct is still destroyed,
+        // but its freed field is now null, so both frees are emitted (one null, one real).
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    INT32[] b = a.data;
+    b[0] = 1;
+}";
+        string ir = Generate(source);
+        int freeCount = System.Text.RegularExpressions.Regex.Matches(ir, "call void @free\\(").Count;
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestFieldAssignmentFromOwnedFieldAccessMovesField()
+    {
+        // b.data = a.data; should move the owning field out of 'a' into 'b', leaving only
+        // one owner of the underlying array. The source struct is still destroyed, but
+        // its freed field is now null.
+        string source = @"
+struct Foo {
+    INT32[] data;
+}
+
+struct Bar {
+    INT32[] data;
+}
+
+VOID test() {
+    Foo a;
+    a.data = INT32[10];
+    Bar b;
+    b.data = a.data;
+    b.data[0] = 1;
+}";
+        string ir = Generate(source);
+        int freeCount = System.Text.RegularExpressions.Regex.Matches(ir, "call void @free\\(").Count;
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestExceptionMessageStringsAreDeduplicated()
+    {
+        // Multiple runtime checks that throw the same exception should share a single
+        // global string constant, not emit a fresh copy at every throw site.
+        string source = @"
+VOID test() {
+    INT32[] a = INT32[10];
+    INT32 x = a[0];
+    INT32 y = a[1];
+    INT32 z = a[2];
+}";
+        string ir = Generate(source);
+        string msg = "IndexOutOfBoundsException: array index out of bounds";
+        int msgOccurrences = System.Text.RegularExpressions.Regex.Matches(ir, System.Text.RegularExpressions.Regex.Escape(msg)).Count;
+        Assert.Equal(1, msgOccurrences);
+    }
+
+    [Fact]
+    public void TestStringLiteralsAreDeduplicated()
+    {
+        // Identical STRING literals should share a single global string constant.
+        string source = @"
+VOID test() {
+    STRING a = ""hello"";
+    STRING b = ""hello"";
+}";
+        string ir = Generate(source);
+        // The literal "hello\00" should appear in only one global definition.
+        int literalOccurrences = System.Text.RegularExpressions.Regex.Matches(ir, @"c""hello\\00""").Count;
+        Assert.Equal(1, literalOccurrences);
+    }
+
+    [Fact]
+    public void TestPrintAutoFormatStringsAreDeduplicated()
+    {
+        // Two print() calls with the same argument types should share a format string.
+        string source = @"
+VOID test() {
+    print(1);
+    print(2);
+}";
+        string ir = Generate(source);
+        // The auto-generated format string "%d\n" should appear only once.
+        int fmtOccurrences = System.Text.RegularExpressions.Regex.Matches(ir, @"c""%d\\0A\\00""").Count;
+        Assert.Equal(1, fmtOccurrences);
+    }
+
+    [Fact]
+    public void TestExplicitlyTypedStructLiteral()
+    {
+        // `TypeName { field = value, ... }` - the type name is optional sugar; the
+        // generator no longer requires external context to know which struct it is.
+        string source = @"
+struct Player {
+    CSTRING name;
+    INT32 health;
+}
+
+VOID test() {
+    Player player = Player {
+        name = cstr(""Gordon""),
+        health = 100
+    };
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Player", ir);
+    }
+
+    [Fact]
+    public void TestNestedExplicitlyTypedStructLiteral()
+    {
+        string source = @"
+struct Vec2 {
+    FLOAT32 x;
+    FLOAT32 y;
+}
+
+struct Sprite {
+    Vec2 position;
+    Vec2 scale;
+}
+
+VOID test() {
+    Sprite s = Sprite {
+        position = Vec2 { x = 320.0, y = 240.0 },
+        scale = Vec2 { x = 1.0, y = 1.0 }
+    };
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Sprite = type { %Vec2, %Vec2 }", ir);
+    }
+
+    [Fact]
+    public void TestNestedBareBraceStructLiteralInferredFromFieldType()
+    {
+        // The nested literal has no type name of its own; it's inferred from the
+        // enclosing field's declared type (Sprite.position : Vec2).
+        string source = @"
+struct Vec2 {
+    FLOAT32 x;
+    FLOAT32 y;
+}
+
+struct Sprite {
+    Vec2 position;
+}
+
+VOID test() {
+    Sprite s = {
+        position = { x = 1.0, y = 2.0 }
+    };
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Sprite = type { %Vec2 }", ir);
+    }
+
+    [Fact]
+    public void TestStructLiteralAsFunctionArgument()
+    {
+        // An explicitly-typed struct literal carries its own type, so it can be used
+        // directly as a call argument without any surrounding declared-type context.
+        string source = @"
+struct Point {
+    INT32 x;
+    INT32 y;
+}
+
+VOID accept(Point p) {
+    print(p.x);
+}
+
+VOID test() {
+    accept(Point { x = 1, y = 2 });
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Point = type { i32, i32 }", ir);
+    }
+
+    [Fact]
+    public void TestMismatchedStructLiteralTypeNameIsCompileError()
+    {
+        string source = @"
+struct Point {
+    INT32 x;
+    INT32 y;
+}
+
+struct Vec2 {
+    FLOAT32 x;
+    FLOAT32 y;
+}
+
+VOID test() {
+    Point p = Vec2 { x = 1.0, y = 2.0 };
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("annotated as 'Vec2'", ex.Message);
+    }
+
+    [Fact]
+    public void TestCopyOfTriviallyCopyableStructIsAllowed()
+    {
+        string source = @"
+struct Point {
+    INT32 x;
+    INT32 y;
+}
+
+VOID test() {
+    Point a;
+    Point b = copy(a);
+}";
+        var ir = Generate(source);
+        Assert.Contains("%Point = type { i32, i32 }", ir);
+    }
+
+    [Fact]
+    public void TestCopyOfNonOwnedValueIsAllowed()
+    {
+        string source = @"
+VOID test() {
+    INT32 a = 42;
+    INT32 b = copy(a);
+}";
+        string ir = Generate(source);
+        Assert.Contains("store i32 42", ir);
+    }
+
+    [Fact]
+    public void TestAutomaticCleanupOnBreakInLoop()
+    {
+        string source = @"
+VOID test() {
+    INT32 i = 0;
+    while (i < 10) {
+        INT32[] a = INT32[10];
+        if (i == 5) {
+            break;
+        }
+        i = i + 1;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @free", ir);
+        Assert.Contains("br label %whileend", ir);
+    }
+
+    [Fact]
+    public void TestAssignmentInInnerBlockFreesAtDeclarationScope()
+    {
+        string source = @"
+VOID test() {
+    INT32[] a;
+    {
+        a = INT32[10];
+    }
+    a = INT32[5];
+}";
+        string ir = Generate(source);
+        int freeCount = ir.Split("call void @free").Length - 1;
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestCompoundAssignment()
+    {
+        var source = @"
+INT32 test() {
+    INT32 x = 10;
+    x += 5;
+    x -= 2;
+    x *= 3;
+    x /= 2;
+    return x;
+}";
+        var ir = Generate(source);
+        Assert.Contains("add i32", ir);
+        Assert.Contains("sub i32", ir);
+        Assert.Contains("mul i32", ir);
+        Assert.Contains("sdiv i32", ir);
+    }
+
+    [Fact]
+    public void TestBitwiseNot()
+    {
+        var source = @"
+INT32 test() {
+    INT32 x = 0xFF;
+    INT32 y = ~x;
+    return y;
+}";
+        var ir = Generate(source);
+        Assert.Contains("xor i32", ir);
+    }
+
+    [Fact]
+    public void TestShiftOperators()
+    {
+        var source = @"
+INT32 test() {
+    INT32 x = 1;
+    INT32 y = x << 4;
+    INT32 z = y >> 2;
+    return z;
+}";
+        var ir = Generate(source);
+        Assert.Contains("shl i32", ir);
+        Assert.Contains("lshr i32", ir);
+    }
+
+    [Fact]
+    public void TestInt16FunctionSignaturePassesLlvmVerification()
+    {
+        // INT16/UINT16 used to be mapped via the static LLVMTypeRef.CreateInt(16), which
+        // creates the type in LLVM's global/default context rather than this generator's
+        // own LLVMContextRef - LLVM's verifier rejects the mismatch ("Function context does
+        // not match Module context!"), even though the type looks fine in EmitToString().
+        var source = @"
+INT16 add16(INT16 a, INT16 b) {
+    return a + b;
+}
+UINT16 add16u(UINT16 a, UINT16 b) {
+    return a + b;
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestInt128FunctionSignaturePassesLlvmVerification()
+    {
+        // Same context-mismatch bug as TestInt16..., for INT128/UINT128.
+        var source = @"
+INT128 add128(INT128 a, INT128 b) {
+    return a + b;
+}
+UINT128 add128u(UINT128 a, UINT128 b) {
+    return a + b;
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestPrintBoolIsPromotedBeforeVarargCall()
+    {
+        // print(someBool) used to pass the raw i1 value directly as a printf vararg. C's
+        // variadic calling convention requires promoting anything narrower than `int` to
+        // `int` first; printf then reads a full int-sized slot for %d regardless, so the
+        // un-promoted call left the upper bits of that slot undefined ("garbage" in
+        // practice - observed printing e.g. 220 instead of 0/1 for a BOOL).
+        var source = @"
+VOID test(BOOL b) {
+    print(b);
+}";
+        var ir = Generate(source);
+        Assert.Contains("zext i1", ir);
+    }
+
+    [Fact]
+    public void TestPrintInt16IsPromotedBeforeVarargCall()
+    {
+        // Same vararg-promotion bug as TestPrintBoolIsPromotedBeforeVarargCall, for INT16/
+        // UINT16 (observed printing garbage instead of the actual value).
+        var source = @"
+VOID test(INT16 x) {
+    print(x);
+}";
+        var ir = Generate(source);
+        Assert.Contains("sext i16", ir);
+    }
+
+    [Fact]
+    public void TestPrintUserFormatPromotesUint8BeforeVarargCall()
+    {
+        // print("%u", someUint8) used to pass the raw i8 value directly to printf's
+        // varargs, leaving the upper bits of the slot undefined (observed printing e.g.
+        // 4294967xxx or other garbage for a UINT8). It must be zero-extended to i32 so
+        // %u interprets it as an unsigned value.
+        var source = @"
+VOID test(UINT8 x) {
+    print(""%u"", x);
+}";
+        var ir = Generate(source);
+        Assert.Contains("zext i8", ir);
+    }
+
+    [Fact]
+    public void TestPrintUserFormatPromotesInt8SignedBeforeVarargCall()
+    {
+        // A user format string using %d with an INT8 must be sign-extended to i32 so
+        // negative byte values print correctly.
+        var source = @"
+VOID test(INT8 x) {
+    print(""%d"", x);
+}";
+        var ir = Generate(source);
+        Assert.Contains("sext i8", ir);
+    }
+
+    [Fact]
+    public void TestPrintUserFormatPromotesUint16BeforeVarargCall()
+    {
+        // UINT16 with %u must be zero-extended so unsigned 16-bit values print correctly.
+        var source = @"
+VOID test(UINT16 x) {
+    print(""%u"", x);
+}";
+        var ir = Generate(source);
+        Assert.Contains("zext i16", ir);
+    }
+
+    [Fact]
+    public void TestModuloOperatorCompiles()
+    {
+        // % was lexed and parsed but had no codegen case (VisitBinary threw
+        // NotImplementedException at compile time for any use of it). Covers both the
+        // integer (srem) and floating-point (frem) paths.
+        var source = @"
+INT32 test(INT32 a, INT32 b) {
+    INT32 x = a % b;
+    return x;
+}
+FLOAT64 testFloat(FLOAT64 a, FLOAT64 b) {
+    FLOAT64 y = a % b;
+    return y;
+}";
+        var ir = Generate(source);
+        Assert.Contains("srem i32", ir);
+        Assert.Contains("frem double", ir);
+    }
+
+    [Fact]
+    public void TestNestedGenericPointerStillParsesAfterAddingShiftOperator()
+    {
+        // Regression check: '>>' is synthesized from two adjacent '>' tokens in binary-
+        // expression context (see Parser.TryMatchRightShift), and must not interfere with
+        // ParseType's direct, one-at-a-time consumption of '>' when closing nested generics
+        // like PTR<PTR<VOID>>.
+        var source = @"
+VOID test() {
+    PTR<PTR<VOID>> pp;
+}";
+        var ir = Generate(source);
+        Assert.Contains("define", ir);
+    }
+
+    [Fact]
+    public void TestBoolToIntCast()
+    {
+        string source = @"
+VOID test() {
+    BOOL b = true;
+    INT32 x = b as INT32;
+}";
+        string ir = Generate(source);
+        Assert.Contains("zexttmp", ir);
+    }
+
+    [Fact]
+    public void TestIntToBoolCast()
+    {
+        string source = @"
+VOID test() {
+    INT32 x = 5;
+    BOOL b = x as BOOL;
+}";
+        string ir = Generate(source);
+        Assert.Contains("booltmp", ir);
+        Assert.Contains("icmp ne", ir);
+    }
+
+    [Fact]
+    public void TestFloatToBoolCast()
+    {
+        string source = @"
+VOID test() {
+    FLOAT64 f = 1.5;
+    BOOL b = f as BOOL;
+}";
+        string ir = Generate(source);
+        Assert.Contains("booltmp", ir);
+        Assert.Contains("fcmp one", ir);
+    }
+
+    [Fact]
+    public void TestBoolToFloatCast()
+    {
+        string source = @"
+VOID test() {
+    BOOL b = true;
+    FLOAT64 f = b as FLOAT64;
+}";
+        string ir = Generate(source);
+        Assert.Contains("sitofptmp", ir);
+        Assert.Contains("zexttmp", ir);
+    }
+
+    [Fact]
+    public void TestPointerToBoolCast()
+    {
+        string source = @"
+VOID test(PTR<VOID> p) {
+    BOOL b = p as BOOL;
+}";
+        string ir = Generate(source);
+        Assert.Contains("booltmp", ir);
+        Assert.Contains("icmp ne", ir);
+    }
+
+    [Fact]
+    public void TestInvalidCastProducesCompileError()
+    {
+        string source = @"
+struct Point {
+    INT32 x;
+    INT32 y;
+}
+
+VOID test() {
+    Point p;
+    INT32 x = p as INT32;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("Invalid cast", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeAllowsSameNewtypeAssignment()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    Celsius a = 20.0;
+    Celsius b = a;
+}";
+        string ir = Generate(source);
+        Assert.Contains("store double", ir);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsCrossNewtypeAssignment()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+newtype Fahrenheit = FLOAT64;
+
+VOID test() {
+    Celsius c = 20.0;
+    Fahrenheit f = c;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("newtype", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsImplicitConversionFromUnderlyingType()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    FLOAT64 raw = 20.0;
+    Celsius c = raw;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("newtype", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsImplicitConversionToUnderlyingType()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    Celsius c = 20.0;
+    FLOAT64 raw = c;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("newtype", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeAllowsLiteralInitialization()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    Celsius temp = 36.6;
+}";
+        string ir = Generate(source);
+        Assert.Contains("store double", ir);
+    }
+
+    [Fact]
+    public void TestNewtypeAllowsExplicitCastToUnderlyingType()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    Celsius c = 20.0;
+    FLOAT64 raw = c as FLOAT64;
+}";
+        string ir = Generate(source);
+        Assert.Contains("store double", ir);
+    }
+
+    [Fact]
+    public void TestNewtypeAllowsExplicitCastFromUnderlyingType()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID test() {
+    FLOAT64 raw = 20.0;
+    Celsius c = raw as Celsius;
+}";
+        string ir = Generate(source);
+        Assert.Contains("store double", ir);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsExplicitCastBetweenDistinctNewtypes()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+newtype Fahrenheit = FLOAT64;
+
+VOID test() {
+    Celsius c = 20.0;
+    Fahrenheit f = c as Fahrenheit;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("distinct newtypes", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsMismatchedFunctionArgument()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+newtype Fahrenheit = FLOAT64;
+
+VOID set_temperature(Celsius value) {
+}
+
+VOID test() {
+    Fahrenheit f = 72.0;
+    set_temperature(f);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("newtype", ex.Message);
+    }
+
+    [Fact]
+    public void TestNewtypeAllowsMatchingFunctionArgument()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+
+VOID set_temperature(Celsius value) {
+}
+
+VOID test() {
+    Celsius c = 20.0;
+    set_temperature(c);
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @set_temperature", ir);
+    }
+
+    [Fact]
+    public void TestNewtypeRejectsMismatchedReturnValue()
+    {
+        string source = @"
+newtype Celsius = FLOAT64;
+newtype Fahrenheit = FLOAT64;
+
+Celsius get_temperature() {
+    Fahrenheit f = 72.0;
+    return f;
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("newtype", ex.Message);
+    }
+
+    [Fact]
+    public void TestTypeAliasRemainsTransparent()
+    {
+        string source = @"
+type Size = UINT64;
+
+VOID test() {
+    Size n = 1024;
+    UINT64 raw = n;
+}";
+        string ir = Generate(source);
+        Assert.Contains("store i64", ir);
+    }
+
+    [Fact]
+    public void TestThrowStringLiteral()
+    {
+        string source = @"
+VOID test() {
+    throw ""file not found"";
+}";
+        string ir = Generate(source);
+        Assert.Contains("file not found", ir);
+        Assert.Contains("__zv_exception_msg", ir);
+    }
+
+    [Fact]
+    public void TestThrowStringLiteralCaughtInCatchBlock()
+    {
+        string source = @"
+VOID test() {
+    try {
+        throw ""file not found"";
+    } catch (e) {
+        CSTRING msg = e.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("file not found", ir);
+        Assert.Contains("catch_body", ir);
+    }
+
+    [Fact]
+    public void TestTypedCatchClauseFiltersByExceptionTypeName()
+    {
+        string source = @"
+exception MyError;
+VOID test() {
+    try {
+        throw MyError(""custom failure"");
+    } catch (MyError e) {
+        CSTRING msg = e.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("strncmp", ir);
+        Assert.Contains("MyError: ", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestMultipleCatchClausesWithCatchAllFallback()
+    {
+        string source = @"
+exception MyError;
+VOID test() {
+    try {
+        throw ""FileOpenException: failed to open file"";
+    } catch (FileOpenException e) {
+        CSTRING a = e.message;
+    } catch (MyError e) {
+        CSTRING b = e.message;
+    } catch (e) {
+        CSTRING c = e.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("catch_body_0", ir);
+        Assert.Contains("catch_body_1", ir);
+        Assert.Contains("catch_body_2", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestUnmatchedTypedCatchRethrows()
+    {
+        // No catch-all present: if the type filter doesn't match, the exception must
+        // propagate (abort/longjmp) rather than silently fall through.
+        string source = @"
+exception MyError;
+VOID test() {
+    try {
+        throw ""OtherError: oops"";
+    } catch (MyError e) {
+        CSTRING msg = e.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("unhandled_exc", ir);
+        Assert.Contains("do_longjmp", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestCatchAllMustBeLastClause()
+    {
+        string source = @"
+exception MyError;
+VOID test() {
+    try {
+        throw MyError(""oops"");
+    } catch (e) {
+        CSTRING msg = e.message;
+    } catch (MyError m) {
+        CSTRING msg2 = m.message;
+    }
+}";
+        var lexer = new ZV.Compiler.Lexer.Lexer(source);
+        var tokens = lexer.ScanTokens();
+        var parser = new ZV.Compiler.Parser.Parser(tokens);
+        parser.Parse();
+        Assert.True(parser.HadError);
+    }
+
+    [Fact]
+    public void TestExceptionTypeWithDefaultMessage()
+    {
+        string source = @"
+exception PoopException = Exception(""the program shitted itself"");
+VOID test() {
+    try {
+        throw PoopException;
+    } catch (PoopException p) {
+        CSTRING msg = p.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("the program shitted itself", ir);
+        Assert.Contains("PoopException: ", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestExceptionTypeDefaultMessageCanBeOverridden()
+    {
+        string source = @"
+exception PoopException = Exception(""default message"");
+VOID test() {
+    try {
+        throw PoopException(""overridden message"");
+    } catch (PoopException p) {
+        CSTRING msg = p.message;
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("overridden message", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestCatchExceptionTypeIsCatchAll()
+    {
+        string source = @"
+exception MyError;
+VOID test() {
+    try {
+        throw MyError(""oops"");
+    } catch (Exception e) {
+        CSTRING msg = e.message;
+    }
+}";
+        string ir = Generate(source);
+        // catch (Exception e) is a catch-all: no strncmp type filtering should be emitted.
+        Assert.DoesNotContain("strncmp", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestExceptionConstructorAcceptsStringLiteral()
+    {
+        // Regression test: a plain string literal defaults to the STRING struct type, not
+        // a raw pointer, so Exception(...) must coerce it rather than requiring a pointer.
+        string source = @"
+VOID test() {
+    Exception e = Exception(""something went wrong"");
+}";
+        string ir = Generate(source);
+        Assert.Contains("something went wrong", ir);
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestUndeclaredCatchTypeIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    try {
+        throw ""SomeError: oops"";
+    } catch (SomeError e) {
+        CSTRING msg = e.message;
+    }
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("Unknown exception type", ex.Message);
+    }
+
+    [Fact]
+    public void TestStringLiteralIsLengthAwareStruct()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hello"";
+}";
+        string ir = Generate(source);
+        // The STRING struct contains a data pointer and a 64-bit length.
+        Assert.Contains("ptr", ir);
+        Assert.Contains("i64 5", ir);
+    }
+
+    [Fact]
+    public void TestStringLenIsO1()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hello"";
+    UINT64 n = len(s);
+}";
+        string ir = Generate(source);
+        // O(1) length extraction should not call strlen.
+        Assert.DoesNotContain("strlen", ir);
+        Assert.Contains("lentmp", ir);
+    }
+
+    [Fact]
+    public void TestCstrProducesNulTerminatedHeapCopy()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hello"";
+    CSTRING p = cstr(s);
+}";
+        string ir = Generate(source);
+        // cstr() allocates len+1 bytes, copies the STRING's bytes, and writes a NUL terminator,
+        // rather than just extracting the STRING's data pointer.
+        Assert.Contains("cstrtmp", ir);
+        Assert.Contains("call ptr @malloc", ir);
+        Assert.Contains("call ptr @memcpy", ir);
+        Assert.Contains("cstr_nul_ptr", ir);
+    }
+
+    [Fact]
+    public void TestCstrAssignedToVariableIsOwnedAndFreedAtScopeEnd()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hello"";
+    CSTRING p = cstr(s);
+}";
+        string ir = Generate(source);
+        // Bound directly to a CSTRING variable, the cstr() allocation is owned and freed
+        // automatically once the variable's scope ends.
+        Assert.Contains("call void @free", ir);
+    }
+
+    [Fact]
+    public void TestRespawnProducesProcessType()
+    {
+        string source = @"
+@entry
+VOID main() {
+    PROCESS p = respawn();
+    if (p.child) {
+        exit(0);
+    }
+}";
+        string ir = Generate(source);
+        Assert.Contains("%PROCESS = type { i1 }", ir);
+        // Both the parent path (launching a new process) and the child path (just
+        // returning PROCESS{child:true}) must be present.
+        Assert.Contains("respawn_is_child", ir);
+        Assert.Contains("respawn_is_parent", ir);
+        // The parent path builds a new argv (with the internal marker appended) and
+        // launches a new process with it.
+        Assert.Contains("--zv-respawn-child", ir);
+        Assert.Contains("call ptr @malloc", ir);
+    }
+
+    [Fact]
+    public void TestRespawnUsesForkExecvpOnPosixHost()
+    {
+        // This test runs on whatever host the test suite executes on; assert whichever
+        // spawn primitive matches that host, so the test is meaningful cross-platform.
+        string source = @"
+@entry
+VOID main() {
+    PROCESS p = respawn();
+}";
+        string ir = Generate(source);
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+        {
+            Assert.Contains("call i64 @_spawnvp", ir);
+        }
+        else
+        {
+            Assert.Contains("call i32 @fork", ir);
+            Assert.Contains("call i32 @execvp", ir);
+        }
+    }
+
+    [Fact]
+    public void TestRespawnHidesSentinelFromVisibleArgs()
+    {
+        string source = @"
+@entry
+VOID main(CSTRING[] args) {
+    PROCESS p = respawn();
+    UINT64 n = len(args);
+}";
+        string ir = Generate(source);
+        // The exposed args length is adjusted (select) based on whether this process is
+        // itself a respawned child, so the internal marker never shows up in `args`.
+        Assert.Contains("argc64_visible", ir);
+        Assert.Contains("select", ir);
+    }
+
+    [Fact]
+    public void TestRespawnRejectedOnFreestandingTarget()
+    {
+        string source = @"
+@entry
+VOID main() {
+    PROCESS p = respawn();
+}";
+        var lexer = new ZV.Compiler.Lexer.Lexer(source);
+        var tokens = lexer.ScanTokens();
+        var parser = new ZV.Compiler.Parser.Parser(tokens);
+        var statements = parser.Parse();
+        using var generator = new LlvmGenerator("test_module") { IsFreestandingTarget = true };
+        var ex = Assert.Throws<CompileException>(() => generator.Generate(statements));
+        Assert.Contains("freestanding", ex.Message);
+    }
+
+    [Fact]
+    public void TestExitCallsLibcExit()
+    {
+        string source = @"
+VOID test() {
+    exit(0);
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @exit(i32 0)", ir);
+        Assert.Contains("unreachable", ir);
+    }
+
+    [Fact]
+    public void TestCstrPassthroughOfExistingCstringIsNotFreed()
+    {
+        string source = @"
+VOID test(CSTRING existing) {
+    CSTRING p = cstr(existing);
+}";
+        string ir = Generate(source);
+        // cstr() on an already-CSTRING value is a non-owning passthrough; it must not be freed.
+        Assert.DoesNotContain("call void @free", ir);
+    }
+
+    [Fact]
+    public void TestCstrUnclaimedTemporaryIsFreedAfterStatement()
+    {
+        string source = @"
+extern ""user32.dll"" {
+    INT32 MessageBoxA(PTR<VOID> hwnd, CSTRING text, CSTRING caption, UINT32 type_val);
+}
+
+VOID test() {
+    STRING message = ""Hello from ZV"";
+    MessageBoxA(0, cstr(message), cstr(""ZV""), 0);
+}";
+        string ir = Generate(source);
+        // Both cstr() results here are used inline as call arguments (never bound to a
+        // variable), so the compiler frees them right after the statement finishes.
+        Assert.Contains("call i32 @MessageBoxA", ir);
+        var freeCount = System.Text.RegularExpressions.Regex.Matches(ir, "call void @free").Count;
+        Assert.Equal(2, freeCount);
+    }
+
+    [Fact]
+    public void TestPrintStringUsesLengthDelimitedFormat()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hello"";
+    print(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("%.*s", ir);
+    }
+
+    [Fact]
+    public void TestStringConcatenation()
+    {
+        string source = @"
+VOID test() {
+    STRING a = ""Hello, "";
+    STRING b = ""world"";
+    STRING c = a + b;
+}";
+        string ir = Generate(source);
+        Assert.Contains("concat_str", ir);
+        Assert.Contains("memcpy", ir);
+    }
+
+    [Fact]
+    public void TestStringEqualityComparesContent()
+    {
+        string source = @"
+VOID test() {
+    STRING a = ""foo"";
+    STRING b = ""bar"";
+    BOOL eq = a == b;
+}";
+        string ir = Generate(source);
+        Assert.Contains("memcmp", ir);
+        Assert.Contains("str_eq", ir);
+    }
+
+    [Fact]
+    public void TestStringConcatIsOwnedAndFreed()
+    {
+        string source = @"
+VOID test() {
+    STRING greeting = ""Hello, "" + ""world"";
+}";
+        string ir = Generate(source);
+        // Concatenation should allocate...
+        Assert.Contains("concat_buf", ir);
+        Assert.Contains("malloc", ir);
+        // ...and the owning variable should be freed at end of scope.
+        Assert.Contains("free", ir);
+    }
+
+    // -----------------------------------------------------------------------
+    // parse_* builtins
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void TestParseInt32FromCstring()
+    {
+        var source = @"
+@entry
+VOID main(CSTRING[] args) {
+    CSTRING s = ""42"";
+    INT32 n = parse_int32(s);
+    print(n);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtol", ir);
+    }
+
+    [Fact]
+    public void TestParseUint64FromCstring()
+    {
+        var source = @"
+@entry
+VOID main(CSTRING[] args) {
+    CSTRING s = ""18446744073709551615"";
+    UINT64 n = parse_uint64(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtoull", ir);
+    }
+
+    [Fact]
+    public void TestParseFloat64FromCstring()
+    {
+        var source = @"
+@entry
+VOID main(CSTRING[] args) {
+    CSTRING s = ""3.14"";
+    FLOAT64 f = parse_float64(s);
+    print(f);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtod", ir);
+    }
+
+    [Fact]
+    public void TestParseFloat32FromCstring()
+    {
+        var source = @"
+@entry
+VOID main(CSTRING[] args) {
+    CSTRING s = ""2.718"";
+    FLOAT32 f = parse_float32(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtof", ir);
+    }
+
+    [Fact]
+    public void TestParseInt32FromString()
+    {
+        // STRING needs NUL-terminated copy before calling strtol
+        var source = @"
+@entry
+VOID main(CSTRING[] args) {
+    STRING s = ""123"";
+    INT32 n = parse_int32(s);
+    print(n);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtol", ir);
+        // STRING path should allocate a NUL-terminated copy
+        Assert.Contains("malloc", ir);
+    }
+
+    [Fact]
+    public void TestParseInt8AndUint8()
+    {
+        var source = @"
+VOID test() {
+    CSTRING s = ""100"";
+    INT8 a = parse_int8(s);
+    UINT8 b = parse_uint8(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtol", ir);
+        Assert.Contains("strtoul", ir);
+        // Should truncate from i64 to i8
+        Assert.Contains("trunc", ir);
+    }
+
+    [Fact]
+    public void TestParseInt16AndUint16()
+    {
+        var source = @"
+VOID test() {
+    CSTRING s = ""1000"";
+    INT16 a = parse_int16(s);
+    UINT16 b = parse_uint16(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtol", ir);
+        Assert.Contains("strtoul", ir);
+        Assert.Contains("trunc", ir);
+    }
+
+    [Fact]
+    public void TestParseInt64AndUint32()
+    {
+        var source = @"
+VOID test() {
+    CSTRING s = ""999999"";
+    INT64 x = parse_int64(s);
+    UINT32 y = parse_uint32(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strtoll", ir);
+        Assert.Contains("strtoul", ir);
+    }
+
+    [Fact]
+    public void TestParseInt128AndUint128()
+    {
+        var source = @"
+VOID test() {
+    CSTRING s = ""123456789"";
+    INT128 a = parse_int128(s);
+    UINT128 b = parse_uint128(s);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestParseAllNumericsVerify()
+    {
+        // Verify that all 12 parse_* builtins pass LLVM module verification
+        var source = @"
+VOID test() {
+    CSTRING c = ""42"";
+    INT8 a = parse_int8(c);
+    UINT8 b = parse_uint8(c);
+    INT16 d = parse_int16(c);
+    UINT16 e = parse_uint16(c);
+    INT32 f = parse_int32(c);
+    UINT32 g = parse_uint32(c);
+    INT64 h = parse_int64(c);
+    UINT64 i = parse_uint64(c);
+    INT128 j = parse_int128(c);
+    UINT128 k = parse_uint128(c);
+    FLOAT32 l = parse_float32(c);
+    FLOAT64 m = parse_float64(c);
+}";
+        GenerateAndVerify(source);
+    }
+
+    [Fact]
+    public void TestParseBool()
+    {
+        var source = @"
+VOID test() {
+    CSTRING t = ""true"";
+    CSTRING f = ""false"";
+    BOOL a = parse_bool(t);
+    BOOL b = parse_bool(f);
+}";
+        string ir = Generate(source);
+        Assert.Contains("call i32 @strcmp", ir);
+    }
+
+    [Fact]
+    public void TestParseBoolFromString()
+    {
+        var source = @"
+VOID test() {
+    STRING s = ""true"";
+    BOOL v = parse_bool(s);
+}";
+        string ir = Generate(source);
+        Assert.Contains("strcmp", ir);
+        Assert.Contains("malloc", ir);
+    }
+
+    [Fact]
+    public void TestThreadSpawnAndJoin()
+    {
+        var source = @"
+VOID worker(PTR arg) {
+    return;
+}
+
+VOID test() {
+    PTR t = thread_spawn(""worker"", null);
+    thread_join(t);
+}";
+        GenerateAndVerify(source);
+        string ir = Generate(source);
+        Assert.Contains("__zv_thread_wrapper_worker", ir);
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Assert.Contains("CreateThread", ir);
+            Assert.Contains("WaitForSingleObject", ir);
+            Assert.Contains("CloseHandle", ir);
+        }
+        else
+        {
+            Assert.Contains("pthread_create", ir);
+            Assert.Contains("pthread_join", ir);
+        }
+    }
+
+    [Fact]
+    public void TestThreadSleepMs()
+    {
+        var source = @"
+VOID test() {
+    thread_sleep_ms(10);
+}";
+        string ir = Generate(source);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            Assert.Contains("Sleep", ir);
+        else
+            Assert.Contains("usleep", ir);
+    }
+
+    [Fact]
+    public void TestMutexLifecycle()
+    {
+        var source = @"
+VOID test() {
+    PTR m = mutex_create();
+    mutex_lock(m);
+    mutex_unlock(m);
+    mutex_destroy(m);
+}";
+        GenerateAndVerify(source);
+        string ir = Generate(source);
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Assert.Contains("CreateMutexA", ir);
+            Assert.Contains("ReleaseMutex", ir);
+            Assert.Contains("CloseHandle", ir);
+        }
+        else
+        {
+            Assert.Contains("pthread_mutex_init", ir);
+            Assert.Contains("pthread_mutex_lock", ir);
+            Assert.Contains("pthread_mutex_unlock", ir);
+            Assert.Contains("pthread_mutex_destroy", ir);
+        }
+    }
+
+    [Fact]
+    public void TestAtomicI32Operations()
+    {
+        var source = @"
+VOID test() {
+    PTR p = alloc(4 as INT64);
+    INT32 v = atomic_load_int32(p);
+    atomic_store_int32(p, 7);
+    INT32 old = atomic_add_int32(p, 3);
+}";
+        GenerateAndVerify(source);
+        string ir = Generate(source);
+        Assert.Contains("atomicrmw add", ir);
+        Assert.Contains("atomicrmw xchg", ir);
+    }
+
+    [Fact]
+    public void TestAtomicOperationsForAllIntegerWidths()
+    {
+        var source = @"
+VOID test() {
+    PTR p8  = alloc(1 as INT64);
+    PTR p16 = alloc(2 as INT64);
+    PTR p32 = alloc(4 as INT64);
+    PTR p64 = alloc(8 as INT64);
+
+    INT8  v8  = atomic_load_int8(p8);
+    INT16 v16 = atomic_load_int16(p16);
+    INT32 v32 = atomic_load_int32(p32);
+    INT64 v64 = atomic_load_int64(p64);
+
+    atomic_store_uint8(p8, 1);
+    atomic_store_uint16(p16, 2);
+    atomic_store_uint32(p32, 3);
+    atomic_store_uint64(p64, 4);
+
+    INT8  old8  = atomic_add_int8(p8, 1);
+    INT16 old16 = atomic_add_int16(p16, 1);
+    INT32 old32 = atomic_add_int32(p32, 1);
+    INT64 old64 = atomic_add_int64(p64, 1);
+}";
+        GenerateAndVerify(source);
+    }
+}

@@ -1,0 +1,39 @@
+# Maintainer: amir16yp
+# Build-from-source package for the ZV programming language compiler.
+# Requires the .NET 10 SDK to build. If your distro's official `dotnet-sdk-10.0`
+# is unavailable, install `dotnet-sdk-bin` from the AUR before building.
+
+pkgname=zv-git
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc="ZV programming language compiler (git build)"
+arch=('x86_64')
+url="https://github.com/amir16yp/ZV"
+license=('MIT')
+depends=('clang' 'lld')
+makedepends=('dotnet-sdk-10.0' 'git')
+provides=('zv')
+conflicts=('zv' 'zv-bin')
+source=("git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "${srcdir}/ZV"
+    git describe --long --tags 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' || echo "0.1.0.r0.$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "${srcdir}/ZV"
+    dotnet publish ZV.csproj -c Release -r linux-x64 --self-contained true -o "${srcdir}/build"
+}
+
+package() {
+    install -Dm755 "${srcdir}/build/zv" "$pkgdir/usr/bin/zv"
+
+    mkdir -p "$pkgdir/usr/lib/zv"
+    cp -r "${srcdir}/build/lib" "$pkgdir/usr/lib/zv/lib"
+    find "$pkgdir/usr/lib/zv/lib" -type f -exec chmod 644 {} \;
+
+    install -Dm644 "${srcdir}/ZV/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 "${srcdir}/ZV/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

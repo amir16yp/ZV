@@ -1,0 +1,2 @@
+// Header-specific type aliases extracted from source header
+type LPSTARTUPINFO = PTR<VOID>;

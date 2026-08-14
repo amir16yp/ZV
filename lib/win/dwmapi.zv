@@ -1,0 +1,64 @@
+// dwmapi.zv
+//
+// Auto-generated ZV bindings from dwmapi.h
+// DLL: dwmapi.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "dwmapi_types.zv"
+
+// Numeric constants extracted from header
+#define DWM_BB_ENABLE 0x00000001
+#define DWM_BB_BLURREGION 0x00000002
+#define DWM_BB_TRANSITIONONMAXIMIZED 0x00000004
+#define DWMWA_COLOR_DEFAULT 0xFFFFFFFF
+#define DWMWA_COLOR_NONE 0xFFFFFFFE
+#define DWM_CLOAKED_APP 0x00000001
+#define DWM_CLOAKED_SHELL 0x00000002
+#define DWM_CLOAKED_INHERITED 0x00000004
+#define DWM_TNP_RECTDESTINATION 0x00000001
+#define DWM_TNP_RECTSOURCE 0x00000002
+#define DWM_TNP_OPACITY 0x00000004
+#define DWM_TNP_VISIBLE 0x00000008
+#define DWM_TNP_SOURCECLIENTAREAONLY 0x00000010
+#define DWM_FRAME_DURATION_DEFAULT -1
+#define DWM_EC_DISABLECOMPOSITION 0
+#define DWM_EC_ENABLECOMPOSITION 1
+#define DWM_SIT_DISPLAYFRAME 0x00000001
+
+extern "dwmapi.dll" {
+    BOOL32 DwmDefWindowProc(HWND hWnd, UINT32 msg, WPARAM wParam, LPARAM lParam, PTR<VOID> arg4);
+    HRESULT DwmEnableBlurBehindWindow(HWND hWnd, PTR<VOID> pBlurBehind);
+    HRESULT DwmEnableComposition(UINT32 uCompositionAction);
+    HRESULT DwmEnableMMCSS(BOOL32 fEnableMMCSS);
+    HRESULT DwmExtendFrameIntoClientArea(HWND hWnd, PTR<VOID> pMarInset);
+    HRESULT DwmGetColorizationColor(PTR<DWORD> pcrColorization, PTR<BOOL32> pfOpaqueBlend);
+    HRESULT DwmGetCompositionTimingInfo(HWND hwnd, PTR<VOID> pTimingInfo);
+    HRESULT DwmGetWindowAttribute(HWND hwnd, DWORD dwAttribute, PTR<VOID> pvAttribute, DWORD cbAttribute);
+    HRESULT DwmIsCompositionEnabled(PTR<BOOL32> pfEnabled);
+    HRESULT DwmModifyPreviousDxFrameDuration(HWND hwnd, INT32 cRefreshes, BOOL32 fRelative);
+    HRESULT DwmQueryThumbnailSourceSize(PTR<VOID> hThumbnail, PTR<VOID> pSize);
+    HRESULT DwmRegisterThumbnail(HWND hwndDestination, HWND hwndSource, PTR<VOID> phThumbnailId);
+    HRESULT DwmSetDxFrameDuration(HWND hwnd, INT32 cRefreshes);
+    HRESULT DwmSetPresentParameters(HWND hwnd, PTR<VOID> pPresentParams);
+    HRESULT DwmSetWindowAttribute(HWND hwnd, DWORD dwAttribute, PTR<VOID> pvAttribute, DWORD cbAttribute);
+    HRESULT DwmUnregisterThumbnail(PTR<VOID> hThumbnailId);
+    HRESULT DwmUpdateThumbnailProperties(PTR<VOID> hThumbnailId, PTR<VOID> ptnProperties);
+    HRESULT DwmSetIconicThumbnail(HWND hwnd, HBITMAP hbmp, DWORD dwSITFlags);
+    HRESULT DwmSetIconicLivePreviewBitmap(HWND hwnd, HBITMAP hbmp, PTR<VOID> arg2, DWORD dwSITFlags);
+    HRESULT DwmInvalidateIconicBitmaps(HWND hwnd);
+    HRESULT DwmAttachMilContent(HWND hwnd);
+    HRESULT DwmDetachMilContent(HWND hwnd);
+    HRESULT DwmFlush();
+    HRESULT DwmGetGraphicsStreamTransformHint(UINT32 uIndex, PTR<VOID> arg1);
+    HRESULT DwmGetGraphicsStreamClient(UINT32 uIndex, PTR<VOID> arg1);
+    HRESULT DwmGetTransportAttributes(PTR<VOID> arg0, PTR<VOID> arg1, PTR<VOID> arg2);
+    HRESULT DwmTransitionOwnedWindow(HWND hwnd, UINT32 target);
+    HRESULT DwmRenderGesture(UINT32 gt, UINT32 cContacts, PTR<VOID> arg2, PTR<VOID> arg3);
+    HRESULT DwmTetherContact(DWORD dwPointerID, BOOL32 fEnable, PTR<VOID> ptTether);
+    HRESULT DwmShowContact(DWORD dwPointerID, UINT32 eShowContact);
+    HRESULT DwmGetUnmetTabRequirements(HWND appWindow, PTR<VOID> value);
+}

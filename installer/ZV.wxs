@@ -1,0 +1,141 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <?define UpgradeCode = "AFF47E3A-0FB9-4D50-9052-9361DE2804D7" ?>
+  <?if $(var.InstallScope) = perMachine ?>
+    <?define ProductName = "ZV Compiler (All Users)" ?>
+    <?define ProductCode = "478D1393-7C56-4F74-AB8F-99985C46A481" ?>
+    <?define UpdatePathGuid = "D0FDFC9A-2AA2-460D-8E7A-E2B1BDE10791" ?>
+    <?define OptionalDepsGuid = "AD31A7CE-AF8B-46A1-84EA-519CD2E163B2" ?>
+    <?define InstallFolder = "ProgramFilesFolder" ?>
+    <?define IsMachine = "yes" ?>
+  <?else?>
+    <?define ProductName = "ZV Compiler" ?>
+    <?define ProductCode = "0EC6D03E-F067-460F-A416-516AA51EBA58" ?>
+    <?define UpdatePathGuid = "FE640774-5104-48E5-A5C9-0E81E9A4C815" ?>
+    <?define OptionalDepsGuid = "448AA843-D84D-4CAE-9DD4-10A542D39E28" ?>
+    <?define InstallFolder = "LocalAppDataFolder" ?>
+    <?define IsMachine = "no" ?>
+  <?endif?>
+  <?define LicenseRtf = "installer\LICENSE.rtf" ?>
+
+  <!--
+    MSI installer for the ZV compiler.
+
+    Build from the repo root with the WiX v4 toolset installed and the Netfx
+    and UI extensions available:
+      wix build -arch x64 installer\ZV.wxs installer\ZVFiles.wxs -ext WixToolset.Netfx.wixext/4.0.5 -ext WixToolset.UI.wixext/4.0.5 -d Version=0.1.0 -d InstallScope=perUser -o ZV-Setup-x64.msi
+
+    For an all-users install (requires admin, installs under Program Files):
+      wix build -arch x64 installer\ZV.wxs installer\ZVFiles.wxs -ext WixToolset.Netfx.wixext/4.0.5 -ext WixToolset.UI.wixext/4.0.5 -d Version=0.1.0 -d InstallScope=perMachine -o ZV-Setup-x64-AllUsers.msi
+
+    Before building, generate the file manifest with:
+      powershell -ExecutionPolicy Bypass -File installer\generate-wxs.ps1 -SourceDir .\publish\win-x64-msi
+
+    The MSIs are framework-dependent x64 packages and require the .NET 10
+    Runtime (x64). The publish directory must contain ZV.exe, its non-runtime
+    dependencies, a lib/ folder, and setup\install-deps.ps1. The default MSI
+    installs into %LOCALAPPDATA%\ZV and appends that folder to the user PATH.
+    The per-machine MSI installs into C:\Program Files (x86)\ZV and appends it
+    to the system PATH.
+  -->
+  <Package Name="$(var.ProductName)"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="amir16yp"
+           ProductCode="$(var.ProductCode)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Scope="$(var.InstallScope)">
+
+    <SummaryInformation Description="ZV Programming Language Compiler" />
+
+    <!-- Icon shown in Apps & Features / Programs and Features. -->
+    <Icon Id="ZVIcon.ico" SourceFile="icons\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ZVIcon.ico" />
+
+    <!-- Ensure the entry appears in Apps & Features / Programs and Features. -->
+    <Property Id="ARPCOMMENTS" Value="ZV programming language compiler and standard library" />
+    <Property Id="ARPCONTACT" Value="amir16yp" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/amir16yp/ZV" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/amir16yp/ZV/releases" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of ZV is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="$(var.InstallFolder)">
+      <Directory Name="ZV" Id="INSTALLFOLDER" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="ZV Compiler" Level="1" Display="expand" ConfigurableDirectory="INSTALLFOLDER">
+      <ComponentGroupRef Id="ZVFiles" />
+      <ComponentRef Id="UpdatePathComponent" />
+    </Feature>
+
+    <Feature Id="OptionalBuildTools" Title="Optional build tools (Scoop + LLVM)" Level="1" AllowAdvertise="no">
+      <ComponentRef Id="OptionalDepsMarkerComponent" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <ui:WixUI Id="WixUI_FeatureTree" />
+  </Package>
+
+  <Fragment>
+    <Component Id="UpdatePathComponent" Directory="INSTALLFOLDER" Guid="$(var.UpdatePathGuid)">
+      <!-- Append the install folder to the appropriate PATH (user or system). -->
+      <Environment Id="UpdatePath"
+                   Name="PATH"
+                   Value="[INSTALLFOLDER]"
+                   Part="last"
+                   Action="set"
+                   System="$(var.IsMachine)" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <!-- Marker component so the optional feature has something to install. -->
+    <Component Id="OptionalDepsMarkerComponent" Directory="INSTALLFOLDER" Guid="$(var.OptionalDepsGuid)">
+      <RegistryValue Root="HKMU"
+                     Key="Software\ZV\OptionalBuildTools"
+                     Name="Installed"
+                     Value="1"
+                     Type="integer"
+                     KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <!-- PowerShell custom action to install optional dependencies. -->
+    <Property Id="POWERSHELLEXE" Secure="yes">
+      <DirectorySearch Id="PowershellSearch" Path="[SystemFolder]" Depth="1">
+        <FileSearch Name="powershell.exe" />
+      </DirectorySearch>
+    </Property>
+
+    <CustomAction Id="InstallOptionalDeps"
+                  Property="POWERSHELLEXE"
+                  ExeCommand="-ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLFOLDER]setup\install-deps.ps1&quot;"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="no" />
+
+    <InstallExecuteSequence>
+      <Custom Action="InstallOptionalDeps" After="InstallFiles" Condition="&amp;OptionalBuildTools = 3" />
+    </InstallExecuteSequence>
+  </Fragment>
+
+  <Fragment>
+    <!-- Require the .NET 10 runtime (x64). Value 0 means the runtime is present. -->
+    <netfx:DotNetCompatibilityCheck
+        Id="DotNet10Check"
+        Property="DOTNET10FOUND"
+        RuntimeType="core"
+        Version="10.0.0"
+        Platform="x64"
+        RollForward="latestMajor" />
+    <Launch Condition="Installed OR DOTNET10FOUND = &quot;0&quot;"
+                    Message="This setup requires the .NET 10.0 Runtime (x64). Download it from https://dotnet.microsoft.com/en-us/download/dotnet/10.0" />
+  </Fragment>
+</Wix>

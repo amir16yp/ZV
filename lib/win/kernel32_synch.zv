@@ -1,0 +1,85 @@
+// kernel32_synch.zv
+//
+// Auto-generated ZV bindings from synchapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "kernel32_synch_types.zv"
+
+// Numeric constants extracted from header
+#define CREATE_MUTEX_INITIAL_OWNER 0x00000001
+#define CREATE_EVENT_MANUAL_RESET 0x00000001
+#define CREATE_EVENT_INITIAL_SET 0x00000002
+#define CREATE_WAITABLE_TIMER_MANUAL_RESET 0x00000001
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#define SYNCHRONIZATION_BARRIER_FLAGS_SPIN_ONLY 0x01
+#define SYNCHRONIZATION_BARRIER_FLAGS_BLOCK_ONLY 0x02
+#define SYNCHRONIZATION_BARRIER_FLAGS_NO_DELETE 0x04
+
+extern "kernel32.dll" {
+    VOID InitializeSRWLock(PTR<VOID> SRWLock);
+    VOID ReleaseSRWLockExclusive(PTR<VOID> SRWLock);
+    VOID ReleaseSRWLockShared(PTR<VOID> SRWLock);
+    VOID AcquireSRWLockExclusive(PTR<VOID> SRWLock);
+    VOID AcquireSRWLockShared(PTR<VOID> SRWLock);
+    BOOL32 TryAcquireSRWLockExclusive(PTR<VOID> SRWLock);
+    BOOL32 TryAcquireSRWLockShared(PTR<VOID> SRWLock);
+    VOID InitializeCriticalSection(PTR<VOID> lpCriticalSection);
+    VOID EnterCriticalSection(PTR<VOID> lpCriticalSection);
+    VOID LeaveCriticalSection(PTR<VOID> lpCriticalSection);
+    BOOL32 InitializeCriticalSectionAndSpinCount(PTR<VOID> lpCriticalSection, DWORD dwSpinCount);
+    BOOL32 InitializeCriticalSectionEx(PTR<VOID> lpCriticalSection, DWORD dwSpinCount, DWORD Flags);
+    DWORD SetCriticalSectionSpinCount(PTR<VOID> lpCriticalSection, DWORD dwSpinCount);
+    BOOL32 TryEnterCriticalSection(PTR<VOID> lpCriticalSection);
+    VOID DeleteCriticalSection(PTR<VOID> lpCriticalSection);
+    VOID InitOnceInitialize(PTR<VOID> InitOnce);
+    BOOL32 InitOnceExecuteOnce(PTR<VOID> InitOnce, PTR<VOID> InitFn, PTR<VOID> Parameter, PTR<VOID> Context);
+    BOOL32 InitOnceBeginInitialize(PTR<VOID> lpInitOnce, DWORD dwFlags, PTR<BOOL32> fPending, PTR<VOID> lpContext);
+    BOOL32 InitOnceComplete(PTR<VOID> lpInitOnce, DWORD dwFlags, PTR<VOID> lpContext);
+    VOID InitializeConditionVariable(PTR<VOID> ConditionVariable);
+    VOID WakeConditionVariable(PTR<VOID> ConditionVariable);
+    VOID WakeAllConditionVariable(PTR<VOID> ConditionVariable);
+    BOOL32 SleepConditionVariableCS(PTR<VOID> ConditionVariable, PTR<VOID> CriticalSection, DWORD dwMilliseconds);
+    BOOL32 SleepConditionVariableSRW(PTR<VOID> ConditionVariable, PTR<VOID> SRWLock, DWORD dwMilliseconds, ULONG Flags);
+    BOOL32 SetEvent(HANDLE hEvent);
+    BOOL32 ResetEvent(HANDLE hEvent);
+    BOOL32 ReleaseSemaphore(HANDLE hSemaphore, LONG lReleaseCount, PTR<VOID> lpPreviousCount);
+    BOOL32 ReleaseMutex(HANDLE hMutex);
+    DWORD WaitForSingleObject(HANDLE hHandle, DWORD dwMilliseconds);
+    DWORD SleepEx(DWORD dwMilliseconds, BOOL32 bAlertable);
+    DWORD WaitForSingleObjectEx(HANDLE hHandle, DWORD dwMilliseconds, BOOL32 bAlertable);
+    DWORD WaitForMultipleObjectsEx(DWORD nCount, PTR<HANDLE> lpHandles, BOOL32 bWaitAll, DWORD dwMilliseconds, BOOL32 bAlertable);
+    HANDLE CreateMutexA(PTR<VOID> lpMutexAttributes, BOOL32 bInitialOwner, LPCSTR lpName);
+    HANDLE CreateMutexW(PTR<VOID> lpMutexAttributes, BOOL32 bInitialOwner, WSTRING lpName);
+    HANDLE OpenMutexW(DWORD dwDesiredAccess, BOOL32 bInheritHandle, WSTRING lpName);
+    HANDLE CreateEventA(PTR<VOID> lpEventAttributes, BOOL32 bManualReset, BOOL32 bInitialState, LPCSTR lpName);
+    HANDLE CreateEventW(PTR<VOID> lpEventAttributes, BOOL32 bManualReset, BOOL32 bInitialState, WSTRING lpName);
+    HANDLE OpenEventA(DWORD dwDesiredAccess, BOOL32 bInheritHandle, LPCSTR lpName);
+    HANDLE OpenEventW(DWORD dwDesiredAccess, BOOL32 bInheritHandle, WSTRING lpName);
+    HANDLE OpenSemaphoreW(DWORD dwDesiredAccess, BOOL32 bInheritHandle, WSTRING lpName);
+    HANDLE OpenWaitableTimerW(DWORD dwDesiredAccess, BOOL32 bInheritHandle, WSTRING lpTimerName);
+    BOOL32 SetWaitableTimerEx(HANDLE hTimer, PTR<PTR<VOID>> lpDueTime, LONG lPeriod, PTR<VOID> pfnCompletionRoutine, PTR<VOID> lpArgToCompletionRoutine, PTR<VOID> WakeContext, ULONG TolerableDelay);
+    BOOL32 SetWaitableTimer(HANDLE hTimer, PTR<PTR<VOID>> lpDueTime, LONG lPeriod, PTR<VOID> pfnCompletionRoutine, PTR<VOID> lpArgToCompletionRoutine, BOOL32 fResume);
+    BOOL32 CancelWaitableTimer(HANDLE hTimer);
+    HANDLE CreateMutexExA(PTR<VOID> lpMutexAttributes, LPCSTR lpName, DWORD dwFlags, DWORD dwDesiredAccess);
+    HANDLE CreateMutexExW(PTR<VOID> lpMutexAttributes, WSTRING lpName, DWORD dwFlags, DWORD dwDesiredAccess);
+    HANDLE CreateEventExA(PTR<VOID> lpEventAttributes, LPCSTR lpName, DWORD dwFlags, DWORD dwDesiredAccess);
+    HANDLE CreateEventExW(PTR<VOID> lpEventAttributes, WSTRING lpName, DWORD dwFlags, DWORD dwDesiredAccess);
+    HANDLE CreateSemaphoreExW(PTR<VOID> lpSemaphoreAttributes, LONG lInitialCount, LONG lMaximumCount, WSTRING lpName, DWORD dwFlags, DWORD dwDesiredAccess);
+    HANDLE CreateWaitableTimerExW(PTR<VOID> lpTimerAttributes, WSTRING lpTimerName, DWORD dwFlags, DWORD dwDesiredAccess);
+    BOOL32 EnterSynchronizationBarrier(PTR<VOID> lpBarrier, DWORD dwFlags);
+    BOOL32 InitializeSynchronizationBarrier(PTR<VOID> lpBarrier, LONG lTotalThreads, LONG lSpinCount);
+    BOOL32 DeleteSynchronizationBarrier(PTR<VOID> lpBarrier);
+    VOID Sleep(DWORD dwMilliseconds);
+    BOOL32 WaitOnAddress(PTR<VOID> Address, PTR<VOID> CompareAddress, SIZE_T AddressSize, DWORD dwMilliseconds);
+    VOID WakeByAddressSingle(PTR<VOID> Address);
+    VOID WakeByAddressAll(PTR<VOID> Address);
+    DWORD SignalObjectAndWait(HANDLE hObjectToSignal, HANDLE hObjectToWaitOn, DWORD dwMilliseconds, BOOL32 bAlertable);
+    DWORD WaitForMultipleObjects(DWORD nCount, PTR<HANDLE> lpHandles, BOOL32 bWaitAll, DWORD dwMilliseconds);
+    HANDLE CreateSemaphoreW(PTR<VOID> lpSemaphoreAttributes, LONG lInitialCount, LONG lMaximumCount, WSTRING lpName);
+    HANDLE CreateWaitableTimerW(PTR<VOID> lpTimerAttributes, BOOL32 bManualReset, WSTRING lpTimerName);
+}

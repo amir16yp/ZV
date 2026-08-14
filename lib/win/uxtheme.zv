@@ -1,0 +1,146 @@
+// uxtheme.zv
+//
+// Auto-generated ZV bindings from Uxtheme.h
+// DLL: uxtheme.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+// Numeric constants extracted from header
+#define MAX_THEMECOLOR 64
+#define MAX_THEMESIZE 64
+#define OTD_FORCE_RECT_SIZING 0x00000001
+#define OTD_NONCLIENT 0x00000002
+#define DTBG_CLIPRECT 0x00000001
+#define DTBG_DRAWSOLID 0x00000002
+#define DTBG_OMITBORDER 0x00000004
+#define DTBG_OMITCONTENT 0x00000008
+#define DTBG_COMPUTINGREGION 0x00000010
+#define DTBG_MIRRORDC 0x00000020
+#define DTBG_NOMIRROR 0x00000040
+#define DTT_GRAYED 0x00000001
+#define HTTB_BACKGROUNDSEG 0x00000000
+#define HTTB_FIXEDBORDER 0x00000002
+#define HTTB_CAPTION 0x00000004
+#define HTTB_RESIZINGBORDER_LEFT 0x00000010
+#define HTTB_RESIZINGBORDER_TOP 0x00000020
+#define HTTB_RESIZINGBORDER_RIGHT 0x00000040
+#define HTTB_RESIZINGBORDER_BOTTOM 0x00000080
+#define HTTB_SIZINGTEMPLATE 0x00000100
+#define HTTB_SYSTEMSIZINGMARGINS 0x00000200
+#define MAX_INTLIST_COUNT 10
+#define ETDT_DISABLE 0x00000001
+#define ETDT_ENABLE 0x00000002
+#define ETDT_USETABTEXTURE 0x00000004
+#define ETDT_USEAEROWIZARDTABTEXTURE 0x00000008
+#define STAP_ALLOW_NONCLIENT (1 << 0)
+#define STAP_ALLOW_CONTROLS (1 << 1)
+#define STAP_ALLOW_WEBCONTENT (1 << 2)
+#define GBF_DIRECT 0x00000001
+#define GBF_COPY 0x00000002
+#define DTPB_WINDOWDC 0x00000001
+#define DTPB_USECTLCOLORSTATIC 0x00000002
+#define DTPB_USEERASEBKGND 0x00000004
+#define WTNCA_NODRAWCAPTION 0x00000001
+#define WTNCA_NODRAWICON 0x00000002
+#define WTNCA_NOSYSMENU 0x00000004
+#define WTNCA_NOMIRRORHELP 0x00000008
+#define DTT_TEXTCOLOR (1 << 0)
+#define DTT_BORDERCOLOR (1 << 1)
+#define DTT_SHADOWCOLOR (1 << 2)
+#define DTT_SHADOWTYPE (1 << 3)
+#define DTT_SHADOWOFFSET (1 << 4)
+#define DTT_BORDERSIZE (1 << 5)
+#define DTT_FONTPROP (1 << 6)
+#define DTT_COLORPROP (1 << 7)
+#define DTT_STATEID (1 << 8)
+#define DTT_CALCRECT (1 << 9)
+#define DTT_APPLYOVERLAY (1 << 10)
+#define DTT_GLOWSIZE (1 << 11)
+#define DTT_CALLBACK (1 << 12)
+#define DTT_COMPOSITED (1 << 13)
+#define BPPF_ERASE 0x0001
+#define BPPF_NOCLIP 0x0002
+#define BPPF_NONCLIENT 0x0004
+
+extern "uxtheme.dll" {
+    BOOL32 BeginPanningFeedback(HWND hwnd);
+    BOOL32 UpdatePanningFeedback(HWND hwnd, LONG lTotalOverpanOffsetX, LONG lTotalOverpanOffsetY, BOOL32 fInInertia);
+    BOOL32 EndPanningFeedback(HWND hwnd, BOOL32 fAnimateBack);
+    HRESULT GetThemeAnimationProperty(PTR<VOID> hTheme, INT32 iStoryboardId, INT32 iTargetId, UINT32 eProperty, PTR<VOID> arg4, DWORD cbSize, PTR<VOID> arg6);
+    HRESULT GetThemeAnimationTransform(PTR<VOID> hTheme, INT32 iStoryboardId, INT32 iTargetId, DWORD dwTransformIndex, PTR<VOID> arg4, DWORD cbSize, PTR<VOID> arg6);
+    HRESULT GetThemeTimingFunction(PTR<VOID> hTheme, INT32 iTimingFunctionId, PTR<VOID> arg2, DWORD cbSize, PTR<VOID> arg4);
+    PTR<VOID> OpenThemeData(HWND hwnd, WSTRING pszClassList);
+    PTR<VOID> OpenThemeDataForDpi(HWND hwnd, WSTRING pszClassList, UINT32 dpi);
+    PTR<VOID> OpenThemeDataEx(HWND hwnd, WSTRING pszClassList, DWORD dwFlags);
+    HRESULT CloseThemeData(PTR<VOID> hTheme);
+    HRESULT DrawThemeBackground(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pRect, PTR<VOID> pClipRect);
+    HRESULT DrawThemeBackgroundEx(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pRect, PTR<VOID> arg5);
+    HRESULT DrawThemeText(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, WSTRING pszText, INT32 cchText, DWORD dwTextFlags, DWORD dwTextFlags2, PTR<VOID> pRect);
+    HRESULT GetThemeBackgroundContentRect(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pBoundingRect, PTR<VOID> pContentRect);
+    HRESULT GetThemeBackgroundExtent(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pContentRect, PTR<VOID> pExtentRect);
+    HRESULT GetThemeBackgroundRegion(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pRect, PTR<VOID> arg5);
+    HRESULT GetThemePartSize(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> prc, UINT32 eSize, PTR<VOID> arg6);
+    HRESULT GetThemeTextExtent(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, WSTRING pszText, INT32 cchCharCount, DWORD dwTextFlags, PTR<VOID> pBoundingRect, PTR<VOID> pExtentRect);
+    HRESULT GetThemeTextMetrics(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> arg4);
+    HRESULT HitTestThemeBackground(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, DWORD dwOptions, PTR<VOID> pRect, HRGN hrgn, PTR<VOID> ptTest, PTR<VOID> arg8);
+    HRESULT DrawThemeEdge(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pDestRect, UINT32 uEdge, UINT32 uFlags, PTR<VOID> pContentRect);
+    HRESULT DrawThemeIcon(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, PTR<VOID> pRect, PTR<VOID> himl, INT32 iImageIndex);
+    BOOL32 IsThemePartDefined(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId);
+    BOOL32 IsThemeBackgroundPartiallyTransparent(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId);
+    HRESULT GetThemeColor(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemeMetric(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg5);
+    HRESULT GetThemeString(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, WSTRING pszBuff, INT32 cchMaxBuffChars);
+    HRESULT GetThemeBool(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemeInt(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemeEnumValue(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemePosition(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemeFont(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg5);
+    HRESULT GetThemeRect(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> pRect);
+    HRESULT GetThemeMargins(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> prc, PTR<VOID> arg6);
+    HRESULT GetThemeIntList(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT GetThemePropertyOrigin(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4);
+    HRESULT SetWindowTheme(HWND hwnd, WSTRING pszSubAppName, WSTRING pszSubIdList);
+    HRESULT GetThemeFilename(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, WSTRING pszThemeFileName, INT32 cchMaxBuffChars);
+    COLORREF GetThemeSysColor(PTR<VOID> hTheme, INT32 iColorId);
+    HBRUSH GetThemeSysColorBrush(PTR<VOID> hTheme, INT32 iColorId);
+    BOOL32 GetThemeSysBool(PTR<VOID> hTheme, INT32 iBoolId);
+    INT32 GetThemeSysSize(PTR<VOID> hTheme, INT32 iSizeId);
+    HRESULT GetThemeSysFont(PTR<VOID> hTheme, INT32 iFontId, PTR<VOID> arg2);
+    HRESULT GetThemeSysString(PTR<VOID> hTheme, INT32 iStringId, WSTRING pszStringBuff, INT32 cchMaxStringChars);
+    HRESULT GetThemeSysInt(PTR<VOID> hTheme, INT32 iIntId, PTR<VOID> arg2);
+    BOOL32 IsThemeActive();
+    BOOL32 IsAppThemed();
+    PTR<VOID> GetWindowTheme(HWND hwnd);
+    HRESULT EnableThemeDialogTexture(HWND hwnd, DWORD dwFlags);
+    BOOL32 IsThemeDialogTextureEnabled(HWND hwnd);
+    DWORD GetThemeAppProperties();
+    VOID SetThemeAppProperties(DWORD dwFlags);
+    HRESULT GetCurrentThemeName(WSTRING pszThemeFileName, INT32 cchMaxNameChars, WSTRING pszColorBuff, INT32 cchMaxColorChars, WSTRING pszSizeBuff, INT32 cchMaxSizeChars);
+    HRESULT GetThemeDocumentationProperty(WSTRING pszThemeName, WSTRING pszPropertyName, WSTRING pszValueBuff, INT32 cchMaxValChars);
+    HRESULT DrawThemeParentBackground(HWND hwnd, HDC hdc, PTR<VOID> prc);
+    HRESULT EnableTheming(BOOL32 fEnable);
+    HRESULT DrawThemeParentBackgroundEx(HWND hwnd, HDC hdc, DWORD dwFlags, PTR<VOID> prc);
+    HRESULT SetWindowThemeAttribute(HWND hwnd, UINT32 eAttribute, PTR<VOID> pvAttribute, DWORD cbAttribute);
+    HRESULT DrawThemeTextEx(PTR<VOID> hTheme, HDC hdc, INT32 iPartId, INT32 iStateId, WSTRING pszText, INT32 cchText, DWORD dwTextFlags, PTR<VOID> pRect, PTR<VOID> arg8);
+    HRESULT GetThemeBitmap(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, ULONG dwFlags, PTR<HBITMAP> phBitmap);
+    HRESULT GetThemeStream(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateId, INT32 iPropId, PTR<VOID> arg4, PTR<VOID> arg5, HINSTANCE hInst);
+    HRESULT BufferedPaintInit();
+    HRESULT BufferedPaintUnInit();
+    PTR<VOID> BeginBufferedPaint(HDC hdcTarget, PTR<VOID> prcTarget, UINT32 dwFormat, PTR<VOID> arg3, PTR<VOID> arg4);
+    HRESULT EndBufferedPaint(PTR<VOID> hBufferedPaint, BOOL32 fUpdateTarget);
+    HRESULT GetBufferedPaintTargetRect(PTR<VOID> hBufferedPaint, PTR<VOID> arg1);
+    HDC GetBufferedPaintTargetDC(PTR<VOID> hBufferedPaint);
+    HDC GetBufferedPaintDC(PTR<VOID> hBufferedPaint);
+    HRESULT GetBufferedPaintBits(PTR<VOID> hBufferedPaint, PTR<VOID> arg1, PTR<VOID> arg2);
+    HRESULT BufferedPaintClear(PTR<VOID> hBufferedPaint, PTR<VOID> arg1);
+    HRESULT BufferedPaintSetAlpha(PTR<VOID> hBufferedPaint, PTR<VOID> arg1, BYTE alpha);
+    HRESULT BufferedPaintStopAllAnimations(HWND hwnd);
+    PTR<VOID> BeginBufferedAnimation(HWND hwnd, HDC hdcTarget, PTR<VOID> prcTarget, UINT32 dwFormat, PTR<VOID> arg4, PTR<VOID> arg5, PTR<VOID> arg6, PTR<VOID> arg7);
+    HRESULT EndBufferedAnimation(PTR<VOID> hbpAnimation, BOOL32 fUpdateTarget);
+    BOOL32 BufferedPaintRenderAnimation(HWND hwnd, HDC hdcTarget);
+    BOOL32 IsCompositionActive();
+    HRESULT GetThemeTransitionDuration(PTR<VOID> hTheme, INT32 iPartId, INT32 iStateIdFrom, INT32 iStateIdTo, INT32 iPropId, PTR<VOID> arg5);
+}

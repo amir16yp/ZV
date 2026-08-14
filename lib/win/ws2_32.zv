@@ -1,0 +1,366 @@
+// ws2_32.zv
+//
+// Auto-generated ZV bindings from WinSock2.h
+// DLL: ws2_32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "ws2_32_types.zv"
+
+// Numeric constants extracted from header
+#define INCL_WINSOCK_API_PROTOTYPES 1
+#define INCL_WINSOCK_API_TYPEDEFS 0
+#define FD_SETSIZE 64
+#define IOCPARM_MASK 0x7f
+#define IOC_VOID 0x20000000
+#define IOC_OUT 0x40000000
+#define IOC_IN 0x80000000
+#define IPPORT_ECHO 7
+#define IPPORT_DISCARD 9
+#define IPPORT_SYSTAT 11
+#define IPPORT_DAYTIME 13
+#define IPPORT_NETSTAT 15
+#define IPPORT_FTP 21
+#define IPPORT_TELNET 23
+#define IPPORT_SMTP 25
+#define IPPORT_TIMESERVER 37
+#define IPPORT_NAMESERVER 42
+#define IPPORT_WHOIS 43
+#define IPPORT_MTP 57
+#define IPPORT_TFTP 69
+#define IPPORT_RJE 77
+#define IPPORT_FINGER 79
+#define IPPORT_TTYLINK 87
+#define IPPORT_SUPDUP 95
+#define IPPORT_EXECSERVER 512
+#define IPPORT_LOGINSERVER 513
+#define IPPORT_CMDSERVER 514
+#define IPPORT_EFSSERVER 520
+#define IPPORT_BIFFUDP 512
+#define IPPORT_WHOSERVER 513
+#define IPPORT_ROUTESERVER 520
+#define IPPORT_RESERVED 1024
+#define IMPLINK_IP 155
+#define IMPLINK_LOWEXPER 156
+#define IMPLINK_HIGHEXPER 158
+#define WSADESCRIPTION_LEN 256
+#define WSASYS_STATUS_LEN 128
+#define INVALID_SOCKET (~0)
+#define SOCKET_ERROR (-1)
+#define FROM_PROTOCOL_INFO (-1)
+#define SOCK_STREAM 1
+#define SOCK_DGRAM 2
+#define SOCK_RAW 3
+#define SOCK_RDM 4
+#define SOCK_SEQPACKET 5
+#define SO_DEBUG 0x0001
+#define SO_ACCEPTCONN 0x0002
+#define SO_REUSEADDR 0x0004
+#define SO_KEEPALIVE 0x0008
+#define SO_DONTROUTE 0x0010
+#define SO_BROADCAST 0x0020
+#define SO_USELOOPBACK 0x0040
+#define SO_LINGER 0x0080
+#define SO_OOBINLINE 0x0100
+#define SO_SNDBUF 0x1001
+#define SO_RCVBUF 0x1002
+#define SO_SNDLOWAT 0x1003
+#define SO_RCVLOWAT 0x1004
+#define SO_SNDTIMEO 0x1005
+#define SO_RCVTIMEO 0x1006
+#define SO_ERROR 0x1007
+#define SO_TYPE 0x1008
+#define SO_GROUP_ID 0x2001
+#define SO_GROUP_PRIORITY 0x2002
+#define SO_MAX_MSG_SIZE 0x2003
+#define SO_PROTOCOL_INFOA 0x2004
+#define SO_PROTOCOL_INFOW 0x2005
+#define PVD_CONFIG 0x3001
+#define SO_CONDITIONAL_ACCEPT 0x3002
+#define SOL_SOCKET 0xffff
+#define SOMAXCONN 0x7fffffff
+#define MSG_OOB 0x1
+#define MSG_PEEK 0x2
+#define MSG_DONTROUTE 0x4
+#define MSG_WAITALL 0x8
+#define MSG_PUSH_IMMEDIATE 0x20
+#define MSG_PARTIAL 0x8000
+#define MSG_INTERRUPT 0x10
+#define MSG_MAXIOVLEN 16
+#define MAXGETHOSTSTRUCT 1024
+#define FD_READ_BIT 0
+#define FD_WRITE_BIT 1
+#define FD_OOB_BIT 2
+#define FD_ACCEPT_BIT 3
+#define FD_CONNECT_BIT 4
+#define FD_CLOSE_BIT 5
+#define FD_QOS_BIT 6
+#define FD_GROUP_QOS_BIT 7
+#define FD_ROUTING_INTERFACE_CHANGE_BIT 8
+#define FD_ADDRESS_LIST_CHANGE_BIT 9
+#define FD_MAX_EVENTS 10
+#define WSABASEERR 10000
+#define CF_ACCEPT 0x0000
+#define CF_REJECT 0x0001
+#define CF_DEFER 0x0002
+#define SD_RECEIVE 0x00
+#define SD_SEND 0x01
+#define SD_BOTH 0x02
+#define SG_UNCONSTRAINED_GROUP 0x01
+#define SG_CONSTRAINED_GROUP 0x02
+#define MAX_PROTOCOL_CHAIN 7
+#define BASE_PROTOCOL 1
+#define LAYERED_PROTOCOL 0
+#define WSAPROTOCOL_LEN 255
+#define PFL_MULTIPLE_PROTO_ENTRIES 0x00000001
+#define PFL_RECOMMENDED_PROTO_ENTRY 0x00000002
+#define PFL_HIDDEN 0x00000004
+#define PFL_MATCHES_PROTOCOL_ZERO 0x00000008
+#define PFL_NETWORKDIRECT_PROVIDER 0x00000010
+#define XP1_CONNECTIONLESS 0x00000001
+#define XP1_GUARANTEED_DELIVERY 0x00000002
+#define XP1_GUARANTEED_ORDER 0x00000004
+#define XP1_MESSAGE_ORIENTED 0x00000008
+#define XP1_PSEUDO_STREAM 0x00000010
+#define XP1_GRACEFUL_CLOSE 0x00000020
+#define XP1_EXPEDITED_DATA 0x00000040
+#define XP1_CONNECT_DATA 0x00000080
+#define XP1_DISCONNECT_DATA 0x00000100
+#define XP1_SUPPORT_BROADCAST 0x00000200
+#define XP1_SUPPORT_MULTIPOINT 0x00000400
+#define XP1_MULTIPOINT_CONTROL_PLANE 0x00000800
+#define XP1_MULTIPOINT_DATA_PLANE 0x00001000
+#define XP1_QOS_SUPPORTED 0x00002000
+#define XP1_INTERRUPT 0x00004000
+#define XP1_UNI_SEND 0x00008000
+#define XP1_UNI_RECV 0x00010000
+#define XP1_IFS_HANDLES 0x00020000
+#define XP1_PARTIAL_MESSAGE 0x00040000
+#define XP1_SAN_SUPPORT_SDP 0x00080000
+#define BIGENDIAN 0x0000
+#define LITTLEENDIAN 0x0001
+#define SECURITY_PROTOCOL_NONE 0x0000
+#define JL_SENDER_ONLY 0x01
+#define JL_RECEIVER_ONLY 0x02
+#define JL_BOTH 0x04
+#define WSA_FLAG_OVERLAPPED 0x01
+#define WSA_FLAG_MULTIPOINT_C_ROOT 0x02
+#define WSA_FLAG_MULTIPOINT_C_LEAF 0x04
+#define WSA_FLAG_MULTIPOINT_D_ROOT 0x08
+#define WSA_FLAG_MULTIPOINT_D_LEAF 0x10
+#define WSA_FLAG_ACCESS_SYSTEM_SECURITY 0x40
+#define WSA_FLAG_NO_HANDLE_INHERIT 0x80
+#define WSA_FLAG_REGISTERED_IO 0x100
+#define TH_NETDEV 0x00000001
+#define TH_TAPI 0x00000002
+#define SERVICE_MULTIPLE (0x00000001)
+#define NS_ALL (0)
+#define NS_SAP (1)
+#define NS_NDS (2)
+#define NS_PEER_BROWSE (3)
+#define NS_SLP (5)
+#define NS_DHCP (6)
+#define NS_TCPIP_LOCAL (10)
+#define NS_TCPIP_HOSTS (11)
+#define NS_DNS (12)
+#define NS_NETBT (13)
+#define NS_WINS (14)
+#define NS_NLA (15)
+#define NS_BTH (16)
+#define NS_NBP (20)
+#define NS_MS (30)
+#define NS_STDA (31)
+#define NS_NTDS (32)
+#define NS_EMAIL (37)
+#define NS_PNRPNAME (38)
+#define NS_PNRPCLOUD (39)
+#define NS_X500 (40)
+#define NS_NIS (41)
+#define NS_NISPLUS (42)
+#define NS_WRQ (50)
+#define NS_NETDES (60)
+#define NS_LOCALNAME (19)
+#define RES_UNUSED_1 (0x00000001)
+#define RES_FLUSH_CACHE (0x00000002)
+#define RES_SERVICE (0x00000004)
+#define LUP_DEEP 0x00000001
+#define LUP_CONTAINERS 0x00000002
+#define LUP_NOCONTAINERS 0x00000004
+#define LUP_NEAREST 0x00000008
+#define LUP_RETURN_NAME 0x00000010
+#define LUP_RETURN_TYPE 0x00000020
+#define LUP_RETURN_VERSION 0x00000040
+#define LUP_RETURN_COMMENT 0x00000080
+#define LUP_RETURN_ADDR 0x00000100
+#define LUP_RETURN_BLOB 0x00000200
+#define LUP_RETURN_ALIASES 0x00000400
+#define LUP_RETURN_QUERY_STRING 0x00000800
+#define LUP_RETURN_ALL 0x00000FF0
+#define LUP_RES_SERVICE 0x00008000
+#define LUP_FLUSHCACHE 0x00001000
+#define LUP_FLUSHPREVIOUS 0x00002000
+#define LUP_NON_AUTHORITATIVE 0x00004000
+#define LUP_SECURE 0x00008000
+#define LUP_RETURN_PREFERRED_NAMES 0x00010000
+#define LUP_DNS_ONLY 0x00020000
+#define LUP_RETURN_RESPONSE_FLAGS 0x00040000
+#define LUP_RESERVED_UNUSED 0x00080000
+#define LUP_ADDRCONFIG 0x00100000
+#define LUP_DUAL_ADDR 0x00200000
+#define LUP_FILESERVER 0x00400000
+#define LUP_DISABLE_IDN_ENCODING 0x00800000
+#define LUP_API_ANSI 0x01000000
+#define LUP_EXTENDED_QUERYSET 0x02000000
+#define LUP_SECURE_WITH_FALLBACK 0x04000000
+#define LUP_EXCLUSIVE_CUSTOM_SERVERS 0x08000000
+#define LUP_REQUIRE_SECURE 0x10000000
+#define LUP_RETURN_TTL 0x20000000
+#define LUP_FORCE_CLEAR_TEXT 0x40000000
+#define LUP_RESOLUTION_HANDLE 0x80000000
+#define RESULT_IS_ALIAS 0x0001
+#define RESULT_IS_ADDED 0x0010
+#define RESULT_IS_CHANGED 0x0020
+#define RESULT_IS_DELETED 0x0040
+#define POLLRDNORM 0x0100
+#define POLLRDBAND 0x0200
+#define POLLPRI 0x0400
+#define POLLWRNORM 0x0010
+#define POLLWRBAND 0x0020
+#define POLLERR 0x0001
+#define POLLHUP 0x0002
+#define POLLNVAL 0x0004
+#define SOCK_NOTIFY_REGISTER_EVENT_NONE 0x00
+#define SOCK_NOTIFY_REGISTER_EVENT_IN 0x01
+#define SOCK_NOTIFY_REGISTER_EVENT_OUT 0x02
+#define SOCK_NOTIFY_REGISTER_EVENT_HANGUP 0x04
+#define SOCK_NOTIFY_EVENT_ERR 0x40
+#define SOCK_NOTIFY_EVENT_REMOVE 0x80
+#define SOCK_NOTIFY_OP_NONE 0x00
+#define SOCK_NOTIFY_OP_ENABLE 0x01
+#define SOCK_NOTIFY_OP_DISABLE 0x02
+#define SOCK_NOTIFY_OP_REMOVE 0x04
+#define SOCK_NOTIFY_TRIGGER_ONESHOT 0x01
+#define SOCK_NOTIFY_TRIGGER_PERSISTENT 0x02
+#define SOCK_NOTIFY_TRIGGER_LEVEL 0x04
+#define SOCK_NOTIFY_TRIGGER_EDGE 0x08
+#define SO_PROTOCOL_INFO 0x2004
+#define SOCK_NOTIFY_EVENT_IN 0x01
+#define SOCK_NOTIFY_EVENT_OUT 0x02
+#define SOCK_NOTIFY_EVENT_HANGUP 0x04
+
+// Macro functions extracted from header
+WORD MAKEWORD(UINT8 a, UINT8 b) {
+    return ((a as WORD) | ((b as WORD) << 8)) as WORD;
+}
+
+extern "ws2_32.dll" {
+    UINT_PTR accept(UINT_PTR s, PTR<VOID> addr, PTR<INT32> addrlen);
+    INT32 bind(UINT_PTR s, PTR<VOID> name, INT32 namelen);
+    INT32 closesocket(UINT_PTR s);
+    INT32 connect(UINT_PTR s, PTR<VOID> name, INT32 namelen);
+    INT32 ioctlsocket(UINT_PTR s, INT32 cmd, PTR<ULONG> argp);
+    INT32 getpeername(UINT_PTR s, PTR<VOID> name, PTR<INT32> namelen);
+    INT32 getsockname(UINT_PTR s, PTR<VOID> name, PTR<INT32> namelen);
+    INT32 getsockopt(UINT_PTR s, INT32 level, INT32 optname, PTR<INT8> optval, PTR<INT32> optlen);
+    ULONG htonl(ULONG hostlong);
+    USHORT htons(USHORT hostshort);
+    UINT32 inet_addr(PTR<INT8> cp);
+    PTR<INT8> inet_ntoa(DWORD in);
+    INT32 listen(UINT_PTR s, INT32 backlog);
+    ULONG ntohl(ULONG netlong);
+    USHORT ntohs(USHORT netshort);
+    INT32 recv(UINT_PTR s, PTR<INT8> buf, INT32 len, INT32 flags);
+    INT32 recvfrom(UINT_PTR s, PTR<INT8> buf, INT32 len, INT32 flags, PTR<VOID> from, PTR<INT32> fromlen);
+    INT32 select(INT32 nfds, PTR<VOID> readfds, PTR<VOID> writefds, PTR<VOID> exceptfds, PTR<VOID> timeout);
+    INT32 send(UINT_PTR s, PTR<INT8> buf, INT32 len, INT32 flags);
+    INT32 sendto(UINT_PTR s, PTR<INT8> buf, INT32 len, INT32 flags, PTR<VOID> to, INT32 tolen);
+    INT32 setsockopt(UINT_PTR s, INT32 level, INT32 optname, PTR<INT8> optval, INT32 optlen);
+    INT32 shutdown(UINT_PTR s, INT32 how);
+    UINT_PTR socket(INT32 af, INT32 type_, INT32 protocol);
+    PTR<VOID> gethostbyaddr(PTR<INT8> addr, INT32 len, INT32 type_);
+    PTR<VOID> gethostbyname(PTR<INT8> name);
+    INT32 gethostname(PTR<INT8> name, INT32 namelen);
+    INT32 GetHostNameW(WSTRING name, INT32 namelen);
+    PTR<VOID> getservbyport(INT32 port, PTR<INT8> proto);
+    PTR<VOID> getservbyname(PTR<INT8> name, PTR<INT8> proto);
+    PTR<VOID> getprotobynumber(INT32 number);
+    PTR<VOID> getprotobyname(PTR<INT8> name);
+    INT32 WSAStartup(WORD wVersionRequested, PTR<VOID> lpWSAData);
+    INT32 WSACleanup();
+    VOID WSASetLastError(INT32 iError);
+    INT32 WSAGetLastError();
+    BOOL32 WSAIsBlocking();
+    INT32 WSAUnhookBlockingHook();
+    PTR<VOID> WSASetBlockingHook(PTR<VOID> lpBlockFunc);
+    INT32 WSACancelBlockingCall();
+    HANDLE WSAAsyncGetServByName(HWND hWnd, UINT32 wMsg, PTR<INT8> name, PTR<INT8> proto, PTR<INT8> buf, INT32 buflen);
+    HANDLE WSAAsyncGetServByPort(HWND hWnd, UINT32 wMsg, INT32 port, PTR<INT8> proto, PTR<INT8> buf, INT32 buflen);
+    HANDLE WSAAsyncGetProtoByName(HWND hWnd, UINT32 wMsg, PTR<INT8> name, PTR<INT8> buf, INT32 buflen);
+    HANDLE WSAAsyncGetProtoByNumber(HWND hWnd, UINT32 wMsg, INT32 number, PTR<INT8> buf, INT32 buflen);
+    HANDLE WSAAsyncGetHostByName(HWND hWnd, UINT32 wMsg, PTR<INT8> name, PTR<INT8> buf, INT32 buflen);
+    HANDLE WSAAsyncGetHostByAddr(HWND hWnd, UINT32 wMsg, PTR<INT8> addr, INT32 len, INT32 type_, PTR<INT8> buf, INT32 buflen);
+    INT32 WSACancelAsyncRequest(HANDLE hAsyncTaskHandle);
+    INT32 WSAAsyncSelect(UINT_PTR s, HWND hWnd, UINT32 wMsg, INT32 lEvent);
+    UINT_PTR WSAAccept(UINT_PTR s, PTR<VOID> addr, PTR<INT32> addrlen, PTR<VOID> lpfnCondition, SIZE_T dwCallbackData);
+    BOOL32 WSACloseEvent(PTR<VOID> hEvent);
+    INT32 WSAConnect(UINT_PTR s, PTR<VOID> name, INT32 namelen, PTR<VOID> lpCallerData, PTR<VOID> lpCalleeData, PTR<VOID> lpSQOS, PTR<VOID> lpGQOS);
+    BOOL32 WSAConnectByNameW(UINT_PTR s, WSTRING nodename, WSTRING servicename, PTR<DWORD> LocalAddressLength, PTR<VOID> LocalAddress, PTR<DWORD> RemoteAddressLength, PTR<VOID> RemoteAddress, PTR<VOID> timeout, PTR<VOID> Reserved);
+    BOOL32 WSAConnectByNameA(UINT_PTR s, LPCSTR nodename, LPCSTR servicename, PTR<DWORD> LocalAddressLength, PTR<VOID> LocalAddress, PTR<DWORD> RemoteAddressLength, PTR<VOID> RemoteAddress, PTR<VOID> timeout, PTR<VOID> Reserved);
+    BOOL32 WSAConnectByList(UINT_PTR s, PTR<VOID> SocketAddress, PTR<DWORD> LocalAddressLength, PTR<VOID> LocalAddress, PTR<DWORD> RemoteAddressLength, PTR<VOID> RemoteAddress, PTR<VOID> timeout, PTR<VOID> Reserved);
+    PTR<VOID> WSACreateEvent();
+    INT32 WSADuplicateSocketA(UINT_PTR s, DWORD dwProcessId, PTR<VOID> lpProtocolInfo);
+    INT32 WSADuplicateSocketW(UINT_PTR s, DWORD dwProcessId, PTR<VOID> lpProtocolInfo);
+    INT32 WSAEnumNetworkEvents(UINT_PTR s, PTR<VOID> hEventObject, PTR<VOID> lpNetworkEvents);
+    INT32 WSAEnumProtocolsA(PTR<INT32> lpiProtocols, PTR<VOID> lpProtocolBuffer, PTR<DWORD> lpdwBufferLength);
+    INT32 WSAEnumProtocolsW(PTR<INT32> lpiProtocols, PTR<VOID> lpProtocolBuffer, PTR<DWORD> lpdwBufferLength);
+    INT32 WSAEventSelect(UINT_PTR s, PTR<VOID> hEventObject, INT32 lNetworkEvents);
+    BOOL32 WSAGetOverlappedResult(UINT_PTR s, PTR<VOID> lpOverlapped, PTR<DWORD> lpcbTransfer, BOOL32 fWait, PTR<DWORD> lpdwFlags);
+    BOOL32 WSAGetQOSByName(UINT_PTR s, PTR<VOID> lpQOSName, PTR<VOID> lpQOS);
+    INT32 WSAHtonl(UINT_PTR s, ULONG hostlong, PTR<ULONG> lpnetlong);
+    INT32 WSAHtons(UINT_PTR s, USHORT hostshort, PTR<USHORT> lpnetshort);
+    INT32 WSAIoctl(UINT_PTR s, DWORD dwIoControlCode, PTR<VOID> lpvInBuffer, DWORD cbInBuffer, PTR<VOID> lpvOutBuffer, DWORD cbOutBuffer, PTR<DWORD> lpcbBytesReturned, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    UINT_PTR WSAJoinLeaf(UINT_PTR s, PTR<VOID> name, INT32 namelen, PTR<VOID> lpCallerData, PTR<VOID> lpCalleeData, PTR<VOID> lpSQOS, PTR<VOID> lpGQOS, DWORD dwFlags);
+    INT32 WSANtohl(UINT_PTR s, ULONG netlong, PTR<ULONG> lphostlong);
+    INT32 WSANtohs(UINT_PTR s, USHORT netshort, PTR<USHORT> lphostshort);
+    INT32 WSARecv(UINT_PTR s, PTR<VOID> lpBuffers, DWORD dwBufferCount, PTR<DWORD> lpNumberOfBytesRecvd, PTR<DWORD> lpFlags, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    INT32 WSARecvDisconnect(UINT_PTR s, PTR<VOID> lpInboundDisconnectData);
+    INT32 WSARecvFrom(UINT_PTR s, PTR<VOID> lpBuffers, DWORD dwBufferCount, PTR<DWORD> lpNumberOfBytesRecvd, PTR<DWORD> lpFlags, PTR<VOID> lpFrom, PTR<INT32> lpFromlen, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    BOOL32 WSAResetEvent(PTR<VOID> hEvent);
+    INT32 WSASend(UINT_PTR s, PTR<VOID> lpBuffers, DWORD dwBufferCount, PTR<DWORD> lpNumberOfBytesSent, DWORD dwFlags, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    INT32 WSASendMsg(UINT_PTR Handle, PTR<VOID> lpMsg, DWORD dwFlags, PTR<DWORD> lpNumberOfBytesSent, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    INT32 WSASendDisconnect(UINT_PTR s, PTR<VOID> lpOutboundDisconnectData);
+    INT32 WSASendTo(UINT_PTR s, PTR<VOID> lpBuffers, DWORD dwBufferCount, PTR<DWORD> lpNumberOfBytesSent, DWORD dwFlags, PTR<VOID> lpTo, INT32 iTolen, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    BOOL32 WSASetEvent(PTR<VOID> hEvent);
+    UINT_PTR WSASocketA(INT32 af, INT32 type_, INT32 protocol, PTR<VOID> lpProtocolInfo, DWORD g, DWORD dwFlags);
+    UINT_PTR WSASocketW(INT32 af, INT32 type_, INT32 protocol, PTR<VOID> lpProtocolInfo, DWORD g, DWORD dwFlags);
+    DWORD WSAWaitForMultipleEvents(DWORD cEvents, PTR<PTR<VOID>> lphEvents, BOOL32 fWaitAll, DWORD dwTimeout, BOOL32 fAlertable);
+    INT32 WSAAddressToStringA(PTR<VOID> lpsaAddress, DWORD dwAddressLength, PTR<VOID> lpProtocolInfo, LPSTR lpszAddressString, PTR<DWORD> lpdwAddressStringLength);
+    INT32 WSAAddressToStringW(PTR<VOID> lpsaAddress, DWORD dwAddressLength, PTR<VOID> lpProtocolInfo, WSTRING lpszAddressString, PTR<DWORD> lpdwAddressStringLength);
+    INT32 WSAStringToAddressA(LPSTR AddressString, INT32 AddressFamily, PTR<VOID> lpProtocolInfo, PTR<VOID> lpAddress, PTR<INT32> lpAddressLength);
+    INT32 WSAStringToAddressW(WSTRING AddressString, INT32 AddressFamily, PTR<VOID> lpProtocolInfo, PTR<VOID> lpAddress, PTR<INT32> lpAddressLength);
+    INT32 WSALookupServiceBeginA(PTR<VOID> lpqsRestrictions, DWORD dwControlFlags, PTR<HANDLE> lphLookup);
+    INT32 WSALookupServiceBeginW(PTR<VOID> lpqsRestrictions, DWORD dwControlFlags, PTR<HANDLE> lphLookup);
+    INT32 WSALookupServiceNextA(HANDLE hLookup, DWORD dwControlFlags, PTR<DWORD> lpdwBufferLength, PTR<VOID> lpqsResults);
+    INT32 WSALookupServiceNextW(HANDLE hLookup, DWORD dwControlFlags, PTR<DWORD> lpdwBufferLength, PTR<VOID> lpqsResults);
+    INT32 WSANSPIoctl(HANDLE hLookup, DWORD dwControlCode, PTR<VOID> lpvInBuffer, DWORD cbInBuffer, PTR<VOID> lpvOutBuffer, DWORD cbOutBuffer, PTR<DWORD> lpcbBytesReturned, PTR<VOID> lpCompletion);
+    INT32 WSALookupServiceEnd(HANDLE hLookup);
+    INT32 WSAInstallServiceClassA(PTR<VOID> lpServiceClassInfo);
+    INT32 WSAInstallServiceClassW(PTR<VOID> lpServiceClassInfo);
+    INT32 WSARemoveServiceClass(PTR<VOID> lpServiceClassId);
+    INT32 WSAGetServiceClassInfoA(PTR<VOID> lpProviderId, PTR<VOID> lpServiceClassId, PTR<DWORD> lpdwBufSize, PTR<VOID> lpServiceClassInfo);
+    INT32 WSAGetServiceClassInfoW(PTR<VOID> lpProviderId, PTR<VOID> lpServiceClassId, PTR<DWORD> lpdwBufSize, PTR<VOID> lpServiceClassInfo);
+    INT32 WSAEnumNameSpaceProvidersA(PTR<DWORD> lpdwBufferLength, PTR<VOID> lpnspBuffer);
+    INT32 WSAEnumNameSpaceProvidersW(PTR<DWORD> lpdwBufferLength, PTR<VOID> lpnspBuffer);
+    INT32 WSAEnumNameSpaceProvidersExA(PTR<DWORD> lpdwBufferLength, PTR<VOID> lpnspBuffer);
+    INT32 WSAEnumNameSpaceProvidersExW(PTR<DWORD> lpdwBufferLength, PTR<VOID> lpnspBuffer);
+    INT32 WSAGetServiceClassNameByClassIdA(PTR<VOID> lpServiceClassId, LPSTR lpszServiceClassName, PTR<DWORD> lpdwBufferLength);
+    INT32 WSAGetServiceClassNameByClassIdW(PTR<VOID> lpServiceClassId, WSTRING lpszServiceClassName, PTR<DWORD> lpdwBufferLength);
+    INT32 WSASetServiceA(PTR<VOID> lpqsRegInfo, UINT32 essoperation, DWORD dwControlFlags);
+    INT32 WSASetServiceW(PTR<VOID> lpqsRegInfo, UINT32 essoperation, DWORD dwControlFlags);
+    INT32 WSAProviderConfigChange(PTR<HANDLE> lpNotificationHandle, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    INT32 WSAPoll(PTR<VOID> fdArray, ULONG fds, INT32 timeout);
+    DWORD ProcessSocketNotifications(HANDLE completionPort, UINT32 registrationCount, PTR<VOID> registrationInfos, UINT32 timeoutMs, ULONG completionCount, PTR<VOID> completionPortEntries, PTR<UINT32> receivedEntryCount);
+}

@@ -1,0 +1,19 @@
+// kernel32_util.zv
+//
+// Auto-generated ZV bindings from utilapiset.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+extern "kernel32.dll" {
+    PTR<VOID> EncodePointer(PTR<VOID> Ptr);
+    PTR<VOID> DecodePointer(PTR<VOID> Ptr);
+    PTR<VOID> EncodeSystemPointer(PTR<VOID> Ptr);
+    PTR<VOID> DecodeSystemPointer(PTR<VOID> Ptr);
+    HRESULT EncodeRemotePointer(HANDLE ProcessHandle, PTR<VOID> Ptr, PTR<PTR<VOID>> EncodedPtr);
+    HRESULT DecodeRemotePointer(HANDLE ProcessHandle, PTR<VOID> Ptr, PTR<PTR<VOID>> DecodedPtr);
+    BOOL32 Beep(DWORD dwFreq, DWORD dwDuration);
+}

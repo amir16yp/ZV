@@ -1,0 +1,2 @@
+// Header-specific type aliases extracted from source header
+newtype APP_DEPRECATED_HRESULT = HRESULT;

@@ -1,0 +1,3 @@
+// Header-specific type aliases extracted from source header
+type PARSEDURL = PTR<VOID>;
+type PPARSEDURL = PTR<VOID>;

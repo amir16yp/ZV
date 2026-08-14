@@ -1,0 +1,22 @@
+// kernel32_debug.zv
+//
+// Auto-generated ZV bindings from debugapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+extern "kernel32.dll" {
+    BOOL32 IsDebuggerPresent();
+    VOID DebugBreak();
+    VOID OutputDebugStringA(LPCSTR lpOutputString);
+    VOID OutputDebugStringW(WSTRING lpOutputString);
+    BOOL32 ContinueDebugEvent(DWORD dwProcessId, DWORD dwThreadId, DWORD dwContinueStatus);
+    BOOL32 WaitForDebugEvent(PTR<VOID> lpDebugEvent, DWORD dwMilliseconds);
+    BOOL32 DebugActiveProcess(DWORD dwProcessId);
+    BOOL32 DebugActiveProcessStop(DWORD dwProcessId);
+    BOOL32 CheckRemoteDebuggerPresent(HANDLE hProcess, PTR<BOOL32> pbDebuggerPresent);
+    BOOL32 WaitForDebugEventEx(PTR<VOID> lpDebugEvent, DWORD dwMilliseconds);
+}

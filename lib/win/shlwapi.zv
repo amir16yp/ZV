@@ -1,0 +1,487 @@
+// shlwapi.zv
+//
+// Auto-generated ZV bindings from Shlwapi.h
+// DLL: shlwapi.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+#include "shlwapi_types.zv"
+
+// Numeric constants extracted from header
+#define STIF_DEFAULT 0x00000000
+#define STIF_SUPPORT_HEX 0x00000001
+#define GCT_INVALID 0x0000
+#define GCT_LFNCHAR 0x0001
+#define GCT_SHORTCHAR 0x0002
+#define GCT_WILD 0x0004
+#define GCT_SEPARATOR 0x0008
+#define PMSF_NORMAL 0x00000000
+#define PMSF_MULTIPLE 0x00000001
+#define PMSF_DONT_STRIP_SPACES 0x00010000
+#define URL_UNESCAPE 0x10000000
+#define URL_ESCAPE_UNSAFE 0x20000000
+#define URL_PLUGGABLE_PROTOCOL 0x40000000
+#define URL_WININET_COMPATIBILITY 0x80000000
+#define URL_DONT_ESCAPE_EXTRA_INFO 0x02000000
+#define URL_ESCAPE_SPACES_ONLY 0x04000000
+#define URL_DONT_SIMPLIFY 0x08000000
+#define URL_UNESCAPE_INPLACE 0x00100000
+#define URL_CONVERT_IF_DOSPATH 0x00200000
+#define URL_UNESCAPE_HIGH_ANSI_ONLY 0x00400000
+#define URL_INTERNAL_PATH 0x00800000
+#define URL_FILE_USE_PATHURL 0x00010000
+#define URL_DONT_UNESCAPE 0x00020000
+#define URL_ESCAPE_AS_UTF8 0x00040000
+#define URL_ESCAPE_ASCII_URI_COMPONENT 0x00080000
+#define URL_ESCAPE_PERCENT 0x00001000
+#define URL_ESCAPE_SEGMENT_ONLY 0x00002000
+#define URL_PARTFLAG_KEEPSCHEME 0x00000001
+#define URL_APPLY_DEFAULT 0x00000001
+#define URL_APPLY_GUESSSCHEME 0x00000002
+#define URL_APPLY_GUESSFILE 0x00000004
+#define URL_APPLY_FORCEAPPLY 0x00000008
+#define SRRF_RT_REG_NONE 0x00000001
+#define SRRF_RT_REG_SZ 0x00000002
+#define SRRF_RT_REG_EXPAND_SZ 0x00000004
+#define SRRF_RT_REG_BINARY 0x00000008
+#define SRRF_RT_REG_DWORD 0x00000010
+#define SRRF_RT_REG_MULTI_SZ 0x00000020
+#define SRRF_RT_REG_QWORD 0x00000040
+#define SRRF_RT_ANY 0x0000ffff
+#define SRRF_RM_ANY 0x00000000
+#define SRRF_RM_NORMAL 0x00010000
+#define SRRF_RM_SAFE 0x00020000
+#define SRRF_RM_SAFENETWORK 0x00040000
+#define SRRF_NOEXPAND 0x10000000
+#define SRRF_ZEROONFAILURE 0x20000000
+#define SRRF_NOVIRT 0x40000000
+#define SHREGSET_HKCU 0x00000001
+#define SHREGSET_FORCE_HKCU 0x00000002
+#define SHREGSET_HKLM 0x00000004
+#define SHREGSET_FORCE_HKLM 0x00000008
+#define SPMODE_SHELL 0x00000001
+#define SPMODE_DEBUGOUT 0x00000002
+#define SPMODE_TEST 0x00000004
+#define SPMODE_BROWSER 0x00000008
+#define SPMODE_FLUSH 0x00000010
+#define SPMODE_EVENT 0x00000020
+#define SPMODE_MSVM 0x00000040
+#define SPMODE_FORMATTEXT 0x00000080
+#define SPMODE_PROFILE 0x00000100
+#define SPMODE_DEBUGBREAK 0x00000200
+#define SPMODE_MSGTRACE 0x00000400
+#define SPMODE_PERFTAGS 0x00000800
+#define SPMODE_MEMWATCH 0x00001000
+#define SPMODE_DBMON 0x00002000
+#define SPMODE_MULTISTOP 0x00004000
+#define SPMODE_EVENTTRACE 0x00008000
+#define SHGVSPB_PERUSER 0x00000001
+#define SHGVSPB_ALLUSERS 0x00000002
+#define SHGVSPB_PERFOLDER 0x00000004
+#define SHGVSPB_ALLFOLDERS 0x00000008
+#define SHGVSPB_INHERIT 0x00000010
+#define SHGVSPB_ROAM 0x00000020
+#define SHGVSPB_NOAUTODEFAULTS 0x80000000
+#define FDTF_SHORTTIME 0x00000001
+#define FDTF_SHORTDATE 0x00000002
+#define FDTF_LONGDATE 0x00000004
+#define FDTF_LONGTIME 0x00000008
+#define FDTF_RELATIVE 0x00000010
+#define FDTF_LTRDATE 0x00000100
+#define FDTF_RTLDATE 0x00000200
+#define FDTF_NOAUTOREADINGORDER 0x00000400
+#define OS_WINDOWS 0
+#define OS_NT 1
+#define OS_WIN95ORGREATER 2
+#define OS_NT4ORGREATER 3
+#define OS_WIN98ORGREATER 5
+#define OS_WIN98_GOLD 6
+#define OS_WIN2000ORGREATER 7
+#define OS_WIN2000PRO 8
+#define OS_WIN2000SERVER 9
+#define OS_WIN2000ADVSERVER 10
+#define OS_WIN2000DATACENTER 11
+#define OS_WIN2000TERMINAL 12
+#define OS_EMBEDDED 13
+#define OS_TERMINALCLIENT 14
+#define OS_TERMINALREMOTEADMIN 15
+#define OS_WIN95_GOLD 16
+#define OS_MEORGREATER 17
+#define OS_XPORGREATER 18
+#define OS_HOME 19
+#define OS_PROFESSIONAL 20
+#define OS_DATACENTER 21
+#define OS_ADVSERVER 22
+#define OS_SERVER 23
+#define OS_TERMINALSERVER 24
+#define OS_PERSONALTERMINALSERVER 25
+#define OS_FASTUSERSWITCHING 26
+#define OS_WELCOMELOGONUI 27
+#define OS_DOMAINMEMBER 28
+#define OS_ANYSERVER 29
+#define OS_WOW6432 30
+#define OS_WEBSERVER 31
+#define OS_SMALLBUSINESSSERVER 32
+#define OS_TABLETPC 33
+#define OS_SERVERADMINUI 34
+#define OS_MEDIACENTER 35
+#define OS_APPLIANCE 36
+#define PLATFORM_UNKNOWN 0
+#define PLATFORM_IE3 1
+#define PLATFORM_BROWSERONLY 1
+#define PLATFORM_INTEGRATED 2
+#define URL_DONT_UNESCAPE_EXTRA_INFO 0x02000000
+#define URL_BROWSER_MODE 0x02000000
+#define URL_NO_META 0x08000000
+#define URL_UNESCAPE_AS_UTF8 0x00040000
+#define URL_UNESCAPE_URI_COMPONENT 0x00040000
+
+extern "shlwapi.dll" {
+    LPCSTR StrChrA(LPCSTR pszStart, WORD wMatch);
+    WSTRING StrChrW(WSTRING pszStart, UINT16 wMatch);
+    LPCSTR StrChrIA(LPCSTR pszStart, WORD wMatch);
+    WSTRING StrChrIW(WSTRING pszStart, UINT16 wMatch);
+    WSTRING StrChrNW(WSTRING pszStart, UINT16 wMatch, UINT32 cchMax);
+    WSTRING StrChrNIW(WSTRING pszStart, UINT16 wMatch, UINT32 cchMax);
+    INT32 StrCmpNA(LPCSTR psz1, LPCSTR psz2, INT32 nChar);
+    INT32 StrCmpNW(WSTRING psz1, WSTRING psz2, INT32 nChar);
+    INT32 StrCmpNIA(LPCSTR psz1, LPCSTR psz2, INT32 nChar);
+    INT32 StrCmpNIW(WSTRING psz1, WSTRING psz2, INT32 nChar);
+    INT32 StrCSpnA(LPCSTR pszStr, LPCSTR pszSet);
+    INT32 StrCSpnW(WSTRING pszStr, WSTRING pszSet);
+    INT32 StrCSpnIA(LPCSTR pszStr, LPCSTR pszSet);
+    INT32 StrCSpnIW(WSTRING pszStr, WSTRING pszSet);
+    LPSTR StrDupA(LPCSTR pszSrch);
+    WSTRING StrDupW(WSTRING pszSrch);
+    HRESULT StrFormatByteSizeEx(UINT64 ull, UINT32 flags, WSTRING pszBuf, UINT32 cchBuf);
+    LPSTR StrFormatByteSizeA(DWORD dw, LPSTR pszBuf, UINT32 cchBuf);
+    LPSTR StrFormatByteSize64A(INT64 qdw, LPSTR pszBuf, UINT32 cchBuf);
+    WSTRING StrFormatByteSizeW(INT64 qdw, WSTRING pszBuf, UINT32 cchBuf);
+    WSTRING StrFormatKBSizeW(INT64 qdw, WSTRING pszBuf, UINT32 cchBuf);
+    LPSTR StrFormatKBSizeA(INT64 qdw, LPSTR pszBuf, UINT32 cchBuf);
+    INT32 StrFromTimeIntervalA(LPSTR pszOut, UINT32 cchMax, DWORD dwTimeMS, INT32 digits);
+    INT32 StrFromTimeIntervalW(WSTRING pszOut, UINT32 cchMax, DWORD dwTimeMS, INT32 digits);
+    BOOL32 StrIsIntlEqualA(BOOL32 fCaseSens, LPCSTR pszString1, LPCSTR pszString2, INT32 nChar);
+    BOOL32 StrIsIntlEqualW(BOOL32 fCaseSens, WSTRING pszString1, WSTRING pszString2, INT32 nChar);
+    LPSTR StrNCatA(LPSTR psz1, LPCSTR psz2, INT32 cchMax);
+    WSTRING StrNCatW(WSTRING psz1, WSTRING psz2, INT32 cchMax);
+    LPCSTR StrPBrkA(LPCSTR psz, LPCSTR pszSet);
+    WSTRING StrPBrkW(WSTRING psz, WSTRING pszSet);
+    LPCSTR StrRChrA(LPCSTR pszStart, LPCSTR pszEnd, WORD wMatch);
+    WSTRING StrRChrW(WSTRING pszStart, WSTRING pszEnd, UINT16 wMatch);
+    LPCSTR StrRChrIA(LPCSTR pszStart, LPCSTR pszEnd, WORD wMatch);
+    WSTRING StrRChrIW(WSTRING pszStart, WSTRING pszEnd, UINT16 wMatch);
+    LPCSTR StrRStrIA(LPCSTR pszSource, LPCSTR pszLast, LPCSTR pszSrch);
+    WSTRING StrRStrIW(WSTRING pszSource, WSTRING pszLast, WSTRING pszSrch);
+    INT32 StrSpnA(LPCSTR psz, LPCSTR pszSet);
+    INT32 StrSpnW(WSTRING psz, WSTRING pszSet);
+    LPCSTR StrStrA(LPCSTR pszFirst, LPCSTR pszSrch);
+    WSTRING StrStrW(WSTRING pszFirst, WSTRING pszSrch);
+    LPCSTR StrStrIA(LPCSTR pszFirst, LPCSTR pszSrch);
+    WSTRING StrStrIW(WSTRING pszFirst, WSTRING pszSrch);
+    WSTRING StrStrNW(WSTRING pszFirst, WSTRING pszSrch, UINT32 cchMax);
+    WSTRING StrStrNIW(WSTRING pszFirst, WSTRING pszSrch, UINT32 cchMax);
+    INT32 StrToIntA(LPCSTR pszSrc);
+    INT32 StrToIntW(WSTRING pszSrc);
+    BOOL32 StrToIntExA(LPCSTR pszString, UINT32 dwFlags, PTR<INT32> piRet);
+    BOOL32 StrToIntExW(WSTRING pszString, UINT32 dwFlags, PTR<INT32> piRet);
+    BOOL32 StrToInt64ExA(LPCSTR pszString, UINT32 dwFlags, PTR<INT64> pllRet);
+    BOOL32 StrToInt64ExW(WSTRING pszString, UINT32 dwFlags, PTR<INT64> pllRet);
+    BOOL32 StrTrimA(LPSTR psz, LPCSTR pszTrimChars);
+    BOOL32 StrTrimW(WSTRING psz, WSTRING pszTrimChars);
+    WSTRING StrCatW(WSTRING psz1, WSTRING psz2);
+    INT32 StrCmpW(WSTRING psz1, WSTRING psz2);
+    INT32 StrCmpIW(WSTRING psz1, WSTRING psz2);
+    WSTRING StrCpyW(WSTRING psz1, WSTRING psz2);
+    WSTRING StrCpyNW(WSTRING pszDst, WSTRING pszSrc, INT32 cchMax);
+    WSTRING StrCatBuffW(WSTRING pszDest, WSTRING pszSrc, INT32 cchDestBuffSize);
+    LPSTR StrCatBuffA(LPSTR pszDest, LPCSTR pszSrc, INT32 cchDestBuffSize);
+    BOOL32 ChrCmpIA(WORD w1, WORD w2);
+    BOOL32 ChrCmpIW(UINT16 w1, UINT16 w2);
+    INT32 wvnsprintfA(LPSTR pszDest, INT32 cchDest, LPCSTR pszFmt, PTR<VOID> arglist);
+    INT32 wvnsprintfW(WSTRING pszDest, INT32 cchDest, WSTRING pszFmt, PTR<VOID> arglist);
+    HRESULT StrRetToStrA(PTR<VOID> arg0, PTR<VOID> pidl, PTR<VOID> arg2);
+    HRESULT StrRetToStrW(PTR<VOID> arg0, PTR<VOID> pidl, PTR<VOID> arg2);
+    HRESULT StrRetToBufA(PTR<VOID> arg0, PTR<VOID> pidl, LPSTR pszBuf, UINT32 cchBuf);
+    HRESULT StrRetToBufW(PTR<VOID> arg0, PTR<VOID> pidl, WSTRING pszBuf, UINT32 cchBuf);
+    HRESULT SHStrDupA(LPCSTR psz, PTR<VOID> arg1);
+    HRESULT SHStrDupW(WSTRING psz, PTR<VOID> arg1);
+    INT32 StrCmpLogicalW(WSTRING psz1, WSTRING psz2);
+    DWORD StrCatChainW(WSTRING pszDst, DWORD cchDst, DWORD ichAt, WSTRING pszSrc);
+    HRESULT StrRetToBSTR(PTR<VOID> arg0, PTR<VOID> pidl, PTR<VOID> arg2);
+    HRESULT SHLoadIndirectString(WSTRING pszSource, WSTRING pszOutBuf, UINT32 cchOutBuf, PTR<VOID> arg3);
+    BOOL32 IsCharSpaceA(INT8 wch);
+    BOOL32 IsCharSpaceW(UINT16 wch);
+    INT32 StrCmpCA(LPCSTR pszStr1, LPCSTR pszStr2);
+    INT32 StrCmpCW(WSTRING pszStr1, WSTRING pszStr2);
+    INT32 StrCmpICA(LPCSTR pszStr1, LPCSTR pszStr2);
+    INT32 StrCmpICW(WSTRING pszStr1, WSTRING pszStr2);
+    INT32 StrCmpNCA(LPCSTR pszStr1, LPCSTR pszStr2, INT32 nChar);
+    INT32 StrCmpNCW(WSTRING pszStr1, WSTRING pszStr2, INT32 nChar);
+    INT32 StrCmpNICA(LPCSTR pszStr1, LPCSTR pszStr2, INT32 nChar);
+    INT32 StrCmpNICW(WSTRING pszStr1, WSTRING pszStr2, INT32 nChar);
+    BOOL32 IntlStrEqWorkerA(BOOL32 fCaseSens, LPCSTR lpString1, LPCSTR lpString2, INT32 nChar);
+    BOOL32 IntlStrEqWorkerW(BOOL32 fCaseSens, WSTRING lpString1, WSTRING lpString2, INT32 nChar);
+    LPSTR PathAddBackslashA(LPSTR pszPath);
+    WSTRING PathAddBackslashW(WSTRING pszPath);
+    BOOL32 PathAddExtensionA(LPSTR pszPath, LPCSTR pszExt);
+    BOOL32 PathAddExtensionW(WSTRING pszPath, WSTRING pszExt);
+    BOOL32 PathAppendA(LPSTR pszPath, LPCSTR pszMore);
+    BOOL32 PathAppendW(WSTRING pszPath, WSTRING pszMore);
+    LPSTR PathBuildRootA(LPSTR pszRoot, INT32 iDrive);
+    WSTRING PathBuildRootW(WSTRING pszRoot, INT32 iDrive);
+    BOOL32 PathCanonicalizeA(LPSTR pszBuf, LPCSTR pszPath);
+    BOOL32 PathCanonicalizeW(WSTRING pszBuf, WSTRING pszPath);
+    LPSTR PathCombineA(LPSTR pszDest, LPCSTR pszDir, LPCSTR pszFile);
+    WSTRING PathCombineW(WSTRING pszDest, WSTRING pszDir, WSTRING pszFile);
+    BOOL32 PathCompactPathA(HDC hDC, LPSTR pszPath, UINT32 dx);
+    BOOL32 PathCompactPathW(HDC hDC, WSTRING pszPath, UINT32 dx);
+    BOOL32 PathCompactPathExA(LPSTR pszOut, LPCSTR pszSrc, UINT32 cchMax, DWORD dwFlags);
+    BOOL32 PathCompactPathExW(WSTRING pszOut, WSTRING pszSrc, UINT32 cchMax, DWORD dwFlags);
+    INT32 PathCommonPrefixA(LPCSTR pszFile1, LPCSTR pszFile2, LPSTR achPath);
+    INT32 PathCommonPrefixW(WSTRING pszFile1, WSTRING pszFile2, WSTRING achPath);
+    BOOL32 PathFileExistsA(LPCSTR pszPath);
+    BOOL32 PathFileExistsW(WSTRING pszPath);
+    LPCSTR PathFindExtensionA(LPCSTR pszPath);
+    WSTRING PathFindExtensionW(WSTRING pszPath);
+    LPCSTR PathFindFileNameA(LPCSTR pszPath);
+    WSTRING PathFindFileNameW(WSTRING pszPath);
+    LPCSTR PathFindNextComponentA(LPCSTR pszPath);
+    WSTRING PathFindNextComponentW(WSTRING pszPath);
+    BOOL32 PathFindOnPathA(LPSTR pszPath, PTR<VOID> ppszOtherDirs);
+    BOOL32 PathFindOnPathW(WSTRING pszPath, PTR<VOID> ppszOtherDirs);
+    LPCSTR PathFindSuffixArrayA(LPCSTR pszPath, PTR<VOID> arg1, INT32 iArraySize);
+    WSTRING PathFindSuffixArrayW(WSTRING pszPath, PTR<VOID> arg1, INT32 iArraySize);
+    LPCSTR PathGetArgsA(LPCSTR pszPath);
+    WSTRING PathGetArgsW(WSTRING pszPath);
+    BOOL32 PathIsLFNFileSpecA(LPCSTR pszName);
+    BOOL32 PathIsLFNFileSpecW(WSTRING pszName);
+    UINT32 PathGetCharTypeA(UINT8 ch);
+    UINT32 PathGetCharTypeW(UINT16 ch);
+    INT32 PathGetDriveNumberA(LPCSTR pszPath);
+    INT32 PathGetDriveNumberW(WSTRING pszPath);
+    BOOL32 PathIsDirectoryA(LPCSTR pszPath);
+    BOOL32 PathIsDirectoryW(WSTRING pszPath);
+    BOOL32 PathIsDirectoryEmptyA(LPCSTR pszPath);
+    BOOL32 PathIsDirectoryEmptyW(WSTRING pszPath);
+    BOOL32 PathIsFileSpecA(LPCSTR pszPath);
+    BOOL32 PathIsFileSpecW(WSTRING pszPath);
+    BOOL32 PathIsPrefixA(LPCSTR pszPrefix, LPCSTR pszPath);
+    BOOL32 PathIsPrefixW(WSTRING pszPrefix, WSTRING pszPath);
+    BOOL32 PathIsRelativeA(LPCSTR pszPath);
+    BOOL32 PathIsRelativeW(WSTRING pszPath);
+    BOOL32 PathIsRootA(LPCSTR pszPath);
+    BOOL32 PathIsRootW(WSTRING pszPath);
+    BOOL32 PathIsSameRootA(LPCSTR pszPath1, LPCSTR pszPath2);
+    BOOL32 PathIsSameRootW(WSTRING pszPath1, WSTRING pszPath2);
+    BOOL32 PathIsUNCA(LPCSTR pszPath);
+    BOOL32 PathIsUNCW(WSTRING pszPath);
+    BOOL32 PathIsNetworkPathA(LPCSTR pszPath);
+    BOOL32 PathIsNetworkPathW(WSTRING pszPath);
+    BOOL32 PathIsUNCServerA(LPCSTR pszPath);
+    BOOL32 PathIsUNCServerW(WSTRING pszPath);
+    BOOL32 PathIsUNCServerShareA(LPCSTR pszPath);
+    BOOL32 PathIsUNCServerShareW(WSTRING pszPath);
+    BOOL32 PathIsContentTypeA(LPCSTR pszPath, LPCSTR pszContentType);
+    BOOL32 PathIsContentTypeW(WSTRING pszPath, WSTRING pszContentType);
+    BOOL32 PathIsURLA(LPCSTR pszPath);
+    BOOL32 PathIsURLW(WSTRING pszPath);
+    BOOL32 PathMakePrettyA(LPSTR pszPath);
+    BOOL32 PathMakePrettyW(WSTRING pszPath);
+    BOOL32 PathMatchSpecA(LPCSTR pszFile, LPCSTR pszSpec);
+    BOOL32 PathMatchSpecW(WSTRING pszFile, WSTRING pszSpec);
+    HRESULT PathMatchSpecExA(LPCSTR pszFile, LPCSTR pszSpec, DWORD dwFlags);
+    HRESULT PathMatchSpecExW(WSTRING pszFile, WSTRING pszSpec, DWORD dwFlags);
+    INT32 PathParseIconLocationA(LPSTR pszIconFile);
+    INT32 PathParseIconLocationW(WSTRING pszIconFile);
+    BOOL32 PathQuoteSpacesA(LPSTR lpsz);
+    BOOL32 PathQuoteSpacesW(WSTRING lpsz);
+    BOOL32 PathRelativePathToA(LPSTR pszPath, LPCSTR pszFrom, DWORD dwAttrFrom, LPCSTR pszTo, DWORD dwAttrTo);
+    BOOL32 PathRelativePathToW(WSTRING pszPath, WSTRING pszFrom, DWORD dwAttrFrom, WSTRING pszTo, DWORD dwAttrTo);
+    VOID PathRemoveArgsA(LPSTR pszPath);
+    VOID PathRemoveArgsW(WSTRING pszPath);
+    LPSTR PathRemoveBackslashA(LPSTR pszPath);
+    WSTRING PathRemoveBackslashW(WSTRING pszPath);
+    VOID PathRemoveBlanksA(LPSTR pszPath);
+    VOID PathRemoveBlanksW(WSTRING pszPath);
+    VOID PathRemoveExtensionA(LPSTR pszPath);
+    VOID PathRemoveExtensionW(WSTRING pszPath);
+    BOOL32 PathRemoveFileSpecA(LPSTR pszPath);
+    BOOL32 PathRemoveFileSpecW(WSTRING pszPath);
+    BOOL32 PathRenameExtensionA(LPSTR pszPath, LPCSTR pszExt);
+    BOOL32 PathRenameExtensionW(WSTRING pszPath, WSTRING pszExt);
+    BOOL32 PathSearchAndQualifyA(LPCSTR pszPath, LPSTR pszBuf, UINT32 cchBuf);
+    BOOL32 PathSearchAndQualifyW(WSTRING pszPath, WSTRING pszBuf, UINT32 cchBuf);
+    VOID PathSetDlgItemPathA(HWND hDlg, INT32 id, LPCSTR pszPath);
+    VOID PathSetDlgItemPathW(HWND hDlg, INT32 id, WSTRING pszPath);
+    LPCSTR PathSkipRootA(LPCSTR pszPath);
+    WSTRING PathSkipRootW(WSTRING pszPath);
+    VOID PathStripPathA(LPSTR pszPath);
+    VOID PathStripPathW(WSTRING pszPath);
+    BOOL32 PathStripToRootA(LPSTR pszPath);
+    BOOL32 PathStripToRootW(WSTRING pszPath);
+    BOOL32 PathUnquoteSpacesA(LPSTR lpsz);
+    BOOL32 PathUnquoteSpacesW(WSTRING lpsz);
+    BOOL32 PathMakeSystemFolderA(LPCSTR pszPath);
+    BOOL32 PathMakeSystemFolderW(WSTRING pszPath);
+    BOOL32 PathUnmakeSystemFolderA(LPCSTR pszPath);
+    BOOL32 PathUnmakeSystemFolderW(WSTRING pszPath);
+    BOOL32 PathIsSystemFolderA(LPCSTR pszPath, DWORD dwAttrb);
+    BOOL32 PathIsSystemFolderW(WSTRING pszPath, DWORD dwAttrb);
+    VOID PathUndecorateA(LPSTR pszPath);
+    VOID PathUndecorateW(WSTRING pszPath);
+    BOOL32 PathUnExpandEnvStringsA(LPCSTR pszPath, LPSTR pszBuf, UINT32 cchBuf);
+    BOOL32 PathUnExpandEnvStringsW(WSTRING pszPath, WSTRING pszBuf, UINT32 cchBuf);
+    INT32 UrlCompareA(LPCSTR psz1, LPCSTR psz2, BOOL32 fIgnoreSlash);
+    INT32 UrlCompareW(WSTRING psz1, WSTRING psz2, BOOL32 fIgnoreSlash);
+    HRESULT UrlCombineA(LPCSTR pszBase, LPCSTR pszRelative, LPSTR pszCombined, PTR<VOID> arg3, DWORD dwFlags);
+    HRESULT UrlCombineW(WSTRING pszBase, WSTRING pszRelative, WSTRING pszCombined, PTR<VOID> arg3, DWORD dwFlags);
+    HRESULT UrlCanonicalizeA(LPCSTR pszUrl, LPSTR pszCanonicalized, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlCanonicalizeW(WSTRING pszUrl, WSTRING pszCanonicalized, PTR<VOID> arg2, DWORD dwFlags);
+    BOOL32 UrlIsOpaqueA(LPCSTR pszURL);
+    BOOL32 UrlIsOpaqueW(WSTRING pszURL);
+    BOOL32 UrlIsNoHistoryA(LPCSTR pszURL);
+    BOOL32 UrlIsNoHistoryW(WSTRING pszURL);
+    BOOL32 UrlIsA(LPCSTR pszUrl, UINT32 UrlIs);
+    BOOL32 UrlIsW(WSTRING pszUrl, UINT32 UrlIs);
+    LPCSTR UrlGetLocationA(LPCSTR pszURL);
+    WSTRING UrlGetLocationW(WSTRING pszURL);
+    HRESULT UrlUnescapeA(LPSTR pszUrl, LPSTR pszUnescaped, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlUnescapeW(WSTRING pszUrl, WSTRING pszUnescaped, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlEscapeA(LPCSTR pszUrl, LPSTR pszEscaped, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlEscapeW(WSTRING pszUrl, WSTRING pszEscaped, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlCreateFromPathA(LPCSTR pszPath, LPSTR pszUrl, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlCreateFromPathW(WSTRING pszPath, WSTRING pszUrl, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT PathCreateFromUrlA(LPCSTR pszUrl, LPSTR pszPath, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT PathCreateFromUrlW(WSTRING pszUrl, WSTRING pszPath, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT PathCreateFromUrlAlloc(WSTRING pszIn, PTR<VOID> arg1, DWORD dwFlags);
+    HRESULT UrlHashA(LPCSTR pszUrl, PTR<VOID> arg1, DWORD cbHash);
+    HRESULT UrlHashW(WSTRING pszUrl, PTR<VOID> arg1, DWORD cbHash);
+    HRESULT UrlGetPartW(WSTRING pszIn, WSTRING pszOut, PTR<VOID> arg2, DWORD dwPart, DWORD dwFlags);
+    HRESULT UrlGetPartA(LPCSTR pszIn, LPSTR pszOut, PTR<VOID> arg2, DWORD dwPart, DWORD dwFlags);
+    HRESULT UrlApplySchemeA(LPCSTR pszIn, LPSTR pszOut, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT UrlApplySchemeW(WSTRING pszIn, WSTRING pszOut, PTR<VOID> arg2, DWORD dwFlags);
+    HRESULT HashData(PTR<VOID> arg0, DWORD cbData, PTR<VOID> arg2, DWORD cbHash);
+    HRESULT UrlFixupW(WSTRING pcszUrl, WSTRING pszTranslatedUrl, DWORD cchMax);
+    HRESULT ParseURLA(LPCSTR pcszURL, PTR<PTR<VOID>> ppu);
+    HRESULT ParseURLW(WSTRING pcszURL, PTR<PTR<VOID>> ppu);
+    LONG SHDeleteEmptyKeyA(HKEY hkey, LPCSTR pszSubKey);
+    LONG SHDeleteEmptyKeyW(HKEY hkey, WSTRING pszSubKey);
+    LONG SHDeleteKeyA(HKEY hkey, LPCSTR pszSubKey);
+    LONG SHDeleteKeyW(HKEY hkey, WSTRING pszSubKey);
+    HKEY SHRegDuplicateHKey(HKEY hkey);
+    LONG SHDeleteValueA(HKEY hkey, LPCSTR pszSubKey, LPCSTR pszValue);
+    LONG SHDeleteValueW(HKEY hkey, WSTRING pszSubKey, WSTRING pszValue);
+    LONG SHGetValueA(HKEY hkey, LPCSTR pszSubKey, LPCSTR pszValue, PTR<VOID> arg3, PTR<VOID> arg4, PTR<VOID> arg5);
+    LONG SHGetValueW(HKEY hkey, WSTRING pszSubKey, WSTRING pszValue, PTR<VOID> arg3, PTR<VOID> arg4, PTR<VOID> arg5);
+    LONG SHSetValueA(HKEY hkey, LPCSTR pszSubKey, LPCSTR pszValue, DWORD dwType, PTR<VOID> pvData, DWORD cbData);
+    LONG SHSetValueW(HKEY hkey, WSTRING pszSubKey, WSTRING pszValue, DWORD dwType, PTR<VOID> pvData, DWORD cbData);
+    LONG SHRegGetValueA(HKEY hkey, LPCSTR pszSubKey, LPCSTR pszValue, UINT32 srrfFlags, PTR<VOID> arg4, PTR<VOID> arg5, PTR<VOID> arg6);
+    LONG SHRegGetValueW(HKEY hkey, WSTRING pszSubKey, WSTRING pszValue, UINT32 srrfFlags, PTR<VOID> arg4, PTR<VOID> arg5, PTR<VOID> arg6);
+    LONG SHRegSetValue(HKEY hkey, WSTRING pszSubKey, WSTRING pszValue, UINT32 srrfFlags, DWORD dwType, PTR<VOID> pvData, DWORD cbData);
+    LONG SHRegGetValueFromHKCUHKLM(WSTRING pwszKey, WSTRING pwszValue, UINT32 srrfFlags, PTR<DWORD> pdwType, PTR<VOID> pvData, PTR<DWORD> pcbData);
+    BOOL32 SHRegGetBoolValueFromHKCUHKLM(WSTRING pszKey, WSTRING pszValue, BOOL32 fDefault);
+    LONG SHQueryValueExA(HKEY hkey, LPCSTR pszValue, PTR<VOID> arg2, PTR<VOID> arg3, PTR<VOID> arg4, PTR<VOID> arg5);
+    LONG SHQueryValueExW(HKEY hkey, WSTRING pszValue, PTR<VOID> arg2, PTR<VOID> arg3, PTR<VOID> arg4, PTR<VOID> arg5);
+    LONG SHEnumKeyExA(HKEY hkey, DWORD dwIndex, LPSTR pszName, PTR<DWORD> pcchName);
+    LONG SHEnumKeyExW(HKEY hkey, DWORD dwIndex, WSTRING pszName, PTR<DWORD> pcchName);
+    LONG SHEnumValueA(HKEY hkey, DWORD dwIndex, LPSTR pszValueName, PTR<DWORD> pcchValueName, PTR<DWORD> pdwType, PTR<VOID> arg5, PTR<DWORD> pcbData);
+    LONG SHEnumValueW(HKEY hkey, DWORD dwIndex, WSTRING pszValueName, PTR<DWORD> pcchValueName, PTR<DWORD> pdwType, PTR<VOID> arg5, PTR<DWORD> pcbData);
+    LONG SHQueryInfoKeyA(HKEY hkey, PTR<DWORD> pcSubKeys, PTR<DWORD> pcchMaxSubKeyLen, PTR<DWORD> pcValues, PTR<DWORD> pcchMaxValueNameLen);
+    LONG SHQueryInfoKeyW(HKEY hkey, PTR<DWORD> pcSubKeys, PTR<DWORD> pcchMaxSubKeyLen, PTR<DWORD> pcValues, PTR<DWORD> pcchMaxValueNameLen);
+    LONG SHCopyKeyA(HKEY hkeySrc, LPCSTR pszSrcSubKey, HKEY hkeyDest, DWORD fReserved);
+    LONG SHCopyKeyW(HKEY hkeySrc, WSTRING pszSrcSubKey, HKEY hkeyDest, DWORD fReserved);
+    LONG SHRegGetPathA(HKEY hKey, LPCSTR pcszSubKey, LPCSTR pcszValue, LPSTR pszPath, DWORD dwFlags);
+    LONG SHRegGetPathW(HKEY hKey, WSTRING pcszSubKey, WSTRING pcszValue, WSTRING pszPath, DWORD dwFlags);
+    LONG SHRegSetPathA(HKEY hKey, LPCSTR pcszSubKey, LPCSTR pcszValue, LPCSTR pcszPath, DWORD dwFlags);
+    LONG SHRegSetPathW(HKEY hKey, WSTRING pcszSubKey, WSTRING pcszValue, WSTRING pcszPath, DWORD dwFlags);
+    LONG SHRegCreateUSKeyA(LPCSTR pszPath, DWORD samDesired, PTR<VOID> hRelativeUSKey, PTR<VOID> phNewUSKey, DWORD dwFlags);
+    LONG SHRegCreateUSKeyW(WSTRING pwzPath, DWORD samDesired, PTR<VOID> hRelativeUSKey, PTR<VOID> phNewUSKey, DWORD dwFlags);
+    LONG SHRegOpenUSKeyA(LPCSTR pszPath, DWORD samDesired, PTR<VOID> hRelativeUSKey, PTR<VOID> phNewUSKey, BOOL32 fIgnoreHKCU);
+    LONG SHRegOpenUSKeyW(WSTRING pwzPath, DWORD samDesired, PTR<VOID> hRelativeUSKey, PTR<VOID> phNewUSKey, BOOL32 fIgnoreHKCU);
+    LONG SHRegQueryUSValueA(PTR<VOID> hUSKey, LPCSTR pszValue, PTR<DWORD> pdwType, PTR<VOID> pvData, PTR<DWORD> pcbData, BOOL32 fIgnoreHKCU, PTR<VOID> pvDefaultData, DWORD dwDefaultDataSize);
+    LONG SHRegQueryUSValueW(PTR<VOID> hUSKey, WSTRING pszValue, PTR<DWORD> pdwType, PTR<VOID> pvData, PTR<DWORD> pcbData, BOOL32 fIgnoreHKCU, PTR<VOID> pvDefaultData, DWORD dwDefaultDataSize);
+    LONG SHRegWriteUSValueA(PTR<VOID> hUSKey, LPCSTR pszValue, DWORD dwType, PTR<VOID> arg3, DWORD cbData, DWORD dwFlags);
+    LONG SHRegWriteUSValueW(PTR<VOID> hUSKey, WSTRING pwzValue, DWORD dwType, PTR<VOID> arg3, DWORD cbData, DWORD dwFlags);
+    LONG SHRegDeleteUSValueA(PTR<VOID> hUSKey, LPCSTR pszValue, UINT32 delRegFlags);
+    LONG SHRegDeleteUSValueW(PTR<VOID> hUSKey, WSTRING pwzValue, UINT32 delRegFlags);
+    LONG SHRegDeleteEmptyUSKeyW(PTR<VOID> hUSKey, WSTRING pwzSubKey, UINT32 delRegFlags);
+    LONG SHRegDeleteEmptyUSKeyA(PTR<VOID> hUSKey, LPCSTR pszSubKey, UINT32 delRegFlags);
+    LONG SHRegEnumUSKeyA(PTR<VOID> hUSKey, DWORD dwIndex, LPSTR pszName, PTR<DWORD> pcchName, UINT32 enumRegFlags);
+    LONG SHRegEnumUSKeyW(PTR<VOID> hUSKey, DWORD dwIndex, WSTRING pwzName, PTR<DWORD> pcchName, UINT32 enumRegFlags);
+    LONG SHRegEnumUSValueA(PTR<VOID> hUSkey, DWORD dwIndex, LPSTR pszValueName, PTR<DWORD> pcchValueName, PTR<DWORD> pdwType, PTR<VOID> arg5, PTR<DWORD> pcbData, UINT32 enumRegFlags);
+    LONG SHRegEnumUSValueW(PTR<VOID> hUSkey, DWORD dwIndex, WSTRING pszValueName, PTR<DWORD> pcchValueName, PTR<DWORD> pdwType, PTR<VOID> arg5, PTR<DWORD> pcbData, UINT32 enumRegFlags);
+    LONG SHRegQueryInfoUSKeyA(PTR<VOID> hUSKey, PTR<DWORD> pcSubKeys, PTR<DWORD> pcchMaxSubKeyLen, PTR<DWORD> pcValues, PTR<DWORD> pcchMaxValueNameLen, UINT32 enumRegFlags);
+    LONG SHRegQueryInfoUSKeyW(PTR<VOID> hUSKey, PTR<DWORD> pcSubKeys, PTR<DWORD> pcchMaxSubKeyLen, PTR<DWORD> pcValues, PTR<DWORD> pcchMaxValueNameLen, UINT32 enumRegFlags);
+    LONG SHRegCloseUSKey(PTR<VOID> hUSKey);
+    LONG SHRegGetUSValueA(LPCSTR pszSubKey, LPCSTR pszValue, PTR<VOID> arg2, PTR<VOID> arg3, PTR<VOID> arg4, BOOL32 fIgnoreHKCU, PTR<VOID> arg6, DWORD dwDefaultDataSize);
+    LONG SHRegGetUSValueW(WSTRING pszSubKey, WSTRING pszValue, PTR<VOID> arg2, PTR<VOID> arg3, PTR<VOID> arg4, BOOL32 fIgnoreHKCU, PTR<VOID> arg6, DWORD dwDefaultDataSize);
+    LONG SHRegSetUSValueA(LPCSTR pszSubKey, LPCSTR pszValue, DWORD dwType, PTR<VOID> arg3, DWORD cbData, DWORD dwFlags);
+    LONG SHRegSetUSValueW(WSTRING pwzSubKey, WSTRING pwzValue, DWORD dwType, PTR<VOID> arg3, DWORD cbData, DWORD dwFlags);
+    INT32 SHRegGetIntW(HKEY hk, WSTRING pwzKey, INT32 iDefault);
+    BOOL32 SHRegGetBoolUSValueA(LPCSTR pszSubKey, LPCSTR pszValue, BOOL32 fIgnoreHKCU, BOOL32 fDefault);
+    BOOL32 SHRegGetBoolUSValueW(WSTRING pszSubKey, WSTRING pszValue, BOOL32 fIgnoreHKCU, BOOL32 fDefault);
+    HRESULT AssocCreate(PTR<VOID> clsid, PTR<VOID> riid, PTR<VOID> arg2);
+    DWORD SHGetAssocKeys(PTR<VOID> arg0, PTR<VOID> arg1, DWORD cKeys);
+    HRESULT AssocQueryStringA(UINT32 flags, UINT32 str, LPCSTR pszAssoc, LPCSTR pszExtra, LPSTR pszOut, PTR<VOID> arg5);
+    HRESULT AssocQueryStringW(UINT32 flags, UINT32 str, WSTRING pszAssoc, WSTRING pszExtra, WSTRING pszOut, PTR<VOID> arg5);
+    HRESULT AssocQueryStringByKeyA(UINT32 flags, UINT32 str, HKEY hkAssoc, LPCSTR pszExtra, LPSTR pszOut, PTR<VOID> arg5);
+    HRESULT AssocQueryStringByKeyW(UINT32 flags, UINT32 str, HKEY hkAssoc, WSTRING pszExtra, WSTRING pszOut, PTR<VOID> arg5);
+    HRESULT AssocQueryKeyA(UINT32 flags, UINT32 key, LPCSTR pszAssoc, LPCSTR pszExtra, PTR<VOID> arg4);
+    HRESULT AssocQueryKeyW(UINT32 flags, UINT32 key, WSTRING pszAssoc, WSTRING pszExtra, PTR<VOID> arg4);
+    BOOL32 AssocIsDangerous(WSTRING pszAssoc);
+    HRESULT AssocGetPerceivedType(WSTRING pszExt, PTR<VOID> arg1, PTR<VOID> arg2, PTR<VOID> arg3);
+    PTR<VOID> SHOpenRegStreamA(HKEY hkey, LPCSTR pszSubkey, LPCSTR pszValue, DWORD grfMode);
+    PTR<VOID> SHOpenRegStreamW(HKEY hkey, WSTRING pszSubkey, WSTRING pszValue, DWORD grfMode);
+    PTR<VOID> SHOpenRegStream2A(HKEY hkey, LPCSTR pszSubkey, LPCSTR pszValue, DWORD grfMode);
+    PTR<VOID> SHOpenRegStream2W(HKEY hkey, WSTRING pszSubkey, WSTRING pszValue, DWORD grfMode);
+    HRESULT SHCreateStreamOnFileA(LPCSTR pszFile, DWORD grfMode, PTR<VOID> arg2);
+    HRESULT SHCreateStreamOnFileW(WSTRING pszFile, DWORD grfMode, PTR<VOID> arg2);
+    HRESULT SHCreateStreamOnFileEx(WSTRING pszFile, DWORD grfMode, DWORD dwAttributes, BOOL32 fCreate, PTR<VOID> arg4, PTR<VOID> arg5);
+    PTR<VOID> SHCreateMemStream(PTR<VOID> arg0, UINT32 cbInit);
+    HRESULT GetAcceptLanguagesA(LPSTR pszLanguages, PTR<VOID> arg1);
+    HRESULT GetAcceptLanguagesW(WSTRING pszLanguages, PTR<VOID> arg1);
+    DWORD StopWatchMode();
+    DWORD StopWatchFlush();
+    VOID IUnknown_Set(PTR<VOID> ppunk, PTR<VOID> punk);
+    VOID IUnknown_AtomicRelease(PTR<VOID> ppunk);
+    HRESULT IUnknown_GetWindow(PTR<VOID> punk, PTR<HWND> phwnd);
+    HRESULT IUnknown_SetSite(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT IUnknown_GetSite(PTR<VOID> arg0, PTR<VOID> riid, PTR<VOID> arg2);
+    HRESULT IUnknown_QueryService(PTR<VOID> punk, PTR<VOID> guidService, PTR<VOID> riid, PTR<VOID> ppvOut);
+    HRESULT IStream_Read(PTR<VOID> arg0, PTR<VOID> arg1, ULONG cb);
+    HRESULT IStream_Write(PTR<VOID> arg0, PTR<VOID> arg1, ULONG cb);
+    HRESULT IStream_Reset(PTR<VOID> arg0);
+    HRESULT IStream_Size(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT ConnectToConnectionPoint(PTR<VOID> punk, PTR<VOID> riidEvent, BOOL32 fConnect, PTR<VOID> punkTarget, PTR<DWORD> pdwCookie, PTR<VOID> ppcpOut);
+    HRESULT IStream_ReadPidl(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT IStream_WritePidl(PTR<VOID> arg0, PTR<VOID> pidlWrite);
+    HRESULT IStream_ReadStr(PTR<VOID> arg0, PTR<VOID> arg1);
+    HRESULT IStream_WriteStr(PTR<VOID> arg0, WSTRING psz);
+    HRESULT IStream_Copy(PTR<VOID> arg0, PTR<VOID> arg1, DWORD cb);
+    HRESULT SHGetViewStatePropertyBag(PTR<VOID> pidl, WSTRING pszBagName, DWORD dwFlags, PTR<VOID> riid, PTR<VOID> arg4);
+    INT32 SHFormatDateTimeA(PTR<VOID> pft, PTR<DWORD> pdwFlags, LPSTR pszBuf, UINT32 cchBuf);
+    INT32 SHFormatDateTimeW(PTR<VOID> pft, PTR<DWORD> pdwFlags, WSTRING pszBuf, UINT32 cchBuf);
+    INT32 SHAnsiToUnicode(LPCSTR pszSrc, WSTRING pwszDst, INT32 cwchBuf);
+    INT32 SHAnsiToAnsi(LPCSTR pszSrc, LPSTR pszDst, INT32 cchBuf);
+    INT32 SHUnicodeToAnsi(WSTRING pwszSrc, LPSTR pszDst, INT32 cchBuf);
+    INT32 SHUnicodeToUnicode(WSTRING pwzSrc, WSTRING pwzDst, INT32 cwchBuf);
+    INT32 SHMessageBoxCheckA(HWND hwnd, LPCSTR pszText, LPCSTR pszCaption, UINT32 uType, INT32 iDefault, LPCSTR pszRegVal);
+    INT32 SHMessageBoxCheckW(HWND hwnd, WSTRING pszText, WSTRING pszCaption, UINT32 uType, INT32 iDefault, WSTRING pszRegVal);
+    LRESULT SHSendMessageBroadcastA(UINT32 uMsg, WPARAM wParam, LPARAM lParam);
+    LRESULT SHSendMessageBroadcastW(UINT32 uMsg, WPARAM wParam, LPARAM lParam);
+    INT8 SHStripMneumonicA(LPSTR pszMenu);
+    UINT16 SHStripMneumonicW(WSTRING pszMenu);
+    BOOL32 IsOS(DWORD dwOS);
+    INT32 SHGlobalCounterGetValue(UINT32 id);
+    INT32 SHGlobalCounterIncrement(UINT32 id);
+    INT32 SHGlobalCounterDecrement(UINT32 id);
+    HANDLE SHAllocShared(PTR<VOID> arg0, DWORD dwSize, DWORD dwProcessId);
+    BOOL32 SHFreeShared(HANDLE hData, DWORD dwProcessId);
+    PTR<VOID> SHLockShared(HANDLE hData, DWORD dwProcessId);
+    BOOL32 SHUnlockShared(PTR<VOID> arg0);
+    UINT32 WhichPlatform();
+}

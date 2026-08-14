@@ -1,0 +1,4 @@
+// Header-specific type aliases extracted from source header
+newtype MEMBERID = INT32;
+type LPCREATETYPELIB = PTR<VOID>;
+type LPCREATETYPEINFO = PTR<VOID>;

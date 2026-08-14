@@ -1,0 +1,28 @@
+// version.zv
+//
+// Auto-generated ZV bindings from winver.h
+// DLL: version.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+extern "version.dll" {
+    DWORD VerFindFileA(DWORD uFlags, LPCSTR szFileName, LPCSTR szWinDir, LPCSTR szAppDir, LPSTR szCurDir, PTR<UINT32> puCurDirLen, LPSTR szDestDir, PTR<UINT32> puDestDirLen);
+    DWORD VerFindFileW(DWORD uFlags, WSTRING szFileName, WSTRING szWinDir, WSTRING szAppDir, WSTRING szCurDir, PTR<UINT32> puCurDirLen, WSTRING szDestDir, PTR<UINT32> puDestDirLen);
+    DWORD VerInstallFileA(DWORD uFlags, LPCSTR szSrcFileName, LPCSTR szDestFileName, LPCSTR szSrcDir, LPCSTR szDestDir, LPCSTR szCurDir, LPSTR szTmpFile, PTR<UINT32> puTmpFileLen);
+    DWORD VerInstallFileW(DWORD uFlags, WSTRING szSrcFileName, WSTRING szDestFileName, WSTRING szSrcDir, WSTRING szDestDir, WSTRING szCurDir, WSTRING szTmpFile, PTR<UINT32> puTmpFileLen);
+    DWORD GetFileVersionInfoSizeA(LPCSTR lptstrFilename, PTR<DWORD> lpdwHandle);
+    DWORD GetFileVersionInfoSizeW(WSTRING lptstrFilename, PTR<DWORD> lpdwHandle);
+    BOOL32 GetFileVersionInfoA(LPCSTR lptstrFilename, DWORD dwHandle, DWORD dwLen, PTR<VOID> lpData);
+    BOOL32 GetFileVersionInfoW(WSTRING lptstrFilename, DWORD dwHandle, DWORD dwLen, PTR<VOID> lpData);
+    DWORD GetFileVersionInfoSizeExA(DWORD dwFlags, LPCSTR lpwstrFilename, PTR<DWORD> lpdwHandle);
+    DWORD GetFileVersionInfoSizeExW(DWORD dwFlags, WSTRING lpwstrFilename, PTR<DWORD> lpdwHandle);
+    BOOL32 GetFileVersionInfoExA(DWORD dwFlags, LPCSTR lpwstrFilename, DWORD dwHandle, DWORD dwLen, PTR<VOID> lpData);
+    BOOL32 GetFileVersionInfoExW(DWORD dwFlags, WSTRING lpwstrFilename, DWORD dwHandle, DWORD dwLen, PTR<VOID> lpData);
+    DWORD VerLanguageNameA(DWORD wLang, LPSTR szLang, DWORD cchLang);
+    DWORD VerLanguageNameW(DWORD wLang, WSTRING szLang, DWORD cchLang);
+    BOOL32 VerQueryValueA(PTR<VOID> pBlock, LPCSTR lpSubBlock, PTR<PTR<VOID>> lplpBuffer, PTR<UINT32> puLen);
+    BOOL32 VerQueryValueW(PTR<VOID> pBlock, WSTRING lpSubBlock, PTR<PTR<VOID>> lplpBuffer, PTR<UINT32> puLen);
+}

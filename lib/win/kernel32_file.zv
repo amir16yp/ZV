@@ -1,0 +1,123 @@
+// kernel32_file.zv
+//
+// Auto-generated ZV bindings from fileapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+// Numeric constants extracted from header
+#define CREATE_NEW 1
+#define CREATE_ALWAYS 2
+#define OPEN_EXISTING 3
+#define OPEN_ALWAYS 4
+#define TRUNCATE_EXISTING 5
+
+extern "kernel32.dll" {
+    LONG CompareFileTime(PTR<VOID> lpFileTime1, PTR<VOID> lpFileTime2);
+    BOOL32 CreateDirectoryA(LPCSTR lpPathName, PTR<VOID> lpSecurityAttributes);
+    BOOL32 CreateDirectoryW(WSTRING lpPathName, PTR<VOID> lpSecurityAttributes);
+    HANDLE CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, PTR<VOID> lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+    HANDLE CreateFileW(WSTRING lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, PTR<VOID> lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+    BOOL32 DefineDosDeviceW(DWORD dwFlags, WSTRING lpDeviceName, WSTRING lpTargetPath);
+    BOOL32 DeleteFileA(LPCSTR lpFileName);
+    BOOL32 DeleteFileW(WSTRING lpFileName);
+    BOOL32 DeleteVolumeMountPointW(WSTRING lpszVolumeMountPoint);
+    BOOL32 FileTimeToLocalFileTime(PTR<VOID> lpFileTime, PTR<VOID> lpLocalFileTime);
+    BOOL32 FindClose(HANDLE hFindFile);
+    BOOL32 FindCloseChangeNotification(HANDLE hChangeHandle);
+    HANDLE FindFirstChangeNotificationA(LPCSTR lpPathName, BOOL32 bWatchSubtree, DWORD dwNotifyFilter);
+    HANDLE FindFirstChangeNotificationW(WSTRING lpPathName, BOOL32 bWatchSubtree, DWORD dwNotifyFilter);
+    HANDLE FindFirstFileA(LPCSTR lpFileName, PTR<VOID> lpFindFileData);
+    HANDLE FindFirstFileW(WSTRING lpFileName, PTR<VOID> lpFindFileData);
+    HANDLE FindFirstFileExA(LPCSTR lpFileName, UINT32 fInfoLevelId, PTR<VOID> lpFindFileData, UINT32 fSearchOp, PTR<VOID> lpSearchFilter, DWORD dwAdditionalFlags);
+    HANDLE FindFirstFileExW(WSTRING lpFileName, UINT32 fInfoLevelId, PTR<VOID> lpFindFileData, UINT32 fSearchOp, PTR<VOID> lpSearchFilter, DWORD dwAdditionalFlags);
+    HANDLE FindFirstVolumeW(WSTRING lpszVolumeName, DWORD cchBufferLength);
+    BOOL32 FindNextChangeNotification(HANDLE hChangeHandle);
+    BOOL32 FindNextFileA(HANDLE hFindFile, PTR<VOID> lpFindFileData);
+    BOOL32 FindNextFileW(HANDLE hFindFile, PTR<VOID> lpFindFileData);
+    BOOL32 FindNextVolumeW(HANDLE hFindVolume, WSTRING lpszVolumeName, DWORD cchBufferLength);
+    BOOL32 FindVolumeClose(HANDLE hFindVolume);
+    BOOL32 FlushFileBuffers(HANDLE hFile);
+    BOOL32 GetDiskFreeSpaceA(LPCSTR lpRootPathName, PTR<DWORD> lpSectorsPerCluster, PTR<DWORD> lpBytesPerSector, PTR<DWORD> lpNumberOfFreeClusters, PTR<DWORD> lpTotalNumberOfClusters);
+    BOOL32 GetDiskFreeSpaceW(WSTRING lpRootPathName, PTR<DWORD> lpSectorsPerCluster, PTR<DWORD> lpBytesPerSector, PTR<DWORD> lpNumberOfFreeClusters, PTR<DWORD> lpTotalNumberOfClusters);
+    BOOL32 GetDiskFreeSpaceExA(LPCSTR lpDirectoryName, PTR<VOID> lpFreeBytesAvailableToCaller, PTR<VOID> lpTotalNumberOfBytes, PTR<VOID> lpTotalNumberOfFreeBytes);
+    BOOL32 GetDiskFreeSpaceExW(WSTRING lpDirectoryName, PTR<VOID> lpFreeBytesAvailableToCaller, PTR<VOID> lpTotalNumberOfBytes, PTR<VOID> lpTotalNumberOfFreeBytes);
+    HRESULT GetDiskSpaceInformationA(LPCSTR rootPath, PTR<VOID> diskSpaceInfo);
+    HRESULT GetDiskSpaceInformationW(WSTRING rootPath, PTR<VOID> diskSpaceInfo);
+    UINT32 GetDriveTypeA(LPCSTR lpRootPathName);
+    UINT32 GetDriveTypeW(WSTRING lpRootPathName);
+    DWORD GetFileAttributesA(LPCSTR lpFileName);
+    DWORD GetFileAttributesW(WSTRING lpFileName);
+    BOOL32 GetFileAttributesExA(LPCSTR lpFileName, UINT32 fInfoLevelId, PTR<VOID> lpFileInformation);
+    BOOL32 GetFileAttributesExW(WSTRING lpFileName, UINT32 fInfoLevelId, PTR<VOID> lpFileInformation);
+    BOOL32 GetFileInformationByHandle(HANDLE hFile, PTR<VOID> lpFileInformation);
+    DWORD GetFileSize(HANDLE hFile, PTR<DWORD> lpFileSizeHigh);
+    BOOL32 GetFileSizeEx(HANDLE hFile, PTR<VOID> lpFileSize);
+    DWORD GetFileType(HANDLE hFile);
+    DWORD GetFinalPathNameByHandleA(HANDLE hFile, LPSTR lpszFilePath, DWORD cchFilePath, DWORD dwFlags);
+    DWORD GetFinalPathNameByHandleW(HANDLE hFile, WSTRING lpszFilePath, DWORD cchFilePath, DWORD dwFlags);
+    BOOL32 GetFileTime(HANDLE hFile, PTR<VOID> lpCreationTime, PTR<VOID> lpLastAccessTime, PTR<VOID> lpLastWriteTime);
+    DWORD GetFullPathNameW(WSTRING lpFileName, DWORD nBufferLength, WSTRING lpBuffer, PTR<WSTRING> lpFilePart);
+    DWORD GetFullPathNameA(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, PTR<LPSTR> lpFilePart);
+    DWORD GetLogicalDrives();
+    DWORD GetLogicalDriveStringsW(DWORD nBufferLength, WSTRING lpBuffer);
+    DWORD GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer);
+    DWORD GetLongPathNameW(WSTRING lpszShortPath, WSTRING lpszLongPath, DWORD cchBuffer);
+    BOOL32 AreShortNamesEnabled(HANDLE Handle, PTR<BOOL32> Enabled);
+    DWORD GetShortPathNameW(WSTRING lpszLongPath, WSTRING lpszShortPath, DWORD cchBuffer);
+    UINT32 GetTempFileNameW(WSTRING lpPathName, WSTRING lpPrefixString, UINT32 uUnique, WSTRING lpTempFileName);
+    BOOL32 GetVolumeInformationByHandleW(HANDLE hFile, WSTRING lpVolumeNameBuffer, DWORD nVolumeNameSize, PTR<DWORD> lpVolumeSerialNumber, PTR<DWORD> lpMaximumComponentLength, PTR<DWORD> lpFileSystemFlags, WSTRING lpFileSystemNameBuffer, DWORD nFileSystemNameSize);
+    BOOL32 GetVolumeInformationW(WSTRING lpRootPathName, WSTRING lpVolumeNameBuffer, DWORD nVolumeNameSize, PTR<DWORD> lpVolumeSerialNumber, PTR<DWORD> lpMaximumComponentLength, PTR<DWORD> lpFileSystemFlags, WSTRING lpFileSystemNameBuffer, DWORD nFileSystemNameSize);
+    BOOL32 GetVolumePathNameW(WSTRING lpszFileName, WSTRING lpszVolumePathName, DWORD cchBufferLength);
+    BOOL32 LocalFileTimeToFileTime(PTR<VOID> lpLocalFileTime, PTR<VOID> lpFileTime);
+    BOOL32 LockFile(HANDLE hFile, DWORD dwFileOffsetLow, DWORD dwFileOffsetHigh, DWORD nNumberOfBytesToLockLow, DWORD nNumberOfBytesToLockHigh);
+    BOOL32 LockFileEx(HANDLE hFile, DWORD dwFlags, DWORD dwReserved, DWORD nNumberOfBytesToLockLow, DWORD nNumberOfBytesToLockHigh, PTR<VOID> lpOverlapped);
+    DWORD QueryDosDeviceW(WSTRING lpDeviceName, WSTRING lpTargetPath, DWORD ucchMax);
+    BOOL32 ReadFile(HANDLE hFile, PTR<VOID> lpBuffer, DWORD nNumberOfBytesToRead, PTR<DWORD> lpNumberOfBytesRead, PTR<VOID> lpOverlapped);
+    BOOL32 ReadFileEx(HANDLE hFile, PTR<VOID> lpBuffer, DWORD nNumberOfBytesToRead, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    BOOL32 ReadFileScatter(HANDLE hFile, PTR<VOID> arg1, DWORD nNumberOfBytesToRead, PTR<DWORD> lpReserved, PTR<VOID> lpOverlapped);
+    BOOL32 RemoveDirectoryA(LPCSTR lpPathName);
+    BOOL32 RemoveDirectoryW(WSTRING lpPathName);
+    BOOL32 SetEndOfFile(HANDLE hFile);
+    BOOL32 SetFileAttributesA(LPCSTR lpFileName, DWORD dwFileAttributes);
+    BOOL32 SetFileAttributesW(WSTRING lpFileName, DWORD dwFileAttributes);
+    BOOL32 SetFileInformationByHandle(HANDLE hFile, UINT32 FileInformationClass, PTR<VOID> lpFileInformation, DWORD dwBufferSize);
+    DWORD SetFilePointer(HANDLE hFile, LONG lDistanceToMove, PTR<LONG> lpDistanceToMoveHigh, DWORD dwMoveMethod);
+    BOOL32 SetFilePointerEx(HANDLE hFile, PTR<VOID> liDistanceToMove, PTR<VOID> lpNewFilePointer, DWORD dwMoveMethod);
+    BOOL32 SetFileTime(HANDLE hFile, PTR<VOID> lpCreationTime, PTR<VOID> lpLastAccessTime, PTR<VOID> lpLastWriteTime);
+    BOOL32 SetFileValidData(HANDLE hFile, INT64 ValidDataLength);
+    BOOL32 UnlockFile(HANDLE hFile, DWORD dwFileOffsetLow, DWORD dwFileOffsetHigh, DWORD nNumberOfBytesToUnlockLow, DWORD nNumberOfBytesToUnlockHigh);
+    BOOL32 UnlockFileEx(HANDLE hFile, DWORD dwReserved, DWORD nNumberOfBytesToUnlockLow, DWORD nNumberOfBytesToUnlockHigh, PTR<VOID> lpOverlapped);
+    BOOL32 WriteFile(HANDLE hFile, PTR<VOID> lpBuffer, DWORD nNumberOfBytesToWrite, PTR<DWORD> lpNumberOfBytesWritten, PTR<VOID> lpOverlapped);
+    BOOL32 WriteFileEx(HANDLE hFile, PTR<VOID> lpBuffer, DWORD nNumberOfBytesToWrite, PTR<VOID> lpOverlapped, PTR<VOID> lpCompletionRoutine);
+    BOOL32 WriteFileGather(HANDLE hFile, PTR<VOID> arg1, DWORD nNumberOfBytesToWrite, PTR<DWORD> lpReserved, PTR<VOID> lpOverlapped);
+    DWORD GetTempPathW(DWORD nBufferLength, WSTRING lpBuffer);
+    BOOL32 GetVolumeNameForVolumeMountPointW(WSTRING lpszVolumeMountPoint, WSTRING lpszVolumeName, DWORD cchBufferLength);
+    BOOL32 GetVolumePathNamesForVolumeNameW(WSTRING lpszVolumeName, PTR<VOID> lpszVolumePathNames, DWORD cchBufferLength, PTR<DWORD> lpcchReturnLength);
+    HANDLE CreateFile2(WSTRING lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, DWORD dwCreationDisposition, PTR<VOID> pCreateExParams);
+    BOOL32 SetFileIoOverlappedRange(HANDLE FileHandle, PTR<VOID> OverlappedRangeStart, ULONG Length);
+    DWORD GetCompressedFileSizeA(LPCSTR lpFileName, PTR<DWORD> lpFileSizeHigh);
+    DWORD GetCompressedFileSizeW(WSTRING lpFileName, PTR<DWORD> lpFileSizeHigh);
+    HANDLE FindFirstStreamW(WSTRING lpFileName, UINT32 InfoLevel, PTR<VOID> lpFindStreamData, DWORD dwFlags);
+    BOOL32 FindNextStreamW(HANDLE hFindStream, PTR<VOID> lpFindStreamData);
+    BOOL32 AreFileApisANSI();
+    DWORD GetTempPathA(DWORD nBufferLength, LPSTR lpBuffer);
+    HANDLE FindFirstFileNameW(WSTRING lpFileName, DWORD dwFlags, PTR<DWORD> StringLength, WSTRING LinkName);
+    BOOL32 FindNextFileNameW(HANDLE hFindStream, PTR<DWORD> StringLength, WSTRING LinkName);
+    BOOL32 GetVolumeInformationA(LPCSTR lpRootPathName, LPSTR lpVolumeNameBuffer, DWORD nVolumeNameSize, PTR<DWORD> lpVolumeSerialNumber, PTR<DWORD> lpMaximumComponentLength, PTR<DWORD> lpFileSystemFlags, LPSTR lpFileSystemNameBuffer, DWORD nFileSystemNameSize);
+    UINT32 GetTempFileNameA(LPCSTR lpPathName, LPCSTR lpPrefixString, UINT32 uUnique, LPSTR lpTempFileName);
+    VOID SetFileApisToOEM();
+    VOID SetFileApisToANSI();
+    DWORD GetTempPath2W(DWORD BufferLength, WSTRING Buffer);
+    DWORD GetTempPath2A(DWORD BufferLength, LPSTR Buffer);
+    HANDLE CreateFile3(WSTRING lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, DWORD dwCreationDisposition, PTR<VOID> pCreateExParams);
+    HANDLE CreateDirectory2A(LPCSTR lpPathName, DWORD dwDesiredAccess, DWORD dwShareMode, UINT32 DirectoryFlags, PTR<VOID> lpSecurityAttributes);
+    HANDLE CreateDirectory2W(WSTRING lpPathName, DWORD dwDesiredAccess, DWORD dwShareMode, UINT32 DirectoryFlags, PTR<VOID> lpSecurityAttributes);
+    BOOL32 RemoveDirectory2A(LPCSTR lpPathName, UINT32 DirectoryFlags);
+    BOOL32 RemoveDirectory2W(WSTRING lpPathName, UINT32 DirectoryFlags);
+    BOOL32 DeleteFile2A(LPCSTR lpFileName, DWORD Flags);
+    BOOL32 DeleteFile2W(WSTRING lpFileName, DWORD Flags);
+}

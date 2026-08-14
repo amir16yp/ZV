@@ -1,0 +1,67 @@
+// kernel32_sysinfo.zv
+//
+// Auto-generated ZV bindings from sysinfoapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+// Numeric constants extracted from header
+#define USER_CET_ENVIRONMENT_WIN32_PROCESS 0x00000000
+#define USER_CET_ENVIRONMENT_SGX2_ENCLAVE 0x00000002
+#define USER_CET_ENVIRONMENT_VBS_ENCLAVE 0x00000010
+#define USER_CET_ENVIRONMENT_VBS_BASIC_ENCLAVE 0x00000011
+#define SCEX2_ALT_NETBIOS_NAME 0x00000001
+
+extern "kernel32.dll" {
+    BOOL32 GlobalMemoryStatusEx(PTR<VOID> lpBuffer);
+    VOID GetSystemInfo(PTR<VOID> lpSystemInfo);
+    VOID GetSystemTime(PTR<VOID> lpSystemTime);
+    VOID GetSystemTimeAsFileTime(PTR<VOID> lpSystemTimeAsFileTime);
+    VOID GetLocalTime(PTR<VOID> lpSystemTime);
+    BOOL32 IsUserCetAvailableInEnvironment(DWORD UserCetEnvironment);
+    BOOL32 GetSystemLeapSecondInformation(PTR<BOOL32> Enabled, PTR<DWORD> Flags);
+    DWORD GetVersion();
+    BOOL32 SetLocalTime(PTR<VOID> lpSystemTime);
+    DWORD GetTickCount();
+    UINT64 GetTickCount64();
+    BOOL32 GetSystemTimeAdjustment(PTR<DWORD> lpTimeAdjustment, PTR<DWORD> lpTimeIncrement, PTR<BOOL32> lpTimeAdjustmentDisabled);
+    BOOL32 GetSystemTimeAdjustmentPrecise(PTR<UINT64> lpTimeAdjustment, PTR<UINT64> lpTimeIncrement, PTR<BOOL32> lpTimeAdjustmentDisabled);
+    UINT32 GetSystemDirectoryA(LPSTR lpBuffer, UINT32 uSize);
+    UINT32 GetSystemDirectoryW(WSTRING lpBuffer, UINT32 uSize);
+    UINT32 GetWindowsDirectoryA(LPSTR lpBuffer, UINT32 uSize);
+    UINT32 GetWindowsDirectoryW(WSTRING lpBuffer, UINT32 uSize);
+    UINT32 GetSystemWindowsDirectoryA(LPSTR lpBuffer, UINT32 uSize);
+    UINT32 GetSystemWindowsDirectoryW(WSTRING lpBuffer, UINT32 uSize);
+    BOOL32 GetComputerNameExA(UINT32 NameType, LPSTR lpBuffer, PTR<DWORD> nSize);
+    BOOL32 GetComputerNameExW(UINT32 NameType, WSTRING lpBuffer, PTR<DWORD> nSize);
+    BOOL32 SetComputerNameExW(UINT32 NameType, WSTRING lpBuffer);
+    BOOL32 SetSystemTime(PTR<VOID> lpSystemTime);
+    BOOL32 GetVersionExA(PTR<VOID> lpVersionInformation);
+    BOOL32 GetVersionExW(PTR<VOID> lpVersionInformation);
+    BOOL32 GetLogicalProcessorInformation(PTR<VOID> Buffer, PTR<DWORD> ReturnedLength);
+    BOOL32 GetLogicalProcessorInformationEx(UINT32 RelationshipType, PTR<VOID> Buffer, PTR<DWORD> ReturnedLength);
+    VOID GetNativeSystemInfo(PTR<VOID> lpSystemInfo);
+    VOID GetSystemTimePreciseAsFileTime(PTR<VOID> lpSystemTimeAsFileTime);
+    BOOL32 GetProductInfo(DWORD dwOSMajorVersion, DWORD dwOSMinorVersion, DWORD dwSpMajorVersion, DWORD dwSpMinorVersion, PTR<DWORD> pdwReturnedProductType);
+    UINT64 VerSetConditionMask(UINT64 ConditionMask, ULONG TypeMask, UINT8 Condition);
+    BOOL32 GetOsSafeBootMode(PTR<DWORD> Flags);
+    UINT32 EnumSystemFirmwareTables(DWORD FirmwareTableProviderSignature, PTR<VOID> pFirmwareTableEnumBuffer, DWORD BufferSize);
+    UINT32 GetSystemFirmwareTable(DWORD FirmwareTableProviderSignature, DWORD FirmwareTableID, PTR<VOID> pFirmwareTableBuffer, DWORD BufferSize);
+    BOOL32 DnsHostnameToComputerNameExW(WSTRING Hostname, WSTRING ComputerName, PTR<DWORD> nSize);
+    BOOL32 GetPhysicallyInstalledSystemMemory(PTR<VOID> TotalMemoryInKilobytes);
+    BOOL32 SetComputerNameEx2W(UINT32 NameType, DWORD Flags, WSTRING lpBuffer);
+    BOOL32 SetSystemTimeAdjustment(DWORD dwTimeAdjustment, BOOL32 bTimeAdjustmentDisabled);
+    BOOL32 SetSystemTimeAdjustmentPrecise(UINT64 dwTimeAdjustment, BOOL32 bTimeAdjustmentDisabled);
+    BOOL32 InstallELAMCertificateInfo(HANDLE ELAMFile);
+    BOOL32 GetProcessorSystemCycleTime(USHORT Group, PTR<VOID> Buffer, PTR<DWORD> ReturnedLength);
+    BOOL32 GetOsManufacturingMode(PTR<BOOL32> pbEnabled);
+    HRESULT GetIntegratedDisplaySize(PTR<FLOAT64> sizeInInches);
+    BOOL32 SetComputerNameA(LPCSTR lpComputerName);
+    BOOL32 SetComputerNameW(WSTRING lpComputerName);
+    BOOL32 SetComputerNameExA(UINT32 NameType, LPCSTR lpBuffer);
+    UINT32 GetDeveloperDriveEnablementState();
+    BOOL32 GetRuntimeAttestationReport(PTR<UINT8> Nonce, UINT16 PackageVersion, UINT64 ReportTypesBitmap, PTR<VOID> ReportBuffer, PTR<VOID> ReportBufferSize);
+}

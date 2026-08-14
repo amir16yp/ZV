@@ -1,0 +1,245 @@
+// types.zv
+//
+// Common Windows API type aliases for use with the ZV bindings in lib/win.
+//
+// Where possible these are declared as `newtype` so that distinct Windows
+// handle/integer kinds cannot be silently mixed. They have the same ABI as
+// their underlying ZV type, so they can be used directly in `extern` blocks.
+
+// --- Integer typedefs --------------------------------------------------------
+
+newtype BYTE   = UINT8;
+newtype WORD   = UINT16;
+newtype DWORD  = UINT32;
+newtype QWORD  = UINT64;
+
+newtype SHORT  = INT16;
+newtype USHORT = UINT16;
+newtype LONG   = INT32;
+newtype ULONG  = UINT32;
+newtype BOOL32 = INT32;   // Windows BOOL is a 32-bit int (0 / non-zero)
+newtype HRESULT = INT32;  // COM-style status code
+newtype SCODE  = HRESULT;
+
+newtype ATOM   = WORD;
+
+newtype SIZE_T  = UINT64; // pointer-sized unsigned (x64)
+newtype SSIZE_T = INT64;  // pointer-sized signed (x64)
+newtype UINT_PTR = SIZE_T;
+newtype INT_PTR  = SSIZE_T;
+
+newtype LONG32  = INT32;
+newtype ULONG32 = UINT32;
+newtype LONG64  = INT64;
+newtype ULONG64 = UINT64;
+newtype DWORDLONG = UINT64;
+
+newtype LSTATUS = LONG;
+newtype HFILE   = INT32;
+
+newtype ACCESS_MASK = DWORD;
+newtype REGSAM      = DWORD;
+newtype LANGID      = UINT16;
+newtype LCID        = DWORD;
+newtype VARTYPE     = UINT16;
+newtype OLECHAR     = UINT16;
+newtype MMRESULT    = UINT32;
+
+newtype COLORREF = DWORD;
+
+// Pointer-sized message/UI types
+newtype LPARAM  = INT_PTR;
+newtype WPARAM  = UINT_PTR;
+newtype LRESULT = INT_PTR;
+
+// --- Handles ---------------------------------------------------------------
+
+newtype HANDLE = PTR<VOID>;
+newtype HINSTANCE = PTR<VOID>;
+newtype HMODULE = PTR<VOID>;
+newtype HWND = PTR<VOID>;
+newtype HDC = PTR<VOID>;
+newtype HICON = PTR<VOID>;
+newtype HCURSOR = PTR<VOID>;
+newtype HBRUSH = PTR<VOID>;
+newtype HPEN = PTR<VOID>;
+newtype HFONT = PTR<VOID>;
+newtype HMENU = PTR<VOID>;
+newtype HBITMAP = PTR<VOID>;
+newtype HGLOBAL = PTR<VOID>;
+newtype HLOCAL = PTR<VOID>;
+newtype HKL = PTR<VOID>;
+newtype HDESK = PTR<VOID>;
+newtype HWINSTA = PTR<VOID>;
+newtype HHOOK = PTR<VOID>;
+newtype HACCEL = PTR<VOID>;
+newtype HMONITOR = PTR<VOID>;
+newtype HRGN = PTR<VOID>;
+newtype HDWP = PTR<VOID>;
+newtype HDEVNOTIFY = PTR<VOID>;
+newtype HPOWERNOTIFY = PTR<VOID>;
+newtype HTOUCHINPUT = PTR<VOID>;
+newtype HSYNTHETICPOINTERDEVICE = PTR<VOID>;
+newtype HGESTUREINFO = PTR<VOID>;
+newtype HRAWINPUT = PTR<VOID>;
+newtype HDROP = PTR<VOID>;
+newtype HKEY = PTR<VOID>;
+
+// --- Common pointer typedefs -------------------------------------------------
+
+type LPVOID = PTR<VOID>;
+type PVOID  = PTR<VOID>;
+type LPCVOID = PTR<VOID>;
+
+type LPBOOL = PTR<BOOL32>;
+type PBOOL  = PTR<BOOL32>;
+type LPDWORD = PTR<DWORD>;
+type PDWORD  = PTR<DWORD>;
+type LPHANDLE = PTR<HANDLE>;
+type PHANDLE  = PTR<HANDLE>;
+type LPWORD = PTR<WORD>;
+type PWORD  = PTR<WORD>;
+type LPBYTE = PTR<BYTE>;
+type PBYTE  = PTR<BYTE>;
+type LPINT = PTR<INT32>;
+type PINT  = PTR<INT32>;
+type LPUINT = PTR<UINT32>;
+type PUINT  = PTR<UINT32>;
+type PLONG = PTR<LONG>;
+type PULONG = PTR<ULONG>;
+
+type LPSECURITY_ATTRIBUTES = PTR<VOID>;
+type PSECURITY_ATTRIBUTES = PTR<VOID>;
+type LPFILETIME = PTR<VOID>;
+type PFILETIME = PTR<VOID>;
+
+type LARGE_INTEGER = PTR<VOID>;
+type PLARGE_INTEGER = PTR<VOID>;
+type ULARGE_INTEGER = PTR<VOID>;
+type PULARGE_INTEGER = PTR<VOID>;
+
+type FARPROC = PTR<VOID>;
+type NEARPROC = PTR<VOID>;
+type PROC = PTR<VOID>;
+
+type va_list = PTR<VOID>;
+type VA_LIST = PTR<VOID>;
+
+// --- String typedefs ---------------------------------------------------------
+//
+// ZV has two C-interop string primitives: CSTRING (UTF-8, i8*) and WSTRING
+// (UTF-16, i16*). The Windows LP*/PC* typedefs map directly to these so that
+// `wstr()` and plain CSTRING literals can be passed straight to APIs.
+
+type LPSTR = CSTRING;
+type PSTR  = CSTRING;
+type LPCSTR = CSTRING;
+type PCSTR  = CSTRING;
+type LPCH   = CSTRING;
+type PCH    = CSTRING;
+type LPCCH  = CSTRING;
+type PCNZCH = CSTRING;
+
+type LPWSTR = WSTRING;
+type PWSTR  = WSTRING;
+type LPCWSTR = WSTRING;
+type PCWSTR  = WSTRING;
+type PCNZWCH = WSTRING;
+
+type LPOLESTR  = WSTRING;
+type LPCOLESTR = WSTRING;
+
+// --- OLE/COM/GUID types ------------------------------------------------------
+
+type BSTR = PTR<VOID>;
+type REFGUID = PTR<VOID>;
+type REFCLSID = PTR<VOID>;
+type CLSID = PTR<VOID>;
+type IID = PTR<VOID>;
+type REFIID = PTR<VOID>;
+type CY = PTR<VOID>;
+
+// --- Networking types --------------------------------------------------------
+
+newtype SOCKET = UINT_PTR;
+type WSAEVENT = PTR<VOID>;
+newtype in_addr = DWORD;
+
+// --- Additional numeric typedefs -------------------------------------------
+
+newtype EXECUTION_STATE = DWORD;
+newtype LATENCY_TIME = DWORD;
+newtype CONFIGRET = DWORD;
+newtype RETURN_TYPE = DWORD;
+newtype SECURITY_INFORMATION = DWORD;
+newtype DEVINST = DWORD;
+newtype DEVNODE = DWORD;
+newtype GROUP = DWORD;
+newtype FEEDBACK_TYPE = UINT32;
+newtype DIALOG_CONTROL_DPI_CHANGE_BEHAVIORS = UINT32;
+newtype DIALOG_DPI_CHANGE_BEHAVIORS = UINT32;
+newtype DPI_AWARENESS = UINT32;
+newtype DPI_HOSTING_BEHAVIOR = UINT32;
+newtype ORIENTATION_PREFERENCE = UINT32;
+newtype TOOLTIP_DISMISS_FLAGS = UINT32;
+newtype MOVESIZE_OPERATION = UINT32;
+newtype DEP_SYSTEM_POLICY_TYPE = UINT32;
+newtype GET_FILEEX_INFO_LEVELS = UINT32;
+newtype FINDEX_INFO_LEVELS = UINT32;
+newtype STREAM_INFO_LEVELS = UINT32;
+newtype FINDEX_SEARCH_OPS = UINT32;
+newtype AUDIT_EVENT_TYPE = UINT32;
+newtype UMS_THREAD_INFO_CLASS = UINT32;
+newtype READ_DIRECTORY_NOTIFY_INFORMATION_CLASS = UINT32;
+newtype FILE_INFO_BY_HANDLE_CLASS = UINT32;
+newtype FILE_INFO_BY_NAME_CLASS = UINT32;
+newtype DIRECTORY_FLAGS = UINT32;
+newtype MEMORY_RESOURCE_NOTIFICATION_TYPE = UINT32;
+newtype OFFER_PRIORITY = UINT32;
+newtype WIN32_MEMORY_INFORMATION_CLASS = UINT32;
+newtype WIN32_MEMORY_PARTITION_INFORMATION_CLASS = UINT32;
+newtype WSAESETSERVICEOP = UINT32;
+newtype REASON_CONTEXT = PTR<VOID>;
+newtype WAITORTIMERCALLBACK = PTR<VOID>;
+newtype APPLICATION_RECOVERY_CALLBACK = PTR<VOID>;
+newtype BLENDFUNCTION = UINT32;
+newtype DEVPROPTYPE = UINT32;
+newtype REGDISPOSITION = UINT32;
+newtype RESOURCEID = UINT32;
+newtype PNP_VETO_TYPE = UINT32;
+newtype SHSTOCKICONID = UINT32;
+
+// --- Shell / theme / DWM types ---------------------------------------------
+
+newtype ASSOCF = UINT32;
+newtype SHGLOBALCOUNTER = UINT32;
+newtype SFBS_FLAGS = UINT32;
+newtype STIF_FLAGS = UINT32;
+newtype URLIS = UINT32;
+newtype SRRF = UINT32;
+newtype SHREGDEL_FLAGS = UINT32;
+newtype APTTYPE = UINT32;
+newtype TA_PROPERTY = UINT32;
+newtype THEMESIZE = UINT32;
+newtype WINDOWTHEMEATTRIBUTETYPE = UINT32;
+newtype DWMTRANSITION_OWNEDWINDOW_TARGET = UINT32;
+newtype AgileReferenceOptions = UINT32;
+newtype BP_BUFFERFORMAT = UINT32;
+newtype SHREGENUM_FLAGS = UINT32;
+newtype GESTURE_TYPE = UINT32;
+newtype DWM_SHOWCONTACT = UINT32;
+newtype ASSOCSTR = UINT32;
+newtype ASSOCKEY = UINT32;
+
+// --- Graphics / multimedia types ---------------------------------------------
+
+newtype D2D1_FACTORY_TYPE = UINT32;
+type D2D1_POINT_2F = PTR<VOID>;
+type D2D1_MATRIX_3X2_F = PTR<VOID>;
+newtype D3D_BLOB_PART = UINT32;
+newtype D3D_DRIVER_TYPE = UINT32;
+newtype D3D_ROOT_SIGNATURE_VERSION = UINT32;
+newtype D3D_FEATURE_LEVEL = UINT32;
+newtype XAUDIO2_PROCESSOR = UINT32;
+
+type DPI_AWARENESS_CONTEXT = PTR<VOID>;

@@ -1,0 +1,4 @@
+// Header-specific type aliases extracted from source header
+type PHTHUMBNAIL = PTR<PTR<VOID>>;
+newtype DWM_FRAME_COUNT = UINT64;
+newtype QPC_TIME = UINT64;

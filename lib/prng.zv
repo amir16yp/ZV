@@ -1,0 +1,123 @@
+// prng.zv
+//
+// A simple seeded 64-bit LCG pseudo-random number generator that works for all
+// ZV primitive numeric types. The generator is deterministic and fast; it is
+// not cryptographically secure and should not be used for security purposes.
+//
+// Usage:
+//   #include "lib/prng.zv"
+//   prng_seed(12345);
+//   UINT32 x = prng_u32();
+//   FLOAT64 f = prng_f64(); // uniform in [0, 1]
+
+// LCG multiplier and increment constants from Numerical Recipes.
+CONST UINT64 PRNG_MULTIPLIER = 6364136223846793005;
+CONST UINT64 PRNG_INCREMENT  = 1442695040888963407;
+
+UINT64 __prng_state = 0x123456789ABCDEF0;
+
+// Seed the generator. A zero seed is legal but will produce a predictable stream.
+VOID prng_seed(UINT64 seed) {
+    __prng_state = seed;
+}
+
+// Generate the next 64-bit unsigned integer.
+UINT64 prng_u64() {
+    __prng_state = __prng_state * PRNG_MULTIPLIER + PRNG_INCREMENT;
+    return __prng_state;
+}
+
+// 32-bit unsigned integer.
+UINT32 prng_u32() {
+    return (prng_u64() >> 32) as UINT32;
+}
+
+// 16-bit unsigned integer.
+UINT16 prng_u16() {
+    return (prng_u64() >> 48) as UINT16;
+}
+
+// 8-bit unsigned integer.
+UINT8 prng_u8() {
+    return (prng_u64() >> 56) as UINT8;
+}
+
+// 64-bit signed integer (bit pattern reinterpretation of the unsigned result).
+INT64 prng_i64() {
+    return prng_u64() as INT64;
+}
+
+// 32-bit signed integer.
+INT32 prng_i32() {
+    return prng_u32() as INT32;
+}
+
+// 16-bit signed integer.
+INT16 prng_i16() {
+    return prng_u16() as INT16;
+}
+
+// 8-bit signed integer.
+INT8 prng_i8() {
+    return prng_u8() as INT8;
+}
+
+// Boolean value derived from the lowest bit of the state.
+BOOL prng_bool() {
+    return (prng_u64() & 1) != 0;
+}
+
+// Uniform FLOAT64 in the range [0, 1].
+FLOAT64 prng_f64() {
+    return (prng_u64() as FLOAT64) / (18446744073709551615.0 as FLOAT64);
+}
+
+// Uniform FLOAT32 in the range [0, 1].
+FLOAT32 prng_f32() {
+    return (prng_u32() as FLOAT32) / (4294967295.0 as FLOAT32);
+}
+
+// --- Ranged variants ----------------------------------------------------------
+//
+// Integer range functions are inclusive on both ends: [min, max].
+// Float range functions are half-open: [min, max).
+
+UINT8 prng_u8_range(UINT8 min, UINT8 max) {
+    return (min + (prng_u8() % (max - min + 1))) as UINT8;
+}
+
+UINT16 prng_u16_range(UINT16 min, UINT16 max) {
+    return (min + (prng_u16() % (max - min + 1))) as UINT16;
+}
+
+UINT32 prng_u32_range(UINT32 min, UINT32 max) {
+    return (min + (prng_u32() % (max - min + 1))) as UINT32;
+}
+
+UINT64 prng_u64_range(UINT64 min, UINT64 max) {
+    return (min + (prng_u64() % (max - min + 1))) as UINT64;
+}
+
+INT8 prng_i8_range(INT8 min, INT8 max) {
+    return (min + (prng_i8() % (max - min + 1))) as INT8;
+}
+
+INT16 prng_i16_range(INT16 min, INT16 max) {
+    return (min + (prng_i16() % (max - min + 1))) as INT16;
+}
+
+INT32 prng_i32_range(INT32 min, INT32 max) {
+    return (min + (prng_i32() % (max - min + 1))) as INT32;
+}
+
+INT64 prng_i64_range(INT64 min, INT64 max) {
+    return (min + (prng_i64() % (max - min + 1))) as INT64;
+}
+
+FLOAT64 prng_f64_range(FLOAT64 min, FLOAT64 max) {
+    return min + prng_f64() * (max - min);
+}
+
+FLOAT32 prng_f32_range(FLOAT32 min, FLOAT32 max) {
+    return min + prng_f32() * (max - min);
+}

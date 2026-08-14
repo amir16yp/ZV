@@ -1,0 +1,16 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+ZVCodeExtension/node_modules
+tools/__pycache__/
+__pycache__/
+.vscode/
+publish/
+installer/ZVFiles.wxs
+ZV-Setup.msi
+ZV-Setup-AllUsers.msi
+*.wixpdb
+*.tar.gz
+*.zip

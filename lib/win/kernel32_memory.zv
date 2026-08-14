@@ -1,0 +1,92 @@
+// kernel32_memory.zv
+//
+// Auto-generated ZV bindings from memoryapi.h
+// DLL: kernel32.dll
+//
+// Review before use: unsupported parameter types and skipped functions
+// are reported below in the generation warnings.
+
+#include "types.zv"
+
+// Numeric constants extracted from header
+#define FILE_MAP_COPY 0x00000001
+#define FILE_MAP_RESERVE 0x80000000
+#define FILE_MAP_TARGETS_INVALID 0x40000000
+#define FILE_MAP_LARGE_PAGES 0x20000000
+#define FILE_CACHE_MAX_HARD_ENABLE 0x00000001
+#define FILE_CACHE_MAX_HARD_DISABLE 0x00000002
+#define FILE_CACHE_MIN_HARD_ENABLE 0x00000004
+#define FILE_CACHE_MIN_HARD_DISABLE 0x00000008
+#define MEHC_PATROL_SCRUBBER_PRESENT 0x1
+#define WIN32_MEMORY_NUMA_PERFORMANCE_ALL_TARGET_NODE 0xffffffff
+#define WIN32_MEMORY_NUMA_PERFORMANCE_READ_LATENCY 0x1
+#define WIN32_MEMORY_NUMA_PERFORMANCE_READ_BANDWIDTH 0x2
+#define WIN32_MEMORY_NUMA_PERFORMANCE_WRITE_LATENCY 0x4
+#define WIN32_MEMORY_NUMA_PERFORMANCE_WRITE_BANDWIDTH 0x8
+
+extern "kernel32.dll" {
+    PTR<VOID> VirtualAlloc(PTR<VOID> lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+    BOOL32 VirtualProtect(PTR<VOID> lpAddress, SIZE_T dwSize, DWORD flNewProtect, PTR<DWORD> lpflOldProtect);
+    BOOL32 VirtualFree(PTR<VOID> lpAddress, SIZE_T dwSize, DWORD dwFreeType);
+    SIZE_T VirtualQuery(PTR<VOID> lpAddress, PTR<VOID> lpBuffer, SIZE_T dwLength);
+    PTR<VOID> VirtualAllocEx(HANDLE hProcess, PTR<VOID> lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+    BOOL32 VirtualProtectEx(HANDLE hProcess, PTR<VOID> lpAddress, SIZE_T dwSize, DWORD flNewProtect, PTR<DWORD> lpflOldProtect);
+    SIZE_T VirtualQueryEx(HANDLE hProcess, PTR<VOID> lpAddress, PTR<VOID> lpBuffer, SIZE_T dwLength);
+    BOOL32 ReadProcessMemory(HANDLE hProcess, PTR<VOID> lpBaseAddress, PTR<VOID> lpBuffer, SIZE_T nSize, PTR<SIZE_T> lpNumberOfBytesRead);
+    BOOL32 WriteProcessMemory(HANDLE hProcess, PTR<VOID> lpBaseAddress, PTR<VOID> lpBuffer, SIZE_T nSize, PTR<SIZE_T> lpNumberOfBytesWritten);
+    HANDLE CreateFileMappingW(HANDLE hFile, PTR<VOID> lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, WSTRING lpName);
+    HANDLE OpenFileMappingW(DWORD dwDesiredAccess, BOOL32 bInheritHandle, WSTRING lpName);
+    PTR<VOID> MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap);
+    PTR<VOID> MapViewOfFileEx(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap, PTR<VOID> lpBaseAddress);
+    BOOL32 VirtualFreeEx(HANDLE hProcess, PTR<VOID> lpAddress, SIZE_T dwSize, DWORD dwFreeType);
+    BOOL32 FlushViewOfFile(PTR<VOID> lpBaseAddress, SIZE_T dwNumberOfBytesToFlush);
+    BOOL32 UnmapViewOfFile(PTR<VOID> lpBaseAddress);
+    SIZE_T GetLargePageMinimum();
+    BOOL32 GetProcessWorkingSetSize(HANDLE hProcess, PTR<VOID> lpMinimumWorkingSetSize, PTR<VOID> lpMaximumWorkingSetSize);
+    BOOL32 GetProcessWorkingSetSizeEx(HANDLE hProcess, PTR<VOID> lpMinimumWorkingSetSize, PTR<VOID> lpMaximumWorkingSetSize, PTR<DWORD> Flags);
+    BOOL32 SetProcessWorkingSetSize(HANDLE hProcess, SIZE_T dwMinimumWorkingSetSize, SIZE_T dwMaximumWorkingSetSize);
+    BOOL32 SetProcessWorkingSetSizeEx(HANDLE hProcess, SIZE_T dwMinimumWorkingSetSize, SIZE_T dwMaximumWorkingSetSize, DWORD Flags);
+    BOOL32 VirtualLock(PTR<VOID> lpAddress, SIZE_T dwSize);
+    BOOL32 VirtualUnlock(PTR<VOID> lpAddress, SIZE_T dwSize);
+    UINT32 GetWriteWatch(DWORD dwFlags, PTR<VOID> lpBaseAddress, SIZE_T dwRegionSize, PTR<PTR<VOID>> lpAddresses, PTR<SIZE_T> lpdwCount, PTR<DWORD> lpdwGranularity);
+    UINT32 ResetWriteWatch(PTR<VOID> lpBaseAddress, SIZE_T dwRegionSize);
+    HANDLE CreateMemoryResourceNotification(UINT32 NotificationType);
+    BOOL32 QueryMemoryResourceNotification(HANDLE ResourceNotificationHandle, PTR<BOOL32> ResourceState);
+    BOOL32 GetSystemFileCacheSize(PTR<VOID> lpMinimumFileCacheSize, PTR<VOID> lpMaximumFileCacheSize, PTR<DWORD> lpFlags);
+    BOOL32 SetSystemFileCacheSize(SIZE_T MinimumFileCacheSize, SIZE_T MaximumFileCacheSize, DWORD Flags);
+    HANDLE CreateFileMappingNumaW(HANDLE hFile, PTR<VOID> lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, WSTRING lpName, DWORD nndPreferred);
+    BOOL32 PrefetchVirtualMemory(HANDLE hProcess, SIZE_T NumberOfEntries, PTR<VOID> VirtualAddresses, ULONG Flags);
+    HANDLE CreateFileMappingFromApp(HANDLE hFile, PTR<VOID> SecurityAttributes, ULONG PageProtection, UINT64 MaximumSize, WSTRING Name);
+    PTR<VOID> MapViewOfFileFromApp(HANDLE hFileMappingObject, ULONG DesiredAccess, UINT64 FileOffset, SIZE_T NumberOfBytesToMap);
+    BOOL32 UnmapViewOfFileEx(PTR<VOID> BaseAddress, ULONG UnmapFlags);
+    BOOL32 AllocateUserPhysicalPages(HANDLE hProcess, PTR<VOID> NumberOfPages, PTR<VOID> PageArray);
+    BOOL32 FreeUserPhysicalPages(HANDLE hProcess, PTR<VOID> NumberOfPages, PTR<VOID> PageArray);
+    BOOL32 MapUserPhysicalPages(PTR<VOID> VirtualAddress, SIZE_T NumberOfPages, PTR<VOID> PageArray);
+    BOOL32 AllocateUserPhysicalPagesNuma(HANDLE hProcess, PTR<VOID> NumberOfPages, PTR<VOID> PageArray, DWORD nndPreferred);
+    PTR<VOID> VirtualAllocExNuma(HANDLE hProcess, PTR<VOID> lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, DWORD nndPreferred);
+    BOOL32 GetMemoryErrorHandlingCapabilities(PTR<ULONG> Capabilities);
+    PTR<VOID> RegisterBadMemoryNotification(PTR<VOID> Callback);
+    BOOL32 UnregisterBadMemoryNotification(PTR<VOID> RegistrationHandle);
+    DWORD OfferVirtualMemory(PTR<VOID> VirtualAddress, SIZE_T Size, UINT32 Priority);
+    DWORD ReclaimVirtualMemory(PTR<VOID> VirtualAddress, SIZE_T Size);
+    DWORD DiscardVirtualMemory(PTR<VOID> VirtualAddress, SIZE_T Size);
+    BOOL32 SetProcessValidCallTargets(HANDLE hProcess, PTR<VOID> VirtualAddress, SIZE_T RegionSize, ULONG NumberOfOffsets, PTR<VOID> OffsetInformation);
+    BOOL32 SetProcessValidCallTargetsForMappedView(HANDLE Process, PTR<VOID> VirtualAddress, SIZE_T RegionSize, ULONG NumberOfOffsets, PTR<VOID> OffsetInformation, HANDLE Section, UINT64 ExpectedFileOffset);
+    PTR<VOID> VirtualAllocFromApp(PTR<VOID> BaseAddress, SIZE_T Size, ULONG AllocationType, ULONG Protection);
+    BOOL32 VirtualProtectFromApp(PTR<VOID> Address, SIZE_T Size, ULONG NewProtection, PTR<ULONG> OldProtection);
+    HANDLE OpenFileMappingFromApp(ULONG DesiredAccess, BOOL32 InheritHandle, WSTRING Name);
+    BOOL32 QueryVirtualMemoryInformation(HANDLE Process, PTR<VOID> VirtualAddress, UINT32 MemoryInformationClass, PTR<VOID> MemoryInformation, SIZE_T MemoryInformationSize, PTR<VOID> ReturnSize);
+    PTR<VOID> MapViewOfFileNuma2(HANDLE FileMappingHandle, HANDLE ProcessHandle, UINT64 Offset, PTR<VOID> BaseAddress, SIZE_T ViewSize, ULONG AllocationType, ULONG PageProtection, ULONG PreferredNode);
+    BOOL32 UnmapViewOfFile2(HANDLE Process, PTR<VOID> BaseAddress, ULONG UnmapFlags);
+    BOOL32 VirtualUnlockEx(HANDLE Process, PTR<VOID> Address, SIZE_T Size);
+    PTR<VOID> VirtualAlloc2(HANDLE Process, PTR<VOID> BaseAddress, SIZE_T Size, ULONG AllocationType, ULONG PageProtection, PTR<VOID> ExtendedParameters, ULONG ParameterCount);
+    PTR<VOID> MapViewOfFile3(HANDLE FileMapping, HANDLE Process, PTR<VOID> BaseAddress, UINT64 Offset, SIZE_T ViewSize, ULONG AllocationType, ULONG PageProtection, PTR<VOID> ExtendedParameters, ULONG ParameterCount);
+    PTR<VOID> VirtualAlloc2FromApp(HANDLE Process, PTR<VOID> BaseAddress, SIZE_T Size, ULONG AllocationType, ULONG PageProtection, PTR<VOID> ExtendedParameters, ULONG ParameterCount);
+    PTR<VOID> MapViewOfFile3FromApp(HANDLE FileMapping, HANDLE Process, PTR<VOID> BaseAddress, UINT64 Offset, SIZE_T ViewSize, ULONG AllocationType, ULONG PageProtection, PTR<VOID> ExtendedParameters, ULONG ParameterCount);
+    HANDLE CreateFileMapping2(HANDLE File, PTR<VOID> SecurityAttributes, ULONG DesiredAccess, ULONG PageProtection, ULONG AllocationAttributes, UINT64 MaximumSize, WSTRING Name, PTR<VOID> ExtendedParameters, ULONG ParameterCount);
+    BOOL32 AllocateUserPhysicalPages2(HANDLE ObjectHandle, PTR<VOID> NumberOfPages, PTR<VOID> PageArray, PTR<VOID> ExtendedParameters, ULONG ExtendedParameterCount);
+    HANDLE OpenDedicatedMemoryPartition(HANDLE Partition, UINT64 DedicatedMemoryTypeId, DWORD DesiredAccess, BOOL32 InheritHandle);
+    BOOL32 QueryPartitionInformation(HANDLE Partition, UINT32 PartitionInformationClass, PTR<VOID> PartitionInformation, ULONG PartitionInformationLength);
+    BOOL32 GetMemoryNumaClosestInitiatorNode(ULONG TargetNodeNumber, PTR<ULONG> InitiatorNodeNumber);
+    BOOL32 GetMemoryNumaPerformanceInformation(ULONG NodeNumber, UINT8 DataType, PTR<VOID> PerfInfo);
+}

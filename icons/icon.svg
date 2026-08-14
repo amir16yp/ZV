@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ADE80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22C55E;stop-opacity:1" />
+    </linearGradient>
+    <filter id="termGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background - pure black, square corners -->
+  <rect width="512" height="512" fill="#000000"/>
+
+  <!-- { ZV } filling the icon -->
+  <text x="256" y="272"
+        font-family="'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace"
+        font-size="192"
+        font-weight="700"
+        fill="url(#greenGrad)"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        letter-spacing="-8"
+        filter="url(#termGlow)">{ZV}</text>
+
+  <!-- Subtle underscore cursor blink -->
+  <rect x="370" y="330" width="44" height="8" rx="3" fill="#4ADE80" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;0;0.7" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+</svg>
