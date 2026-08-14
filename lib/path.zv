@@ -1,0 +1,131 @@
+// path.zv
+//
+// Tiny path helpers. All results are owned CSTRINGs that are freed automatically
+// when bound to a CSTRING variable.
+
+BOOL __path_is_sep(INT8 c) {
+    return c == '/';
+}
+
+// Allocate a copy of n bytes from s starting at off.
+CSTRING __path_slice(CSTRING s, INT64 off, INT64 n) {
+    if (n < 0) n = 0;
+    PTR<INT8> p = alloc((n + 1) as INT64) as PTR<INT8>;
+    unsafe {
+        INT64 i = 0;
+        while (i < n) {
+            p[i] = s[off + i];
+            i = i + 1;
+        }
+        p[n] = 0;
+    }
+    return move(p) as CSTRING;
+}
+
+// Allocate a fresh copy of s.
+CSTRING __path_copy(CSTRING s) {
+    INT64 n = strlen(s);
+    PTR<INT8> p = alloc((n + 1) as INT64) as PTR<INT8>;
+    unsafe { strcpy(p, s); }
+    return move(p) as CSTRING;
+}
+
+// Concatenate a and b into a fresh CSTRING.
+CSTRING __path_cat(CSTRING a, CSTRING b) {
+    INT64 al = strlen(a);
+    INT64 bl = strlen(b);
+    PTR<INT8> p = alloc((al + bl + 1) as INT64) as PTR<INT8>;
+    unsafe {
+        strcpy(p, a);
+        strcat(p, b);
+    }
+    return move(p) as CSTRING;
+}
+
+// Join two path components, inserting a separator only when needed.
+CSTRING path_join(CSTRING a, CSTRING b) {
+    INT64 al = strlen(a);
+    INT64 bl = strlen(b);
+
+    BOOL a_sep = false;
+    BOOL b_sep = false;
+    unsafe {
+        if (al > 0) {
+            a_sep = __path_is_sep(a[al - 1]);
+        }
+        if (bl > 0) {
+            b_sep = __path_is_sep(b[0]);
+        }
+    }
+
+    if (a_sep || b_sep) {
+        return __path_cat(a, b);
+    }
+
+    CSTRING tmp = __path_cat(a, "/");
+    CSTRING result = __path_cat(tmp, b);
+    free(tmp);
+    return result;
+}
+
+// Return the directory portion of a path ("." if there is no separator).
+CSTRING path_dir(CSTRING p) {
+    INT64 n = strlen(p);
+    INT64 i = n - 1;
+    unsafe {
+        while (i >= 0) {
+            if (__path_is_sep(p[i])) {
+                break;
+            }
+            i = i - 1;
+        }
+    }
+    if (i < 0) {
+        return __path_copy(".");
+    }
+    return __path_slice(p, 0, i);
+}
+
+// Return the file name portion of a path.
+CSTRING path_file(CSTRING p) {
+    INT64 n = strlen(p);
+    INT64 i = n - 1;
+    unsafe {
+        while (i >= 0) {
+            if (__path_is_sep(p[i])) {
+                break;
+            }
+            i = i - 1;
+        }
+    }
+    if (i < 0) {
+        return __path_copy(p);
+    }
+    return __path_slice(p, i + 1, n - i - 1);
+}
+
+// Return the extension of a path (empty string if none).
+CSTRING path_ext(CSTRING p) {
+    INT64 n = strlen(p);
+    INT64 dot = -1;
+    INT64 sep = -1;
+    unsafe {
+        INT64 i = n - 1;
+        while (i >= 0) {
+            INT8 c = p[i];
+            if (c == '.') {
+                if (dot < 0) {
+                    dot = i;
+                }
+            } else if (__path_is_sep(c)) {
+                sep = i;
+                break;
+            }
+            i = i - 1;
+        }
+    }
+    if (dot < 0 || dot <= sep) {
+        return __path_slice(p, 0, 0);
+    }
+    return __path_slice(p, dot + 1, n - dot - 1);
+}

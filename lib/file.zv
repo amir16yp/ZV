@@ -1,0 +1,70 @@
+// file.zv
+//
+// Simple file helpers.
+
+// Read the whole text file at path into an owned CSTRING.
+// Throws a FileOpenException if the file cannot be opened.
+CSTRING readall(CSTRING path) {
+    PTR<VOID> f = fopen(path, "r");
+    fseek(f, 0, 2);
+    INT64 size = ftell(f);
+    fseek(f, 0, 0);
+
+    PTR<INT8> buf = alloc((size + 1) as INT64) as PTR<INT8>;
+    fread(buf, 1, size as UINT64, f);
+    fclose(f);
+
+    unsafe {
+        buf[size] = 0;
+    }
+
+    return move(buf) as CSTRING;
+}
+
+// Write content to path as text, truncating any existing file.
+// Throws a FileOpenException if the file cannot be opened.
+VOID writeall(CSTRING path, CSTRING content) {
+    PTR<VOID> f = fopen(path, "w");
+    fwrite(content, 1, strlen(content) as UINT64, f);
+    fclose(f);
+}
+
+// Return the size of a file in bytes, or -1 if it cannot be opened.
+// Note: fopen currently throws on failure, so this is best-effort.
+INT64 file_size(CSTRING path) {
+    PTR<VOID> f = fopen(path, "r");
+    fseek(f, 0, 2);
+    INT64 size = ftell(f);
+    fclose(f);
+    return size;
+}
+
+// Return true if the file at path can be opened for reading.
+BOOL exists(CSTRING path) {
+    PTR<VOID> f = null;
+    try {
+        f = fopen(path, "r");
+    } catch (e) {
+        return false;
+    }
+    if (f == null) {
+        return false;
+    }
+    fclose(f);
+    return true;
+}
+
+// Read the whole file at path into an owned byte array.
+// Throws a FileOpenException if the file cannot be opened.
+UINT8[] readallbytes(CSTRING path) {
+    PTR<VOID> f = fopen(path, "rb");
+    fseek(f, 0, 2);
+    INT64 size = ftell(f);
+    fseek(f, 0, 0);
+
+    UINT8[] buf = UINT8[size];
+    fread(buf, 1, size as UINT64, f);
+    fclose(f);
+
+    return buf;
+}
