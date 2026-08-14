@@ -141,23 +141,31 @@ public partial class LlvmGenerator
         _builder.PositionAtEnd(allocOrReuseBB);
         var freeListHead = _builder.BuildLoad2(GetPointerType(chunkType), _cleanupFreeGlobal, "cleanup_free_head");
         var freeListEmpty = _builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, freeListHead, nullChunk, "cleanup_free_empty");
-        var freeListNextSlot = _builder.BuildStructGEP2(chunkType, freeListHead, 2, "cleanup_free_next");
-        var freeListNext = _builder.BuildLoad2(GetPointerType(chunkType), freeListNextSlot, "cleanup_free_next_val");
 
         var mallocBB = _context.AppendBasicBlock(function, "cleanup_malloc");
+        var freeListReuseBB = _context.AppendBasicBlock(function, "cleanup_free_list_reuse");
         var reuseBB = _context.AppendBasicBlock(function, "cleanup_reuse");
-        _builder.BuildCondBr(freeListEmpty, mallocBB, reuseBB);
+        _builder.BuildCondBr(freeListEmpty, mallocBB, freeListReuseBB);
 
         _builder.PositionAtEnd(mallocBB);
         var newChunkI8 = AllocateCleanupChunk();
         var newChunkFromMalloc = _builder.BuildBitCast(newChunkI8, GetPointerType(chunkType), "cleanup_new_chunk");
         _builder.BuildBr(reuseBB);
 
+        // Only dereference the free list head's "next" slot once we know it is non-null;
+        // freeListHead is null whenever the free list is empty (e.g. the very first cleanup
+        // record ever pushed), and unconditionally loading through it would be a null
+        // pointer dereference.
+        _builder.PositionAtEnd(freeListReuseBB);
+        var freeListNextSlot = _builder.BuildStructGEP2(chunkType, freeListHead, 2, "cleanup_free_next");
+        var freeListNext = _builder.BuildLoad2(GetPointerType(chunkType), freeListNextSlot, "cleanup_free_next_val");
+        _builder.BuildBr(reuseBB);
+
         _builder.PositionAtEnd(reuseBB);
         var newChunk = _builder.BuildPhi(GetPointerType(chunkType), "cleanup_new_chunk_phi");
         var nextFree = _builder.BuildPhi(GetPointerType(chunkType), "cleanup_next_free");
-        newChunk.AddIncoming(new[] { newChunkFromMalloc, freeListHead }, new[] { mallocBB, allocOrReuseBB }, 2);
-        nextFree.AddIncoming(new[] { nullChunk, freeListNext }, new[] { mallocBB, allocOrReuseBB }, 2);
+        newChunk.AddIncoming(new[] { newChunkFromMalloc, freeListHead }, new[] { mallocBB, freeListReuseBB }, 2);
+        nextFree.AddIncoming(new[] { nullChunk, freeListNext }, new[] { mallocBB, freeListReuseBB }, 2);
         _builder.BuildStore(nextFree, _cleanupFreeGlobal);
 
         var nextSlot = _builder.BuildStructGEP2(chunkType, newChunk, 2, "cleanup_next_slot");

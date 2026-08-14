@@ -2842,4 +2842,54 @@ VOID test() {
         Assert.Contains("worker caught exception", output!);
         Assert.Contains("main after join", output!);
     }
+
+    [Fact]
+    public void TestFirstOwnedStringDestructorDoesNotCrash()
+    {
+        // Regression test: BuildPushCleanupRecord used to unconditionally dereference the
+        // free-list head's "next chunk" slot even when the free list was still empty (which
+        // it always is for the very first cleanup record pushed in a process). That null
+        // pointer dereference crashed the process as soon as any owned value - e.g. a STRING
+        // produced by `+` concatenation and bound to a variable - went out of scope.
+        // CompileAndRunIr throws if the executable's exit code is non-zero, so this test
+        // fails loudly if the crash regresses.
+        string source = @"
+VOID test() {
+    STRING greeting = ""Hello, "" + ""World"";
+    print(greeting);
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("Hello, World", output!);
+    }
+
+    [Fact]
+    public void TestCastCstringToStringMeasuresLengthWithStrlen()
+    {
+        // Regression test: the `as` cast operator only handled struct(STRING)->pointer
+        // conversions, not the reverse pointer(CSTRING)->struct(STRING) direction, even
+        // though it's documented and used in the README's Casts section. Explicit
+        // `cstringValue as STRING` used to fail with "Invalid cast: cannot convert from
+        // pointer to array/struct."; it should behave like the implicit conversion and
+        // measure the length with strlen().
+        string source = @"
+VOID test() {
+    CSTRING c = cstr(""Hi"");
+    STRING s = c as STRING;
+    print(s);
+    print(len(s));
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("Hi", output!);
+        Assert.Contains("2", output!);
+    }
 }

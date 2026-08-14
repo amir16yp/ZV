@@ -877,6 +877,17 @@ public partial class LlvmGenerator
                 }
                 return _builder.BuildPtrToInt(val, targetType, "ptrtoint");
             }
+
+            if (targetKind == LLVMTypeKind.LLVMStructTypeKind && IsStringStructType(targetType))
+            {
+                // CSTRING -> STRING: wrap the NUL-terminated pointer with its length via strlen.
+                var strlenFunc = GetOrAddFunction("strlen", GetInt64Type(), new[] { GetPointerType(GetInt8Type()) });
+                var length = _builder.BuildCall2(_functionTypes["strlen"], strlenFunc, new[] { val }, "cast_cstr_len");
+                var strType = GetStringStructType();
+                var baseVal = LLVMValueRef.CreateConstNull(strType);
+                var withData = _builder.BuildInsertValue(baseVal, val, 0, "cast_cstr_to_str_data");
+                return _builder.BuildInsertValue(withData, length, 1, "cast_cstr_to_str");
+            }
         }
 
         // Integers: truncate/extend, convert to float, cast to pointer in unsafe, or test for zero to bool.
