@@ -1,0 +1,37 @@
+// fnv1a.zv
+//
+// FNV-1a non-cryptographic hash. Fast and simple; good for hash tables and
+// light checksums. Not suitable for cryptography or collision-critical use.
+//
+// Usage:
+//   #include "lib/hash/fnv1a.zv"
+//   UINT32 h = fnv1a_32(data, len);
+
+CONST UINT32 FNV1A_32_OFFSET_BASIS = 0x811C9DC5;
+CONST UINT32 FNV1A_32_PRIME         = 0x01000193;
+
+UINT32 fnv1a_32(PTR<UINT8> data, INT64 len) {
+    UINT32 hash = FNV1A_32_OFFSET_BASIS;
+    INT64 i = 0;
+    unsafe {
+        while (i < len) {
+            hash = hash ^ data[i] as UINT32;
+            hash = hash * FNV1A_32_PRIME;
+            i = i + 1;
+        }
+    }
+    return hash;
+}
+
+UINT32 fnv1a_cstring_32(CSTRING s) {
+    UINT32 hash = FNV1A_32_OFFSET_BASIS;
+    INT64 i = 0;
+    unsafe {
+        while (s[i] != 0) {
+            hash = hash ^ s[i] as UINT32;
+            hash = hash * FNV1A_32_PRIME;
+            i = i + 1;
+        }
+    }
+    return hash;
+}

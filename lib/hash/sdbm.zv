@@ -1,0 +1,21 @@
+// sdbm.zv
+//
+// SDBM string hash used in Berkeley DB and related systems. Good distribution
+// for typical string keys with very little code.
+//
+// Usage:
+//   #include "lib/hash/sdbm.zv"
+//   UINT32 h = sdbm(s);
+
+UINT32 sdbm(CSTRING s) {
+    UINT32 hash = 0;
+    INT64 i = 0;
+    unsafe {
+        while (s[i] != 0) {
+            UINT32 c = s[i] as UINT32;
+            hash = c + (hash << 6) + (hash << 16) - hash;
+            i = i + 1;
+        }
+    }
+    return hash;
+}

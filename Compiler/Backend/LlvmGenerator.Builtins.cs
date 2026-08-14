@@ -61,6 +61,7 @@ public partial class LlvmGenerator
             "wstr" => GenerateWstrCall(arguments),
             "array_copy" => GenerateArrayCopyCall(arguments),
             "alloc" => GenerateAllocCall(arguments),
+            "realloc" => GenerateReallocCall(arguments),
             "get_timestamp" => GenerateGetTimestampCall(arguments),
             "get_timestamp_ms" => GenerateGetTimestampMsCall(arguments),
             "halt" => GenerateHaltCall(),
@@ -620,6 +621,22 @@ public partial class LlvmGenerator
 
         // Throw OutOfMemoryException if malloc returns null
         EmitNullCheckOrThrow(result, "OutOfMemoryException: memory allocation failed");
+
+        return result;
+    }
+
+    private LLVMValueRef GenerateReallocCall(List<Expression> arguments)
+    {
+        if (arguments.Count != 2)
+            throw new Exception("realloc() expects exactly 2 arguments (pointer, new_size).");
+
+        var realloc = GetOrAddFunction("realloc", GetPointerType(GetInt8Type()),
+            new[] { GetPointerType(GetInt8Type()), GetInt64Type() });
+        var args = arguments.ConvertAll(VisitExpression).ToArray();
+        var result = _builder.BuildCall2(_functionTypes["realloc"], realloc, args, "realloctmp");
+
+        // Throw OutOfMemoryException if realloc returns null
+        EmitNullCheckOrThrow(result, "OutOfMemoryException: memory reallocation failed");
 
         return result;
     }

@@ -1,0 +1,20 @@
+// djb2.zv
+//
+// Daniel J. Bernstein's classic string hash. Extremely small and fast;
+// commonly used for hash tables. Quality is fine for non-adversarial keys.
+//
+// Usage:
+//   #include "lib/hash/djb2.zv"
+//   UINT32 h = djb2(s);
+
+UINT32 djb2(CSTRING s) {
+    UINT32 hash = 5381;
+    INT64 i = 0;
+    unsafe {
+        while (s[i] != 0) {
+            hash = ((hash << 5) + hash) + s[i] as UINT32;
+            i = i + 1;
+        }
+    }
+    return hash;
+}

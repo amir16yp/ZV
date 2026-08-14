@@ -1,0 +1,38 @@
+// adler32.zv
+//
+// Adler-32 checksum, used alongside CRC-32 in zlib. Simpler and often faster
+// for short inputs, but weaker for long or adversarial data.
+//
+// Usage:
+//   #include "lib/hash/adler32.zv"
+//   UINT32 a = adler32(data, len);
+
+CONST UINT32 ADLER32_MODULO = 65521;
+
+UINT32 adler32(PTR<UINT8> data, INT64 len) {
+    UINT32 a = 1;
+    UINT32 b = 0;
+    INT64 i = 0;
+    unsafe {
+        while (i < len) {
+            a = (a + data[i] as UINT32) % ADLER32_MODULO;
+            b = (b + a) % ADLER32_MODULO;
+            i = i + 1;
+        }
+    }
+    return (b << 16) | a;
+}
+
+UINT32 adler32_cstring(CSTRING s) {
+    UINT32 a = 1;
+    UINT32 b = 0;
+    INT64 i = 0;
+    unsafe {
+        while (s[i] != 0) {
+            a = (a + s[i] as UINT32) % ADLER32_MODULO;
+            b = (b + a) % ADLER32_MODULO;
+            i = i + 1;
+        }
+    }
+    return (b << 16) | a;
+}
