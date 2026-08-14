@@ -799,8 +799,11 @@ public partial class LlvmGenerator
             var value = VisitExpression(stmt.Value);
 
             // If we are returning an owned variable, transfer its ownership to the caller.
+            // Zero the variable's storage before cleanup so the cleanup stack destructor
+            // becomes a no-op and the heap memory survives the return.
             if (stmt.Value is VariableExpr retVar && _ownedVariables.Contains(retVar.Name))
             {
+                ZeroOwnedVariable(retVar.Name);
                 _ownedVariables.Remove(retVar.Name);
                 returnedVariable = retVar.Name;
             }

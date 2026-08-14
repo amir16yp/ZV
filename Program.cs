@@ -303,7 +303,7 @@ public class Program
         return null;
     }
 
-    private static void CompileWithClang(string inputLl, string outputExe, IEnumerable<string> libraries, List<string>? libSearchDirs = null, bool shared = false)
+    public static void CompileWithClang(string inputLl, string outputExe, IEnumerable<string> libraries, List<string>? libSearchDirs = null, bool shared = false)
     {
         Console.WriteLine(shared ? "Detecting Clang (building shared library)..." : "Detecting Clang...");
         try

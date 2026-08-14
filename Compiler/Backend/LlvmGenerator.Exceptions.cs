@@ -36,19 +36,46 @@ public partial class LlvmGenerator
         _globalExceptionMsg = _module.AddGlobal(GetPointerType(GetInt8Type()), "__zv_exception_msg");
         _globalExceptionMsg.Initializer = LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type()));
         _globalExceptionMsg.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        MakeThreadLocalIfSupported(_globalExceptionMsg);
 
         // Global: i1 __zv_exception_active (whether an exception is in-flight)
         _globalExceptionActive = _module.AddGlobal(GetInt1Type(), "__zv_exception_active");
         _globalExceptionActive.Initializer = LLVMValueRef.CreateConstInt(GetInt1Type(), 0);
         _globalExceptionActive.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        MakeThreadLocalIfSupported(_globalExceptionActive);
     }
 
-    // setjmp buffer type: platform-dependent but we use a large enough i8 array
-    // Windows x64 MSVC: _JUMP_BUFFER is 256 bytes; Linux x64: 200 bytes; i386: ~156 bytes
-    // We'll use 512 bytes to be safe on all platforms.
+    // jmp_buf layout: enough bytes for the platform setjmp buffer followed by the
+    // saved chunked cleanup-stack top (head chunk pointer + used count). The
+    // setjmp/longjmp calls receive a pointer to the buffer portion (field 0); the cleanup
+    // top is read/written separately so exception unwinding knows how far to pop the
+    // cleanup stack.
     private LLVMTypeRef GetJmpBufType()
     {
-        return LLVMTypeRef.CreateArray(GetInt8Type(), 512);
+        if (!_jmpBufType.HasValue)
+        {
+            _jmpBufType = LLVMTypeRef.CreateStruct(new[]
+            {
+                LLVMTypeRef.CreateArray(GetInt8Type(), 480),
+                GetPointerType(GetInt8Type()),
+                GetInt32Type()
+            }, Packed: false);
+        }
+        return _jmpBufType.Value;
+    }
+
+    private LLVMValueRef GetJmpBufSavedHeadPtr(LLVMValueRef jmpBufPtr)
+    {
+        var jmpBufType = GetJmpBufType();
+        var typedPtr = _builder.BuildBitCast(jmpBufPtr, GetPointerType(jmpBufType), "jmpbuf_typed");
+        return _builder.BuildStructGEP2(jmpBufType, typedPtr, 1, "jmpbuf_saved_head_ptr");
+    }
+
+    private LLVMValueRef GetJmpBufSavedUsedPtr(LLVMValueRef jmpBufPtr)
+    {
+        var jmpBufType = GetJmpBufType();
+        var typedPtr = _builder.BuildBitCast(jmpBufPtr, GetPointerType(jmpBufType), "jmpbuf_typed");
+        return _builder.BuildStructGEP2(jmpBufType, typedPtr, 2, "jmpbuf_saved_used_ptr");
     }
 
     private bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
@@ -108,7 +135,9 @@ public partial class LlvmGenerator
     }
 
     // Global jmp_buf stack for nested try/catch
-    // We use a global linked-list approach: a global pointer to current jmp_buf
+    // We use a global linked-list approach: a global pointer to current jmp_buf.
+    // This is thread-local in hosted targets so nested try/catch in one thread
+    // does not corrupt the handler chain of another thread.
     private LLVMValueRef GetGlobalJmpBufPtr()
     {
         var existing = _module.GetNamedGlobal("__zv_jmpbuf_ptr");
@@ -119,19 +148,7 @@ public partial class LlvmGenerator
         var global = _module.AddGlobal(GetPointerType(GetInt8Type()), "__zv_jmpbuf_ptr");
         global.Initializer = LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type()));
         global.Linkage = LLVMLinkage.LLVMInternalLinkage;
-        return global;
-    }
-
-    // Global to save the previous jmp_buf pointer for nesting
-    private LLVMValueRef GetGlobalPrevJmpBufPtr()
-    {
-        var existing = _module.GetNamedGlobal("__zv_prev_jmpbuf_ptr");
-        if (existing.Handle != IntPtr.Zero)
-            return existing;
-
-        var global = _module.AddGlobal(GetPointerType(GetInt8Type()), "__zv_prev_jmpbuf_ptr");
-        global.Initializer = LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type()));
-        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        MakeThreadLocalIfSupported(global);
         return global;
     }
 
@@ -142,8 +159,10 @@ public partial class LlvmGenerator
         var function = _builder.InsertBlock.Parent;
         var jmpBufType = GetJmpBufType();
 
-        // Allocate a jmp_buf on the stack
+        // Allocate a jmp_buf on the stack. Windows _setjmp stores aligned XMM state, so
+        // the buffer must be at least 16-byte aligned.
         var jmpBuf = _builder.BuildAlloca(jmpBufType, "jmpbuf");
+        jmpBuf.SetAlignment(16);
         var jmpBufPtr = _builder.BuildBitCast(jmpBuf, GetPointerType(GetInt8Type()), "jmpbuf_ptr");
 
         // Save the previous jmp_buf pointer (for nesting)
@@ -152,6 +171,12 @@ public partial class LlvmGenerator
 
         // Set current jmp_buf as the active one
         _builder.BuildStore(jmpBufPtr, globalJmpBuf);
+
+        // Record the current cleanup-stack top (chunk head + used count) so a throw can
+        // pop everything pushed inside the try block before longjmp'ing back here.
+        var (savedHead, savedUsed) = BuildCleanupTopLoad();
+        _builder.BuildStore(savedHead, GetJmpBufSavedHeadPtr(jmpBufPtr));
+        _builder.BuildStore(savedUsed, GetJmpBufSavedUsedPtr(jmpBufPtr));
 
         // Call setjmp
         var setjmpResult = CallSetjmp(jmpBufPtr);
@@ -303,15 +328,37 @@ public partial class LlvmGenerator
             msgPtr = GetOrCreateGlobalStringPtr("unknown exception", "unknown_exc_msg");
         }
 
+        EmitExceptionDispatch(msgPtr);
+    }
+
+    // Common exception dispatch: store the exception message, pop the cleanup stack to the
+    // top saved by the active try block, then either longjmp to the handler or abort.
+    private void EmitExceptionDispatch(LLVMValueRef msgPtr)
+    {
+        EnsureExceptionGlobals();
+
         _builder.BuildStore(msgPtr, _globalExceptionMsg);
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt1Type(), 1), _globalExceptionActive);
 
-        // Free any owned allocations before unwinding, so a thrown exception does not leak.
-        CleanupAllOpenScopes();
-
-        // Load the current jmp_buf pointer and either longjmp to it or abort if unhandled.
         var globalJmpBuf = GetGlobalJmpBufPtr();
         var currentJmpBuf = _builder.BuildLoad2(GetPointerType(GetInt8Type()), globalJmpBuf, "current_jmpbuf");
+
+        // Pop every cleanup record pushed since the matching try block began. If no handler
+        // is active, the cleanup stack top is left unchanged (the abort path exits anyway).
+        var hasHandler = _builder.BuildICmp(LLVMIntPredicate.LLVMIntNE, currentJmpBuf,
+            LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type())), "has_handler");
+        var function = _builder.InsertBlock.Parent;
+        var cleanupBB = _context.AppendBasicBlock(function, "exc_cleanup");
+        var dispatchBB = _context.AppendBasicBlock(function, "exc_dispatch");
+        _builder.BuildCondBr(hasHandler, cleanupBB, dispatchBB);
+
+        _builder.PositionAtEnd(cleanupBB);
+        var savedHead = _builder.BuildLoad2(GetPointerType(GetInt8Type()), GetJmpBufSavedHeadPtr(currentJmpBuf), "jmpbuf_saved_head");
+        var savedUsed = _builder.BuildLoad2(GetInt32Type(), GetJmpBufSavedUsedPtr(currentJmpBuf), "jmpbuf_saved_used");
+        BuildPopCleanupRecordsTo(savedHead, savedUsed);
+        _builder.BuildBr(dispatchBB);
+
+        _builder.PositionAtEnd(dispatchBB);
         EmitAbortOrLongjmp(msgPtr, currentJmpBuf);
     }
 

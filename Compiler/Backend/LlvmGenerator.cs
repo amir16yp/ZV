@@ -99,6 +99,11 @@ public partial class LlvmGenerator : IDisposable
     private class Scope
     {
         public List<string> OwnedVariables { get; } = new();
+
+        // Runtime values of the cleanup-stack top at the point this scope was entered,
+        // stored in allocas so they survive to scope exit even with control flow.
+        public LLVMValueRef? SavedCleanupHead { get; set; }
+        public LLVMValueRef? SavedCleanupUsed { get; set; }
     }
 
     private readonly List<Scope> _scopes = new();
@@ -160,6 +165,27 @@ public partial class LlvmGenerator : IDisposable
     private LLVMValueRef _globalExceptionMsg;
     private LLVMValueRef _globalExceptionActive;
     private bool _exceptionGlobalsInitialized;
+
+    // Thread-local chunked cleanup stack for RAII. Each chunk holds object/destructor pairs;
+    // used both for normal scope exit and for exception unwinding across function frames.
+    private const int CleanupChunkCapacity = 256;
+    private LLVMTypeRef? _cleanupChunkType;
+    private LLVMValueRef _cleanupHeadGlobal;
+    private LLVMValueRef _cleanupUsedGlobal;
+    private LLVMValueRef _cleanupFreeGlobal;
+    private bool _cleanupGlobalsInitialized;
+
+    // jmp_buf augmented with the cleanup-stack top (chunk head + used count) at the time of
+    // setjmp, so a throw can destroy everything pushed since the matching try block began.
+    private LLVMTypeRef? _jmpBufType;
+
+    // Cache of generated destructor functions keyed by a canonical type identifier.
+    private readonly Dictionary<string, LLVMValueRef> _destructorFunctions = new();
+
+    // Runtime cleanup-stack location (chunk head + index within chunk) for each owning
+    // variable currently in scope. Used to skip the destructor call when ownership is
+    // returned to the caller.
+    private readonly Dictionary<string, (LLVMValueRef Head, LLVMValueRef Used)> _variableCleanupIndices = new();
 
     // Set by the driver (Program.cs) when compiling for a freestanding/kernel target
     // (e.g. "os-x86"). Builtins that require a hosted OS (like curses) are rejected
@@ -352,7 +378,12 @@ public partial class LlvmGenerator : IDisposable
 
     private void EnterScope()
     {
-        _scopes.Add(new Scope());
+        var savedHead = _builder.BuildAlloca(GetPointerType(GetInt8Type()), "cleanup_head_save");
+        var savedUsed = _builder.BuildAlloca(GetInt32Type(), "cleanup_used_save");
+        var (head, used) = BuildCleanupTopLoad();
+        _builder.BuildStore(head, savedHead);
+        _builder.BuildStore(used, savedUsed);
+        _scopes.Add(new Scope { SavedCleanupHead = savedHead, SavedCleanupUsed = savedUsed });
     }
 
     private void LeaveScope()
@@ -372,28 +403,40 @@ public partial class LlvmGenerator : IDisposable
             }
         }
 
+        if (canEmit && scope.SavedCleanupHead.HasValue && scope.SavedCleanupUsed.HasValue)
+        {
+            var savedHead = _builder.BuildLoad2(GetPointerType(GetInt8Type()), scope.SavedCleanupHead.Value, "saved_cleanup_head");
+            var savedUsed = _builder.BuildLoad2(GetInt32Type(), scope.SavedCleanupUsed.Value, "saved_cleanup_used");
+            BuildPopCleanupRecordsTo(savedHead, savedUsed);
+        }
+
         for (int i = scope.OwnedVariables.Count - 1; i >= 0; i--)
         {
             var name = scope.OwnedVariables[i];
             if (_deadVariables.Contains(name)) continue;
             if (!_ownedVariables.Contains(name)) continue;
             _ownedVariables.Remove(name);
-            if (canEmit)
-            {
-                if (_namedValues.TryGetValue(name, out var entry))
-                {
-                    DestroyOwnedValue(name);
-                    _deadVariables.Add(name);
-                }
-            }
-            else
-            {
-                _deadVariables.Add(name);
-            }
+            _deadVariables.Add(name);
         }
     }
 
     private void CleanupToDepth(int targetDepth, string? skipVariable = null)
+    {
+        if (targetDepth < _scopes.Count)
+        {
+            var scope = _scopes[targetDepth];
+            if (scope.SavedCleanupHead.HasValue && scope.SavedCleanupUsed.HasValue)
+            {
+                var savedHead = _builder.BuildLoad2(GetPointerType(GetInt8Type()), scope.SavedCleanupHead.Value, "saved_cleanup_head");
+                var savedUsed = _builder.BuildLoad2(GetInt32Type(), scope.SavedCleanupUsed.Value, "saved_cleanup_used");
+                BuildPopCleanupRecordsTo(savedHead, savedUsed);
+            }
+        }
+
+        UpdateOwnershipToDepth(targetDepth, skipVariable);
+    }
+
+    private void UpdateOwnershipToDepth(int targetDepth, string? skipVariable = null)
     {
         for (int i = _scopes.Count - 1; i >= targetDepth; i--)
         {
@@ -404,8 +447,8 @@ public partial class LlvmGenerator : IDisposable
                 if (name == skipVariable) continue;
                 if (_deadVariables.Contains(name)) continue;
                 if (!_ownedVariables.Contains(name)) continue;
-                if (!_namedValues.TryGetValue(name, out var entry)) continue;
-                DestroyOwnedValue(name);
+                _ownedVariables.Remove(name);
+                _deadVariables.Add(name);
             }
         }
     }
@@ -422,7 +465,7 @@ public partial class LlvmGenerator : IDisposable
         return fieldType switch
         {
             ArrayTypeNode => true,
-            PrimitiveTypeNode p when p.Type.Type is TokenType.CSTRING or TokenType.WSTRING => true,
+            PrimitiveTypeNode p when p.Type.Type is TokenType.CSTRING or TokenType.WSTRING or TokenType.STRING => true,
             UserTypeNode u => IsOwningStructType(u.Name.Lexeme),
             _ => false,
         };
@@ -480,6 +523,15 @@ public partial class LlvmGenerator : IDisposable
         {
             FreeCall(new VariableExpr(name, new SourceLocation(null, 0, 0, 0)));
         }
+    }
+
+    // Zeroes the storage of an owning variable so that any later cleanup-stack destructor
+    // call becomes a no-op (free(NULL) is safe). Used when ownership is explicitly freed,
+    // transferred away, or returned to the caller.
+    private void ZeroOwnedVariable(string name)
+    {
+        if (!_namedValues.TryGetValue(name, out var entry)) return;
+        _builder.BuildStore(LLVMValueRef.CreateConstNull(entry.Type), entry.Value);
     }
 
     // Recursively frees every owning field of the struct at `structPtr` (of `structType` /
@@ -544,7 +596,37 @@ public partial class LlvmGenerator : IDisposable
 
     private void CleanupAllOpenScopes(string? skipVariable = null)
     {
-        CleanupToDepth(0, skipVariable);
+        if (_scopes.Count == 0)
+        {
+            UpdateOwnershipToDepth(0, skipVariable);
+            return;
+        }
+
+        var targetHead = _builder.BuildLoad2(GetPointerType(GetInt8Type()), _scopes[0].SavedCleanupHead!.Value, "cleanup_target_head");
+        var targetUsed = _builder.BuildLoad2(GetInt32Type(), _scopes[0].SavedCleanupUsed!.Value, "cleanup_target_used");
+
+        // If we are returning a specific owned variable, preserve its heap memory by
+        // skipping its destructor call. We pop everything above it, zero its record so
+        // the destructor becomes a no-op, then pop down to the function entry top.
+        if (skipVariable != null &&
+            _variableCleanupIndices.TryGetValue(skipVariable, out var skipLoc) &&
+            _ownedVariables.Contains(skipVariable))
+        {
+            var one = LLVMValueRef.CreateConstInt(GetInt32Type(), 1);
+            var skipUsedPlusOne = _builder.BuildAdd(skipLoc.Used, one, "cleanup_skip_used_plus_one");
+            BuildPopCleanupRecordsTo(skipLoc.Head, skipUsedPlusOne);
+
+            var objSlot = BuildCleanupObjectSlot(skipLoc.Head, skipLoc.Used);
+            _builder.BuildStore(LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type())), objSlot);
+
+            BuildPopCleanupRecordsTo(targetHead, targetUsed);
+        }
+        else
+        {
+            BuildPopCleanupRecordsTo(targetHead, targetUsed);
+        }
+
+        UpdateOwnershipToDepth(0, skipVariable);
     }
 
     // Frees any cstr() temporaries created (and not claimed by a variable declaration)
@@ -603,6 +685,13 @@ public partial class LlvmGenerator : IDisposable
                 }
             }
         }
+
+        if (_namedValues.TryGetValue(name, out var entry) && _variableDeclaredTypeNodes.TryGetValue(name, out var typeNode))
+        {
+            var dtor = GetOrCreateDestructor(typeNode);
+            var (head, used) = BuildPushCleanupRecord(entry.Value, dtor);
+            _variableCleanupIndices[name] = (head, used);
+        }
     }
 
     private bool IsOwnedExpression(Expression? expr, LLVMValueRef? value = null)
@@ -639,6 +728,7 @@ public partial class LlvmGenerator : IDisposable
         if (excludeLhs != null && IsSameVariable(expr, excludeLhs)) return false;
         if (expr is VariableExpr varExpr && _ownedVariables.Contains(varExpr.Name))
         {
+            ZeroOwnedVariable(varExpr.Name);
             _ownedVariables.Remove(varExpr.Name);
             _deadVariables.Add(varExpr.Name);
             return true;
@@ -700,6 +790,7 @@ public partial class LlvmGenerator : IDisposable
 
         if (expr is VariableExpr freedVar)
         {
+            ZeroOwnedVariable(freedVar.Name);
             _deadVariables.Add(freedVar.Name);
             _ownedVariables.Remove(freedVar.Name);
         }

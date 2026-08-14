@@ -679,13 +679,7 @@ public partial class LlvmGenerator
         // Throw path
         _builder.PositionAtEnd(throwBB);
         var msgPtr = GetOrCreateGlobalStringPtr(message, "exc_msg");
-        _builder.BuildStore(msgPtr, _globalExceptionMsg);
-        _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt1Type(), 1), _globalExceptionActive);
-
-        // Load current jmp_buf pointer and either longjmp to it or abort if unhandled.
-        var globalJmpBuf = GetGlobalJmpBufPtr();
-        var currentJmpBuf = _builder.BuildLoad2(GetPointerType(GetInt8Type()), globalJmpBuf, "current_jmpbuf");
-        EmitAbortOrLongjmp(msgPtr, currentJmpBuf);
+        EmitExceptionDispatch(msgPtr);
 
         // Continue (no error)
         _builder.PositionAtEnd(contBB);
