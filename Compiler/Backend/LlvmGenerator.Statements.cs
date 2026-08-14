@@ -109,7 +109,7 @@ public partial class LlvmGenerator
                 var arrayStructType = GetArrayStructType(GetPointerType(GetInt8Type()));
                 
                 // Construct the struct
-                var structAlloca = _builder.BuildAlloca(arrayStructType, paramName + ".struct");
+                var structAlloca = BuildEntryAlloca(arrayStructType, paramName + ".struct");
                 var dataFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 0, "data");
                 var lengthFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 1, "len");
                 
@@ -123,7 +123,7 @@ public partial class LlvmGenerator
                 _builder.BuildStore(visibleArgc64, lengthFieldPtr);
                 
                 // Track the alloca of the struct
-                var alloca = _builder.BuildAlloca(arrayStructType, paramName + ".addr");
+                var alloca = BuildEntryAlloca(arrayStructType, paramName + ".addr");
                 _builder.BuildStore(_builder.BuildLoad2(arrayStructType, structAlloca, "tmp"), alloca);
                 _namedValues[paramName] = (alloca, arrayStructType, null);
                 _variableDeclScope[paramName] = _scopes.Count;
@@ -147,7 +147,7 @@ public partial class LlvmGenerator
                     // Fixed-size arrays are passed by reference; copy into a local allocation
                     // so indexing and bounds-checking inside the function work the same way
                     // as for a local fixed-size array.
-                    alloca = _builder.BuildAlloca(type, paramName + ".addr");
+                    alloca = BuildEntryAlloca(type, paramName + ".addr");
                     var destPtr = _builder.BuildBitCast(alloca, GetPointerType(GetInt8Type()), "param_copy_dest");
                     var srcPtr = _builder.BuildBitCast(paramValue, GetPointerType(GetInt8Type()), "param_copy_src");
                     var sizeBytes = LLVMValueRef.CreateConstInt(GetInt64Type(), GetTypeSizeInBytes(type));
@@ -158,7 +158,7 @@ public partial class LlvmGenerator
                 }
                 else
                 {
-                    alloca = _builder.BuildAlloca(type, paramName + ".addr");
+                    alloca = BuildEntryAlloca(type, paramName + ".addr");
                     _builder.BuildStore(paramValue, alloca);
                 }
                 _namedValues[paramName] = (alloca, type, structName);
@@ -397,7 +397,7 @@ public partial class LlvmGenerator
         structType.StructSetBody(fieldTypes.ToArray(), stmt.IsPacked);
         
         _structTypes[stmt.Name.Lexeme] = structType;
-        _structFieldNames[stmt.Name.Lexeme] = fieldNames;
+        RegisterStructFields(stmt.Name.Lexeme, fieldNames);
         _structFieldTypes[stmt.Name.Lexeme] = fieldTypes;
         _structFieldTypeNodes[stmt.Name.Lexeme] = stmt.Fields.Select(f => f.Type).ToList();
 
@@ -486,7 +486,7 @@ public partial class LlvmGenerator
         }
 
         // Function-scope variable: allocate on the stack
-        var alloca = _builder.BuildAlloca(type, stmt.Name.Lexeme);
+        var alloca = BuildEntryAlloca(type, stmt.Name.Lexeme);
         _namedValues[stmt.Name.Lexeme] = (alloca, type, structName);
 
         if (stmt.Initializer == null)
@@ -590,7 +590,7 @@ public partial class LlvmGenerator
         }
 
         // Function-scope fixed-size array: allocate on the stack as [N x T].
-        var alloca = _builder.BuildAlloca(arrayType, stmt.Name.Lexeme);
+        var alloca = BuildEntryAlloca(arrayType, stmt.Name.Lexeme);
         _namedValues[stmt.Name.Lexeme] = (alloca, arrayType, null);
 
         if (stmt.Initializer is ArrayInitExpr initExpr)

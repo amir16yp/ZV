@@ -44,7 +44,7 @@ public partial class LlvmGenerator
         _processType = processType;
 
         _structTypes["PROCESS"] = processType;
-        _structFieldNames["PROCESS"] = new List<string> { "child" };
+        RegisterStructFields("PROCESS", new List<string> { "child" });
         _structFieldTypes["PROCESS"] = new List<LLVMTypeRef> { GetInt1Type() };
 
         return processType;
@@ -87,7 +87,7 @@ public partial class LlvmGenerator
         var checkBB = _context.AppendBasicBlock(function, "respawn_check_sentinel");
         var mergeBB = _context.AppendBasicBlock(function, "respawn_check_done");
 
-        var isChildAlloca = _builder.BuildAlloca(GetInt1Type(), "respawn_is_child_tmp");
+        var isChildAlloca = BuildEntryAlloca(GetInt1Type(), "respawn_is_child_tmp");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt1Type(), 0), isChildAlloca);
 
         var zero = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
@@ -130,7 +130,7 @@ public partial class LlvmGenerator
 
         EnsureRespawnGlobals();
         var processType = GetProcessType();
-        var resultAlloca = _builder.BuildAlloca(processType, "respawn_result");
+        var resultAlloca = BuildEntryAlloca(processType, "respawn_result");
         var isChild = _builder.BuildLoad2(GetInt1Type(), _globalRespawnIsChild, "respawn_is_child_flag");
 
         var function = _builder.InsertBlock.Parent;

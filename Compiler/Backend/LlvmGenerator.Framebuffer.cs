@@ -215,7 +215,7 @@ public partial class LlvmGenerator
     {
         var i32 = GetInt32Type();
         var function = _builder.InsertBlock.Parent;
-        var yAlloca = _builder.BuildAlloca(i32, "fb_rect_y");
+        var yAlloca = BuildEntryAlloca(i32, "fb_rect_y");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(i32, 0), yAlloca);
 
         var yCondBB = _context.AppendBasicBlock(function, "fbrectycond");
@@ -229,7 +229,7 @@ public partial class LlvmGenerator
         _builder.BuildCondBr(yCont, yBodyBB, yEndBB);
 
         _builder.PositionAtEnd(yBodyBB);
-        var xAlloca = _builder.BuildAlloca(i32, "fb_rect_x");
+        var xAlloca = BuildEntryAlloca(i32, "fb_rect_x");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(i32, 0), xAlloca);
 
         var xCondBB = _context.AppendBasicBlock(function, "fbrectxcond");

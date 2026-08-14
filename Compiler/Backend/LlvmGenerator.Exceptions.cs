@@ -21,7 +21,7 @@ public partial class LlvmGenerator
 
         // Register it as a known struct so field access works
         _structTypes["Exception"] = excType;
-        _structFieldNames["Exception"] = new List<string> { "message" };
+        RegisterStructFields("Exception", new List<string> { "message" });
         _structFieldTypes["Exception"] = new List<LLVMTypeRef> { GetPointerType(GetInt8Type()) };
 
         return excType;
@@ -161,7 +161,7 @@ public partial class LlvmGenerator
 
         // Allocate a jmp_buf on the stack. Windows _setjmp stores aligned XMM state, so
         // the buffer must be at least 16-byte aligned.
-        var jmpBuf = _builder.BuildAlloca(jmpBufType, "jmpbuf");
+        var jmpBuf = BuildEntryAlloca(jmpBufType, "jmpbuf");
         jmpBuf.SetAlignment(16);
         var jmpBufPtr = _builder.BuildBitCast(jmpBuf, GetPointerType(GetInt8Type()), "jmpbuf_ptr");
 
@@ -273,7 +273,7 @@ public partial class LlvmGenerator
         _builder.PositionAtEnd(catchBodyBB);
 
         var excType = GetExceptionType();
-        var excAlloca = _builder.BuildAlloca(excType, clause.ExceptionName.Lexeme);
+        var excAlloca = BuildEntryAlloca(excType, clause.ExceptionName.Lexeme);
         var msgFieldPtr = _builder.BuildStructGEP2(excType, excAlloca, 0, "exc_msg_field");
         _builder.BuildStore(msgVal, msgFieldPtr);
         _namedValues[clause.ExceptionName.Lexeme] = (excAlloca, excType, "Exception");
@@ -328,7 +328,92 @@ public partial class LlvmGenerator
             msgPtr = GetOrCreateGlobalStringPtr("unknown exception", "unknown_exc_msg");
         }
 
-        EmitExceptionDispatch(msgPtr);
+        EmitUnconditionalThrow(msgPtr);
+    }
+
+    // Explicit `throw` statement (as opposed to a runtime check's EmitCondThrow): always
+    // throws, so it delegates to the shared __zv_throw_uncond runtime function rather than
+    // inlining the dispatch control flow at every throw site, then marks the current block
+    // unreachable (the call never actually returns - it either longjmps or aborts).
+    private void EmitUnconditionalThrow(LLVMValueRef msgPtr)
+    {
+        EnsureExceptionGlobals();
+        var throwUncond = GetOrCreateZvThrowUncondFunction();
+        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msgPtr }, "");
+        _builder.BuildUnreachable();
+    }
+
+    // Generates (once per module) a shared `void __zv_throw_uncond(i8* msg)` function that
+    // performs the full exception dispatch (store message, pop cleanup stack, longjmp/abort).
+    // Every unconditional `throw` statement calls this instead of inlining the dispatch's
+    // several basic blocks at each throw site, which previously duplicated that control flow
+    // (and every check inside it) once per call site.
+    private LLVMValueRef GetOrCreateZvThrowUncondFunction()
+    {
+        const string name = "__zv_throw_uncond";
+        var existing = _module.GetNamedFunction(name);
+        if (existing.Handle != IntPtr.Zero) return existing;
+
+        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetPointerType(GetInt8Type()) });
+        var func = _module.AddFunction(name, funcType);
+        func.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        _functionTypes[name] = funcType;
+
+        var savedBlock = _builder.InsertBlock;
+        var entry = _context.AppendBasicBlock(func, "entry");
+        _builder.PositionAtEnd(entry);
+
+        // EmitExceptionDispatch always terminates every path it creates (longjmp/abort both
+        // end in `unreachable`), so no explicit return is needed here.
+        EmitExceptionDispatch(func.GetParam(0));
+
+        if (savedBlock.Handle != IntPtr.Zero)
+        {
+            _builder.PositionAtEnd(savedBlock);
+        }
+        return func;
+    }
+
+    // Generates (once per module) a shared `void __zv_throw_cond(i1 cond, i8* msg)` function
+    // that throws (via __zv_throw_uncond) only if `cond` is true, otherwise returns. Every
+    // runtime bounds/null/failure check calls this instead of inlining its own branch +
+    // full dispatch control flow at each check site (see EmitCondThrow).
+    private LLVMValueRef GetOrCreateZvThrowCondFunction()
+    {
+        const string name = "__zv_throw_cond";
+        var existing = _module.GetNamedFunction(name);
+        if (existing.Handle != IntPtr.Zero) return existing;
+
+        var throwUncond = GetOrCreateZvThrowUncondFunction();
+
+        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetInt1Type(), GetPointerType(GetInt8Type()) });
+        var func = _module.AddFunction(name, funcType);
+        func.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        _functionTypes[name] = funcType;
+
+        var savedBlock = _builder.InsertBlock;
+        var entry = _context.AppendBasicBlock(func, "entry");
+        _builder.PositionAtEnd(entry);
+
+        var cond = func.GetParam(0);
+        var msg = func.GetParam(1);
+
+        var throwBB = _context.AppendBasicBlock(func, "throw_exc");
+        var contBB = _context.AppendBasicBlock(func, "no_exc");
+        _builder.BuildCondBr(cond, throwBB, contBB);
+
+        _builder.PositionAtEnd(throwBB);
+        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msg }, "");
+        _builder.BuildUnreachable();
+
+        _builder.PositionAtEnd(contBB);
+        _builder.BuildRetVoid();
+
+        if (savedBlock.Handle != IntPtr.Zero)
+        {
+            _builder.PositionAtEnd(savedBlock);
+        }
+        return func;
     }
 
     // Common exception dispatch: store the exception message, pop the cleanup stack to the
@@ -423,7 +508,7 @@ public partial class LlvmGenerator
                 }
                 if (origName != null && _structFieldNames.ContainsKey(origName))
                 {
-                    _structFieldNames[stmt.Name.Lexeme] = _structFieldNames[origName];
+                    RegisterStructFields(stmt.Name.Lexeme, _structFieldNames[origName]);
                     _structFieldTypes[stmt.Name.Lexeme] = _structFieldTypes[origName];
                 }
             }

@@ -60,7 +60,7 @@ public partial class LlvmGenerator
         var color = ConvertToType(VisitExpression(arguments[0]), GetInt8Type());
 
         var function = _builder.InsertBlock.Parent;
-        var idxAlloca = _builder.BuildAlloca(GetInt64Type(), "vga_clear_idx");
+        var idxAlloca = BuildEntryAlloca(GetInt64Type(), "vga_clear_idx");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt64Type(), 0), idxAlloca);
 
         var condBB = _context.AppendBasicBlock(function, "vgaclearcond");
@@ -102,8 +102,8 @@ public partial class LlvmGenerator
         if (str.TypeOf.Kind != LLVMTypeKind.LLVMPointerTypeKind)
             throw new Exception("vga_print() string argument must be a string.");
 
-        var colAlloca = _builder.BuildAlloca(i32, "vga_print_col");
-        var rowAlloca = _builder.BuildAlloca(i32, "vga_print_row");
+        var colAlloca = BuildEntryAlloca(i32, "vga_print_col");
+        var rowAlloca = BuildEntryAlloca(i32, "vga_print_row");
         _builder.BuildStore(colStart, colAlloca);
         _builder.BuildStore(rowStart, rowAlloca);
 

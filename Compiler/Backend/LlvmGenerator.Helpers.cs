@@ -484,9 +484,9 @@ public partial class LlvmGenerator
             : null;
 
         if (structName == null) return null;
-        if (!_structFieldNames.TryGetValue(structName, out var fieldNames)) return null;
+        if (!_structFieldNames.ContainsKey(structName)) return null;
 
-        int fieldIndex = fieldNames.IndexOf(get.Name.Lexeme);
+        int fieldIndex = GetStructFieldIndex(structName, get.Name.Lexeme);
         if (fieldIndex == -1) return null;
         if (!_structFieldTypeNodes.TryGetValue(structName, out var fieldTypeNodes)) return null;
         if (fieldIndex >= fieldTypeNodes.Count) return null;
@@ -643,6 +643,21 @@ public partial class LlvmGenerator
     /// Raw pointers have no length metadata, so indexing them can never be bounds-checked.
     /// Require an explicit `unsafe { }` block so unchecked access is visible in source.
     /// </summary>
+    /// <summary>
+    /// GEP for an array/slice element access whose index has just been (or is about to be)
+    /// bounds-checked. Outside `unsafe { }`, EmitBoundsCheck guarantees the index is in
+    /// range, so the access can use an inbounds GEP: this gives LLVM's alias analysis and
+    /// loop vectorizer much better information than a plain GEP. Inside `unsafe { }` the
+    /// bounds check is skipped (see EmitBoundsCheck), so the index may legitimately be out
+    /// of range and a plain (non-inbounds) GEP must be used to avoid undefined behavior.
+    /// </summary>
+    private LLVMValueRef BuildBoundsCheckedGEP2(LLVMTypeRef elementType, LLVMValueRef pointer, LLVMValueRef[] indices, string name)
+    {
+        return InUnsafeContext
+            ? _builder.BuildGEP2(elementType, pointer, indices, name)
+            : _builder.BuildInBoundsGEP2(elementType, pointer, indices, name);
+    }
+
     private void RequireUnsafeForRawPointerIndex(SourceLocation location)
     {
         if (!InUnsafeContext)
@@ -653,12 +668,26 @@ public partial class LlvmGenerator
 
     private void BuildArrayFillLoop(LLVMTypeRef elementType, LLVMValueRef dataPtr, LLVMValueRef lengthValue, LLVMValueRef? fillValue)
     {
+        if (fillValue == null)
+        {
+            // Zero-fill: a single memset over the whole allocation is far smaller IR than a
+            // per-element store loop and vectorizes/optimizes trivially, unlike the loop.
+            var elementSize = LLVMValueRef.CreateConstInt(GetInt64Type(), GetTypeSizeInBytes(elementType));
+            var totalBytes = _builder.BuildMul(lengthValue, elementSize, "fill_bytes");
+            var destI8 = _builder.BuildBitCast(dataPtr, GetPointerType(GetInt8Type()), "fill_dest_i8");
+            var memset = GetOrAddFunction("memset", GetPointerType(GetInt8Type()),
+                new[] { GetPointerType(GetInt8Type()), GetInt32Type(), GetInt64Type() });
+            _builder.BuildCall2(_functionTypes["memset"], memset,
+                new[] { destI8, LLVMValueRef.CreateConstInt(GetInt32Type(), 0), totalBytes }, "");
+            return;
+        }
+
         var func = _builder.InsertBlock.Parent;
         var condBB = _context.AppendBasicBlock(func, "fillcond");
         var bodyBB = _context.AppendBasicBlock(func, "fillbody");
         var endBB = _context.AppendBasicBlock(func, "fillend");
 
-        var iAlloca = _builder.BuildAlloca(GetInt64Type(), "fill_i");
+        var iAlloca = BuildEntryAlloca(GetInt64Type(), "fill_i");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt64Type(), 0), iAlloca);
 
         _builder.BuildBr(condBB);
@@ -670,15 +699,7 @@ public partial class LlvmGenerator
 
         _builder.PositionAtEnd(bodyBB);
         var elPtr = _builder.BuildGEP2(elementType, dataPtr, new[] { iVal }, "fill_elptr");
-        LLVMValueRef value;
-        if (fillValue != null)
-        {
-            value = ConvertToType(fillValue.Value, elementType);
-        }
-        else
-        {
-            value = LLVMValueRef.CreateConstNull(elementType);
-        }
+        var value = ConvertToType(fillValue.Value, elementType);
         _builder.BuildStore(value, elPtr);
 
         var next = _builder.BuildAdd(iVal, LLVMValueRef.CreateConstInt(GetInt64Type(), 1), "fill_next");

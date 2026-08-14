@@ -665,24 +665,17 @@ public partial class LlvmGenerator
     /// <summary>
     /// Emits a conditional throw: if condition is true, throw a runtime exception with the given message.
     /// If no try/catch is active, prints and exits. Otherwise longjmps to the handler.
+    /// Delegates to the shared __zv_throw_cond runtime function (see
+    /// GetOrCreateZvThrowCondFunction) instead of inlining the full dispatch control flow
+    /// (branch + cleanup + longjmp/abort, several basic blocks) at every check site.
     /// </summary>
     private void EmitCondThrow(LLVMValueRef condition, string message)
     {
         EnsureExceptionGlobals();
 
-        var function = _builder.InsertBlock.Parent;
-        var throwBB = _context.AppendBasicBlock(function, "throw_exc");
-        var contBB = _context.AppendBasicBlock(function, "no_exc");
-
-        _builder.BuildCondBr(condition, throwBB, contBB);
-
-        // Throw path
-        _builder.PositionAtEnd(throwBB);
+        var throwCond = GetOrCreateZvThrowCondFunction();
         var msgPtr = GetOrCreateGlobalStringPtr(message, "exc_msg");
-        EmitExceptionDispatch(msgPtr);
-
-        // Continue (no error)
-        _builder.PositionAtEnd(contBB);
+        _builder.BuildCall2(_functionTypes["__zv_throw_cond"], throwCond, new[] { condition, msgPtr }, "");
     }
 
     private LLVMValueRef GenerateGetTimestampCall(List<Expression> arguments)
@@ -705,7 +698,7 @@ public partial class LlvmGenerator
             // Windows FILETIME is a 64-bit count of 100-nanosecond intervals since 1601-01-01 UTC.
             // Convert it to Unix epoch milliseconds.
             var fileTimeType = GetInt64Type();
-            var fileTimePtr = _builder.BuildAlloca(fileTimeType, "filetime");
+            var fileTimePtr = BuildEntryAlloca(fileTimeType, "filetime");
             var getSystemTimeFunc = GetOrAddFunction("GetSystemTimeAsFileTime", GetVoidType(), new[] { GetPointerType(fileTimeType) });
             _builder.BuildCall2(_functionTypes["GetSystemTimeAsFileTime"], getSystemTimeFunc, new[] { fileTimePtr }, "");
 
@@ -719,7 +712,7 @@ public partial class LlvmGenerator
         {
             // POSIX: use clock_gettime(CLOCK_REALTIME, &ts) where timespec is { i64 tv_sec, i64 tv_nsec }.
             var timespecType = LLVMTypeRef.CreateStruct(new[] { GetInt64Type(), GetInt64Type() }, false);
-            var tsPtr = _builder.BuildAlloca(timespecType, "ts");
+            var tsPtr = BuildEntryAlloca(timespecType, "ts");
             var clockGettimeFunc = GetOrAddFunction("clock_gettime", GetInt32Type(), new[] { GetInt32Type(), GetPointerType(timespecType) });
             var realtime = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
             _builder.BuildCall2(_functionTypes["clock_gettime"], clockGettimeFunc, new[] { realtime, tsPtr }, "clocktmp");
@@ -779,7 +772,7 @@ public partial class LlvmGenerator
 
         // Build an Exception struct { i8* message }
         var excType = GetExceptionType();
-        var alloca = _builder.BuildAlloca(excType, "exc_init");
+        var alloca = BuildEntryAlloca(excType, "exc_init");
         var msgFieldPtr = _builder.BuildStructGEP2(excType, alloca, 0, "exc_msg");
         _builder.BuildStore(msgPtr, msgFieldPtr);
         

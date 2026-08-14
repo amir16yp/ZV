@@ -15,12 +15,12 @@ public partial class LlvmGenerator
         var structType = obj.Type;
         var structName = obj.StructName;
 
-        if (string.IsNullOrEmpty(structName) || !_structFieldNames.TryGetValue(structName, out var fieldNames))
+        if (string.IsNullOrEmpty(structName) || !_structFieldNames.ContainsKey(structName))
         {
             throw new Exception("Cannot access field on non-struct type.");
         }
 
-        int fieldIndex = fieldNames.IndexOf(expr.Name.Lexeme);
+        int fieldIndex = GetStructFieldIndex(structName, expr.Name.Lexeme);
         if (fieldIndex == -1)
         {
             throw new Exception($"Struct {structName} does not have field {expr.Name.Lexeme}");
@@ -177,12 +177,12 @@ public partial class LlvmGenerator
                 var structType = obj.Type;
                 var structName = obj.StructName;
 
-                if (string.IsNullOrEmpty(structName) || !_structFieldNames.TryGetValue(structName, out var fieldNames))
+                if (string.IsNullOrEmpty(structName) || !_structFieldNames.ContainsKey(structName))
                 {
                     throw new Exception("Cannot access field on non-struct type.");
                 }
 
-                int fieldIndex = fieldNames.IndexOf(getExpr.Name.Lexeme);
+                int fieldIndex = GetStructFieldIndex(structName, getExpr.Name.Lexeme);
                 if (fieldIndex == -1)
                 {
                     throw new Exception($"Struct {structName} does not have field {getExpr.Name.Lexeme}");
@@ -495,7 +495,7 @@ public partial class LlvmGenerator
                 EmitBoundsCheck(fixedIndex, LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)fixedLength), expr.Location);
             }
             var fixedZero = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
-            var fixedGepPtr = _builder.BuildGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
+            var fixedGepPtr = BuildBoundsCheckedGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
             return _builder.BuildLoad2(fixedElementType, fixedGepPtr, "indexval");
         }
 
@@ -552,7 +552,7 @@ public partial class LlvmGenerator
             return ptr; 
         }
 
-        var gepPtr = _builder.BuildGEP2(elementType, dataPtr, new[] { index }, "indexptr");
+        var gepPtr = BuildBoundsCheckedGEP2(elementType, dataPtr, new[] { index }, "indexptr");
         // Dynamic arrays whose elements are fixed-size arrays (e.g. INT32[3][]) are used as
         // contiguous multi-dimensional arrays: indexing returns a pointer to the row, not
         // a loaded array value.
@@ -615,7 +615,7 @@ public partial class LlvmGenerator
                 EmitBoundsCheck(idx, LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)outerLength), indexExpr.Location);
             }
             var zero = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
-            arrayPtr = _builder.BuildGEP2(outerType, outerPtr, new[] { zero, idx }, "indexptr");
+            arrayPtr = BuildBoundsCheckedGEP2(outerType, outerPtr, new[] { zero, idx }, "indexptr");
             arrayType = outerType.ElementType;
             return true;
         }
@@ -677,7 +677,7 @@ public partial class LlvmGenerator
                 EmitBoundsCheck(fixedIndex, LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)fixedLength), expr.Location);
             }
             var fixedZero = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
-            var fixedGepPtr = _builder.BuildGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
+            var fixedGepPtr = BuildBoundsCheckedGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
             fixedValue = ConvertToType(fixedValue, fixedElementType);
             _builder.BuildStore(fixedValue, fixedGepPtr);
             return fixedValue;
@@ -726,7 +726,7 @@ public partial class LlvmGenerator
             throw new Exception("Set index not supported at global scope.");
         }
 
-        var ptr = _builder.BuildGEP2(elementType, dataPtr, new[] { index }, "indexptr");
+        var ptr = BuildBoundsCheckedGEP2(elementType, dataPtr, new[] { index }, "indexptr");
         value = ConvertToType(value, elementType);
         _builder.BuildStore(value, ptr);
         return value;
@@ -765,7 +765,7 @@ public partial class LlvmGenerator
         }
         
         // Allocate on stack for elements
-        var elementsAlloca = _builder.BuildAlloca(arrayType, "arrayinit_elements");
+        var elementsAlloca = BuildEntryAlloca(arrayType, "arrayinit_elements");
         
         for (int i = 0; i < expr.Elements.Count; i++)
         {
@@ -780,7 +780,7 @@ public partial class LlvmGenerator
         var lengthLocal = LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)expr.Elements.Count);
         
         // Create struct on stack to return
-        var structAlloca = _builder.BuildAlloca(arrayStructType, "arraystruct");
+        var structAlloca = BuildEntryAlloca(arrayStructType, "arraystruct");
         var dataFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 0, "datashape");
         var lengthFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 1, "lenfield");
         
@@ -827,7 +827,7 @@ public partial class LlvmGenerator
         BuildArrayFillLoop(elementType, dataPtr, length64, fillValue);
 
         var arrayStructType = GetArrayStructType(elementType);
-        var structAlloca = _builder.BuildAlloca(arrayStructType, "arraystruct");
+        var structAlloca = BuildEntryAlloca(arrayStructType, "arraystruct");
         var dataFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 0, "datashape");
         var lengthFieldPtr = _builder.BuildStructGEP2(arrayStructType, structAlloca, 1, "lenfield");
 
@@ -967,7 +967,7 @@ public partial class LlvmGenerator
                 var data = _builder.BuildExtractValue(val, 0, "data");
                 var len = _builder.BuildExtractValue(val, 1, "len");
 
-                var structAlloca = _builder.BuildAlloca(targetType, "cast_arraystruct");
+                var structAlloca = BuildEntryAlloca(targetType, "cast_arraystruct");
                 var dataFieldPtr = _builder.BuildStructGEP2(targetType, structAlloca, 0, "data");
                 var lengthFieldPtr = _builder.BuildStructGEP2(targetType, structAlloca, 1, "len");
 
@@ -1046,12 +1046,12 @@ public partial class LlvmGenerator
         var structType = obj.Type;
         var structName = obj.StructName;
 
-        if (string.IsNullOrEmpty(structName) || !_structFieldNames.TryGetValue(structName, out var fieldNames))
+        if (string.IsNullOrEmpty(structName) || !_structFieldNames.ContainsKey(structName))
         {
             throw new Exception("Cannot access field on non-struct type or unknown struct.");
         }
 
-        int fieldIndex = fieldNames.IndexOf(expr.Name.Lexeme);
+        int fieldIndex = GetStructFieldIndex(structName, expr.Name.Lexeme);
         if (fieldIndex == -1)
         {
             throw new Exception($"Struct {structName} does not have field {expr.Name.Lexeme}");
@@ -1075,15 +1075,14 @@ public partial class LlvmGenerator
             throw new Exception($"Unknown struct type: {structName}");
         }
 
-        var fieldNames = _structFieldNames[structName];
         var fieldTypes = _structFieldTypes[structName];
 
         // Allocate local space for the struct
-        var alloca = _builder.BuildAlloca(structType, "structinit");
+        var alloca = BuildEntryAlloca(structType, "structinit");
 
         foreach (var field in expr.Fields)
         {
-            int fieldIndex = fieldNames.IndexOf(field.Name.Lexeme);
+            int fieldIndex = GetStructFieldIndex(structName, field.Name.Lexeme);
             if (fieldIndex == -1)
             {
                 throw new Exception($"Struct {structName} does not have field {field.Name.Lexeme}");
@@ -1159,12 +1158,12 @@ public partial class LlvmGenerator
             var structType = obj.Type;
             var structName = obj.StructName;
             
-            if (string.IsNullOrEmpty(structName) || !_structFieldNames.TryGetValue(structName, out var fieldNames))
+            if (string.IsNullOrEmpty(structName) || !_structFieldNames.ContainsKey(structName))
             {
                 throw new Exception("Cannot access field on non-struct type or unknown struct.");
             }
 
-            int fieldIndex = fieldNames.IndexOf(getExpr.Name.Lexeme);
+            int fieldIndex = GetStructFieldIndex(structName, getExpr.Name.Lexeme);
             if (fieldIndex == -1)
             {
                 throw new Exception($"Struct {structName} does not have field {getExpr.Name.Lexeme}");
@@ -1205,7 +1204,7 @@ public partial class LlvmGenerator
                     EmitBoundsCheck(fixedIndex, LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)fixedLength), indexExpr.Location);
                 }
                 var fixedZero = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
-                var fixedPtr = _builder.BuildGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
+                var fixedPtr = BuildBoundsCheckedGEP2(fixedArrayType, fixedArrayPtr, new[] { fixedZero, fixedIndex }, "indexptr");
 
                 string? fixedStructName = null;
                 if (fixedElementType.Kind == LLVMTypeKind.LLVMStructTypeKind)

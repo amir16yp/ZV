@@ -19,6 +19,37 @@ public partial class LlvmGenerator : IDisposable
     private readonly Dictionary<string, List<string>> _structFieldNames = new();
     private readonly Dictionary<string, List<LLVMTypeRef>> _structFieldTypes = new();
 
+    // Field-name -> index cache, kept alongside _structFieldNames so field access, struct
+    // literals, and assignment don't have to do an O(n) List<string>.IndexOf lookup on
+    // every reference. Populated/refreshed whenever a struct's field name list is
+    // (re)registered - see RegisterStructFields.
+    private readonly Dictionary<string, Dictionary<string, int>> _structFieldIndices = new();
+
+    // Registers (or replaces) the field name list of a struct, keeping _structFieldIndices
+    // in sync. All writes to _structFieldNames should go through this helper.
+    private void RegisterStructFields(string structName, List<string> fieldNames)
+    {
+        _structFieldNames[structName] = fieldNames;
+        var indices = new Dictionary<string, int>(fieldNames.Count);
+        for (int i = 0; i < fieldNames.Count; i++)
+        {
+            indices[fieldNames[i]] = i;
+        }
+        _structFieldIndices[structName] = indices;
+    }
+
+    // O(1) replacement for _structFieldNames[structName].IndexOf(fieldName). Returns -1 if
+    // the struct or field is unknown, matching List<string>.IndexOf's not-found result.
+    private int GetStructFieldIndex(string structName, string fieldName)
+    {
+        if (_structFieldIndices.TryGetValue(structName, out var indices) &&
+            indices.TryGetValue(fieldName, out var index))
+        {
+            return index;
+        }
+        return -1;
+    }
+
     // The declared TypeNode of each struct's fields, kept alongside the mapped LLVMTypeRef
     // because the LLVM type alone can't distinguish an owning kind (e.g. CSTRING) from a
     // structurally-identical non-owning one (e.g. PTR<VOID>) - both map to i8*.
@@ -205,6 +236,37 @@ public partial class LlvmGenerator : IDisposable
         _context = LLVMContextRef.Create();
         _module = _context.CreateModuleWithName(moduleName);
         _builder = _context.CreateBuilder();
+    }
+
+    // Builds an alloca at the top of the current function's entry block instead of wherever
+    // the builder happens to be positioned. This is the pattern LLVM's mem2reg pass expects
+    // (allocas that aren't in the entry block are not promotable to SSA registers), keeps
+    // -O0 output much smaller, and avoids allocas inside loop bodies growing the stack frame
+    // on every iteration (an alloca instruction re-executed by control flow allocates again
+    // each time it runs, unlike one in the entry block which runs exactly once per call).
+    private LLVMValueRef BuildEntryAlloca(LLVMTypeRef type, string name)
+    {
+        var currentBlock = _builder.InsertBlock;
+        if (currentBlock.Handle == IntPtr.Zero)
+        {
+            // No active function (e.g. constant-folding at module scope) - nothing to hoist to.
+            return _builder.BuildAlloca(type, name);
+        }
+
+        var entryBlock = currentBlock.Parent.EntryBasicBlock;
+        var firstInst = entryBlock.FirstInstruction;
+        if (firstInst.Handle != IntPtr.Zero)
+        {
+            _builder.PositionBefore(firstInst);
+        }
+        else
+        {
+            _builder.PositionAtEnd(entryBlock);
+        }
+
+        var alloca = _builder.BuildAlloca(type, name);
+        _builder.PositionAtEnd(currentBlock);
+        return alloca;
     }
 
     private LLVMTypeRef GetVoidType() => _context.VoidType;
@@ -484,8 +546,8 @@ public partial class LlvmGenerator : IDisposable
 
     private void EnterScope()
     {
-        var savedHead = _builder.BuildAlloca(GetPointerType(GetInt8Type()), "cleanup_head_save");
-        var savedUsed = _builder.BuildAlloca(GetInt32Type(), "cleanup_used_save");
+        var savedHead = BuildEntryAlloca(GetPointerType(GetInt8Type()), "cleanup_head_save");
+        var savedUsed = BuildEntryAlloca(GetInt32Type(), "cleanup_used_save");
         var (head, used) = BuildCleanupTopLoad();
         _builder.BuildStore(head, savedHead);
         _builder.BuildStore(used, savedUsed);
@@ -605,10 +667,10 @@ public partial class LlvmGenerator : IDisposable
             return false;
         }
 
-        if (string.IsNullOrEmpty(structName) || !_structFieldNames.TryGetValue(structName, out var fieldNames))
+        if (string.IsNullOrEmpty(structName) || !_structFieldNames.ContainsKey(structName))
             return false;
 
-        int idx = fieldNames.IndexOf(expr.Name.Lexeme);
+        int idx = GetStructFieldIndex(structName, expr.Name.Lexeme);
         if (idx < 0) return false;
 
         return IsOwningFieldTypeNode(_structFieldTypeNodes[structName][idx]);

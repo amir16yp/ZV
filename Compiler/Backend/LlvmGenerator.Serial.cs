@@ -35,7 +35,7 @@ public partial class LlvmGenerator
     private void BuildCStringLoop(LLVMValueRef strPtr, Action<LLVMValueRef, LLVMValueRef> body)
     {
         var function = _builder.InsertBlock.Parent;
-        var idxAlloca = _builder.BuildAlloca(GetInt64Type(), "str_idx");
+        var idxAlloca = BuildEntryAlloca(GetInt64Type(), "str_idx");
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt64Type(), 0), idxAlloca);
 
         var condBB = _context.AppendBasicBlock(function, "strcond");

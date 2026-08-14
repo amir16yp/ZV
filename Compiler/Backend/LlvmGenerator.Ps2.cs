@@ -145,7 +145,7 @@ public partial class LlvmGenerator
 
         var i8 = GetInt8Type();
         var function = _builder.InsertBlock.Parent;
-        var resultAlloca = _builder.BuildAlloca(i8, "getchar_result");
+        var resultAlloca = BuildEntryAlloca(i8, "getchar_result");
 
         var loopBB = _context.AppendBasicBlock(function, "getcharloop");
         var acceptBB = _context.AppendBasicBlock(function, "getcharaccept");
