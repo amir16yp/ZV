@@ -11,11 +11,24 @@ namespace ZV;
 
 public class Program
 {
+    // Set by -v/--verbose. When true, LogVerbose() prints a play-by-play of each compiler
+    // stage (lexing/parsing per file, codegen, optimization passes, emission, linking) with
+    // timing, in addition to the plain status lines that are always printed.
+    private static bool Verbose = false;
+
+    private static void LogVerbose(string message)
+    {
+        if (Verbose)
+        {
+            Console.WriteLine($"[verbose] {message}");
+        }
+    }
+
     public static async System.Threading.Tasks.Task Main(string[] args)
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run]");
+            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-v|--verbose]");
             Console.WriteLine("       ZV checkdeps");
             Console.WriteLine("       ZV --lsp");
             return;
@@ -63,7 +76,13 @@ public class Program
             {
                 runAfterBuild = true;
             }
+            else if (args[i] == "-v" || args[i] == "--verbose")
+            {
+                Verbose = true;
+            }
         }
+
+        LogVerbose($"input='{inputPath}', output='{outputPath ?? "(default)"}', target='{targetMode}', run={runAfterBuild}");
 
         // Always include the input directory in the library search path so local
         // DLLs/.lib files next to the source can be linked without extra -L flags.
@@ -90,6 +109,8 @@ public class Program
                 libSearchDirs.Add(inputDir);
             }
         }
+
+        LogVerbose($"Library search paths: [{string.Join(", ", libSearchDirs)}]");
 
         if (targetMode != "exe" && targetMode != "lib" && targetMode != "os-x86")
         {
@@ -151,16 +172,26 @@ public class Program
             return;
         }
 
+        LogVerbose($"Discovered {filesToProcess.Count} source file(s): {string.Join(", ", filesToProcess)}");
+
         try
         {
             List<Statement> allStatements = new List<Statement>();
             HashSet<string> includedFiles = new HashSet<string>();
             bool hadParseError = false;
 
+            var lexParseStopwatch = System.Diagnostics.Stopwatch.StartNew();
             foreach (var file in filesToProcess)
             {
                 string fullPath = Path.GetFullPath(file);
-                if (includedFiles.Contains(fullPath)) continue;
+                if (includedFiles.Contains(fullPath))
+                {
+                    LogVerbose($"Skipping '{fullPath}' (already included, e.g. via #include).");
+                    continue;
+                }
+
+                LogVerbose($"Lexing and parsing '{fullPath}'...");
+                var fileStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
                 string source = File.ReadAllText(fullPath);
                 var lexer = new Lexer(source, fullPath, includedFiles, systemIncludePaths: Lexer.GetDefaultSystemIncludePaths());
@@ -169,14 +200,18 @@ public class Program
                 var statements = parser.Parse();
                 includedFiles.Add(fullPath);
 
+                LogVerbose($"'{fullPath}': {tokens.Count} tokens, {statements.Count} top-level statement(s) ({fileStopwatch.ElapsedMilliseconds}ms).");
+
                 if (parser.HadError)
                 {
+                    LogVerbose($"'{fullPath}' had parse errors; skipping codegen for this run.");
                     hadParseError = true;
                     continue;
                 }
 
                 allStatements.AddRange(statements);
             }
+            LogVerbose($"Lexing/parsing complete: {allStatements.Count} total statement(s) across all files ({lexParseStopwatch.ElapsedMilliseconds}ms).");
 
             if (hadParseError)
             {
@@ -185,13 +220,18 @@ public class Program
                 return;
             }
 
+            LogVerbose("Generating LLVM IR...");
+            var codegenStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             using var generator = new LlvmGenerator("zv_module");
             generator.IsFreestandingTarget = isFreestandingOsX86;
             generator.IsLibraryTarget = isLibraryTarget;
             generator.Generate(allStatements);
+            LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
 
             if (isFreestandingOsX86)
             {
+                LogVerbose("Generating freestanding entry stub (os-x86 target)...");
                 generator.GenerateFreestandingEntry();
             }
 
@@ -200,24 +240,35 @@ public class Program
             // (and everything that only becomes effective after it) matters regardless of
             // whether the subsequent clang invocation below also optimizes - it's the only
             // optimization that happens at all for outputs that skip clang entirely.
+            LogVerbose("Running in-process LLVM optimization passes (mem2reg, instcombine, simplifycfg, reassociate, gvn)...");
+            var optStopwatch = System.Diagnostics.Stopwatch.StartNew();
             generator.RunOptimizationPasses();
+            LogVerbose($"Optimization passes complete ({optStopwatch.ElapsedMilliseconds}ms).");
 
             generator.EmitToFile(bcPath);
             Console.WriteLine($"Bitcode written to {bcPath}");
+            if (Verbose && File.Exists(bcPath))
+            {
+                LogVerbose($"Bitcode file size: {new FileInfo(bcPath).Length} bytes.");
+            }
 
             if (isFreestandingOsX86)
             {
+                LogVerbose("Compiling to a freestanding x86 kernel (clang + ld.lld)...");
                 if (CompileToOsX86Kernel(bcPath, outputFile) && runAfterBuild)
                 {
+                    LogVerbose("Launching QEMU for debugging...");
                     LaunchQemuForDebugging(outputFile);
                 }
             }
             else if (isLibraryTarget)
             {
+                LogVerbose($"Linking as a shared library via clang -> '{outputFile}'...");
                 CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true);
             }
             else if (isExecutable)
             {
+                LogVerbose($"Linking as an executable via clang -> '{outputFile}'...");
                 CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs);
             }
             else
@@ -424,6 +475,7 @@ public class Program
             string clangArguments = $"\"{inputLl}\" {optFlags} -o \"{outputExe}\" {sharedFlags} {searchDirs} {libs} {directLibs}".Trim();
 
             Console.WriteLine($"Running: clang {clangArguments}");
+            var clangStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
@@ -445,6 +497,7 @@ public class Program
             process.WaitForExit();
             string output = process.StandardOutput.ReadToEnd();
             string error = process.StandardError.ReadToEnd();
+            LogVerbose($"clang exited with code {process.ExitCode} ({clangStopwatch.ElapsedMilliseconds}ms).");
 
             if (process.ExitCode == 0)
             {

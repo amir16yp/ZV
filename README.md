@@ -380,7 +380,7 @@ ZV/
 ## CLI Usage
 
 ```text
-ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run]
+ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-v|--verbose]
 ZV checkdeps
 ```
 
@@ -392,6 +392,7 @@ ZV checkdeps
 | `-target os-x86` | Freestanding x86 kernel. |
 | `-L <dir>` | Add a directory to the linker's library search path. Repeatable. |
 | `-run` | After building an `os-x86` kernel, launch it in QEMU. |
+| `-v`, `--verbose` | Print each compiler stage (lexing/parsing per file, codegen, optimization passes, emission, linking) with timing, prefixed `[verbose]`. |
 
 When a directory is passed, the compiler recursively scans for `.zv` files and
 compiles them as a single module. `#include` is also supported inside a file.
