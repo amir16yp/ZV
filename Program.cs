@@ -226,6 +226,7 @@ public class Program
             using var generator = new LlvmGenerator("zv_module");
             generator.IsFreestandingTarget = isFreestandingOsX86;
             generator.IsLibraryTarget = isLibraryTarget;
+            generator.Verbose = Verbose;
             generator.Generate(allStatements);
             LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
 

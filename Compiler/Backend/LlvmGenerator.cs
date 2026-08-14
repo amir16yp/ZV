@@ -232,6 +232,20 @@ public partial class LlvmGenerator : IDisposable
     // Windows/PE, ignored on ELF).
     public bool IsLibraryTarget { get; set; }
 
+    // Set by callers (e.g. the -v/--verbose CLI flag in Program.cs) to print a play-by-play
+    // of codegen as it happens: each declaration visited, target/pass-pipeline setup, and
+    // emission. Off by default so embedding this generator (tests, the language server)
+    // stays quiet unless explicitly asked for.
+    public bool Verbose { get; set; }
+
+    private void LogVerbose(string message)
+    {
+        if (Verbose)
+        {
+            Console.WriteLine($"[verbose] llvm: {message}");
+        }
+    }
+
     public LlvmGenerator(string moduleName)
     {
         _context = LLVMContextRef.Create();
@@ -326,14 +340,35 @@ public partial class LlvmGenerator : IDisposable
 
     public void Generate(List<Statement> statements)
     {
+        LogVerbose($"Generating {statements.Count} top-level statement(s)...");
         foreach (var statement in statements)
         {
+            LogVerbose($"Visiting {DescribeStatementForLog(statement)}");
             VisitStatement(statement);
         }
+        LogVerbose("Codegen for all top-level statements complete.");
+    }
+
+    // Short human-readable description of a top-level statement for verbose logging, e.g.
+    // "function 'foo'" or "struct 'Bar'". Falls back to just the statement's type name for
+    // anything not called out explicitly.
+    private static string DescribeStatementForLog(Statement statement)
+    {
+        return statement switch
+        {
+            FunctionDeclStmt f => $"function '{f.Name.Lexeme}'{(f.IsEntry ? " (entry)" : "")}",
+            StructDeclStmt s => $"struct '{s.Name.Lexeme}' ({s.Fields.Count} field(s))",
+            ExternDeclStmt e => $"extern block '{e.LibraryName.Lexeme}' ({e.Functions.Count} function(s))",
+            ExceptionTypeDeclStmt ex => $"exception type '{ex.Name.Lexeme}'",
+            TypeAliasStmt t => $"type alias '{t.Name.Lexeme}'",
+            VarDeclStmt v => $"global variable '{v.Name.Lexeme}'",
+            _ => statement.GetType().Name,
+        };
     }
 
     public void EmitToFile(string fileName)
     {
+        LogVerbose("Verifying generated module...");
         if (!TryVerify(out var message))
         {
             throw new CompileException(null, $"Generated module failed LLVM verification: {message}");
@@ -341,6 +376,7 @@ public partial class LlvmGenerator : IDisposable
 
         EnsureTargetInfo();
 
+        LogVerbose($"Writing {(fileName.EndsWith(".bc", StringComparison.OrdinalIgnoreCase) ? "bitcode" : "textual IR")} to '{fileName}'...");
         if (fileName.EndsWith(".bc", StringComparison.OrdinalIgnoreCase))
         {
             if (_module.WriteBitcodeToFile(fileName) != 0)
@@ -367,6 +403,7 @@ public partial class LlvmGenerator : IDisposable
     {
         if (!string.IsNullOrEmpty(_module.Target))
         {
+            LogVerbose($"Target already set: triple='{_module.Target}', dataLayout='{_module.DataLayout}'.");
             return;
         }
 
@@ -443,6 +480,8 @@ public partial class LlvmGenerator : IDisposable
         {
             _module.DataLayout = dataLayout;
         }
+
+        LogVerbose($"Resolved target: triple='{triple}', dataLayout='{dataLayout}'.");
     }
 
     // Runs LLVM's module verifier without printing to stderr or aborting, for callers
@@ -474,6 +513,9 @@ public partial class LlvmGenerator : IDisposable
     {
         EnsureTargetInfo();
 
+        LogVerbose($"Running LLVM pass pipeline: \"{passes}\"...");
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
         var options = LLVM.CreatePassBuilderOptions();
         var passesPtr = (sbyte*)Marshal.StringToHGlobalAnsi(passes);
         try
@@ -492,6 +534,8 @@ public partial class LlvmGenerator : IDisposable
             Marshal.FreeHGlobal((IntPtr)passesPtr);
             LLVM.DisposePassBuilderOptions(options);
         }
+
+        LogVerbose($"Pass pipeline finished ({stopwatch.ElapsedMilliseconds}ms).");
     }
 
     private void VisitStatement(Statement stmt)
