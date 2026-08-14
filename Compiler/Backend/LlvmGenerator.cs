@@ -453,6 +453,47 @@ public partial class LlvmGenerator : IDisposable
 
     public IEnumerable<string> GetExternalLibraries() => _externalLibraries;
 
+    // Default pass pipeline for RunOptimizationPasses(): mem2reg first (this generator does
+    // not emit SSA directly - every local is a stack alloca/load/store - so nothing else in
+    // the pipeline is very effective until mem2reg promotes those to registers), then
+    // instcombine/simplifycfg/reassociate/gvn to clean up and fold what mem2reg exposes.
+    private const string DefaultOptimizationPasses = "mem2reg,instcombine,simplifycfg,reassociate,gvn";
+
+    /// <summary>
+    /// Runs an LLVM optimization pass pipeline over the module in-process (via LLVM's new
+    /// PassBuilder C API), instead of relying solely on an external `clang -O2` invocation
+    /// on the emitted IR. This matters even when the final link step uses `clang -O0` (or
+    /// doesn't use clang at all, e.g. a bare `.bc`/`.ll` handed to another toolchain) since
+    /// this generator never emits SSA directly - every local is an alloca/load/store - so
+    /// mem2reg (and everything that becomes effective only after it) would otherwise never
+    /// run. Call this before EmitToFile/EmitToString if optimized output is wanted; it is
+    /// never run implicitly, since most callers (tests, the language server) want to inspect
+    /// the raw generated IR.
+    /// </summary>
+    public unsafe void RunOptimizationPasses(string passes = DefaultOptimizationPasses)
+    {
+        EnsureTargetInfo();
+
+        var options = LLVM.CreatePassBuilderOptions();
+        var passesPtr = (sbyte*)Marshal.StringToHGlobalAnsi(passes);
+        try
+        {
+            var err = LLVM.RunPasses((LLVMOpaqueModule*)_module.Handle, passesPtr, null, options);
+            if (err != null)
+            {
+                var msgPtr = LLVM.GetErrorMessage(err);
+                string msg = Marshal.PtrToStringAnsi((IntPtr)msgPtr) ?? "unknown error";
+                LLVM.DisposeErrorMessage(msgPtr);
+                throw new InvalidOperationException($"LLVM optimization pass pipeline failed: {msg}");
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal((IntPtr)passesPtr);
+            LLVM.DisposePassBuilderOptions(options);
+        }
+    }
+
     private void VisitStatement(Statement stmt)
     {
         // Skip unreachable statements after the current basic block has been terminated.

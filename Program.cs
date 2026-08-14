@@ -195,6 +195,13 @@ public class Program
                 generator.GenerateFreestandingEntry();
             }
 
+            // Run LLVM's optimization pipeline in-process before emitting. This generator
+            // never emits SSA directly (every local is an alloca/load/store), so mem2reg
+            // (and everything that only becomes effective after it) matters regardless of
+            // whether the subsequent clang invocation below also optimizes - it's the only
+            // optimization that happens at all for outputs that skip clang entirely.
+            generator.RunOptimizationPasses();
+
             generator.EmitToFile(bcPath);
             Console.WriteLine($"Bitcode written to {bcPath}");
 

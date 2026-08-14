@@ -8,6 +8,7 @@
         <GenerateProgramFile>false</GenerateProgramFile>
         <PublishAot>false</PublishAot>
         <ApplicationIcon>icons\icon.ico</ApplicationIcon>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
