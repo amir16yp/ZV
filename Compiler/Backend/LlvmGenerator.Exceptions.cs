@@ -9,22 +9,43 @@ namespace ZV.Compiler.Backend;
 
 public partial class LlvmGenerator
 {
-    // Exception is a struct { i8* message }
+    // Exception is a struct { i8* message, i32 type_id }. type_id is a compile-time-assigned
+    // numeric id for the exception's declared type name (see GetExceptionTypeId), used by
+    // VisitTryCatch to dispatch to the matching catch clause with a single `switch`
+    // instruction instead of a cascade of runtime strncmp calls against the message text.
     private LLVMTypeRef GetExceptionType()
     {
         if (_exceptionType.HasValue)
             return _exceptionType.Value;
 
         var excType = _context.CreateNamedStruct("Exception");
-        excType.StructSetBody(new[] { GetPointerType(GetInt8Type()) }, false);
+        excType.StructSetBody(new[] { GetPointerType(GetInt8Type()), GetInt32Type() }, false);
         _exceptionType = excType;
 
         // Register it as a known struct so field access works
         _structTypes["Exception"] = excType;
-        RegisterStructFields("Exception", new List<string> { "message" });
-        _structFieldTypes["Exception"] = new List<LLVMTypeRef> { GetPointerType(GetInt8Type()) };
+        RegisterStructFields("Exception", new List<string> { "message", "type_id" });
+        _structFieldTypes["Exception"] = new List<LLVMTypeRef> { GetPointerType(GetInt8Type()), GetInt32Type() };
 
         return excType;
+    }
+
+    // Assigns a stable (for the lifetime of this compiler instance/module) numeric id to
+    // each declared exception type name, lazily on first use. Id 0 is reserved for the
+    // catch-all "Exception" type and for exception values with no statically-known declared
+    // type (e.g. `throw "some raw string";`), so a specific `catch (Foo e)` never matches
+    // those by id - it only matches exceptions constructed via `Foo(...)`/`throw Foo;`.
+    private readonly Dictionary<string, int> _exceptionTypeIds = new();
+
+    private int GetExceptionTypeId(string? typeName)
+    {
+        if (typeName == null || typeName == "Exception") return 0;
+        if (!_exceptionTypeIds.TryGetValue(typeName, out var id))
+        {
+            id = _exceptionTypeIds.Count + 1;
+            _exceptionTypeIds[typeName] = id;
+        }
+        return id;
     }
 
     private void EnsureExceptionGlobals()
@@ -37,6 +58,12 @@ public partial class LlvmGenerator
         _globalExceptionMsg.Initializer = LLVMValueRef.CreateConstNull(GetPointerType(GetInt8Type()));
         _globalExceptionMsg.Linkage = LLVMLinkage.LLVMInternalLinkage;
         MakeThreadLocalIfSupported(_globalExceptionMsg);
+
+        // Global: i32 __zv_exception_type_id (holds the type id of the current exception)
+        _globalExceptionTypeId = _module.AddGlobal(GetInt32Type(), "__zv_exception_type_id");
+        _globalExceptionTypeId.Initializer = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
+        _globalExceptionTypeId.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        MakeThreadLocalIfSupported(_globalExceptionTypeId);
 
         // Global: i1 __zv_exception_active (whether an exception is in-flight)
         _globalExceptionActive = _module.AddGlobal(GetInt1Type(), "__zv_exception_active");
@@ -200,15 +227,19 @@ public partial class LlvmGenerator
             _builder.BuildBr(mergeBB);
         }
 
-        // Dispatch: restore the previous jmp_buf, then test the runtime exception's type
-        // name (the "TypeName: ..." message prefix convention) against each catch clause
-        // in source order, running the first one that matches.
+        // Dispatch: restore the previous jmp_buf, then switch on the exception's numeric
+        // type id (see GetExceptionTypeId) to jump directly to the matching catch clause.
+        // This replaces a cascade of per-clause runtime strncmp calls against the message
+        // text with a single `switch` instruction - O(1) instead of O(clauses), and much
+        // smaller/faster generated code.
         _builder.PositionAtEnd(dispatchBB);
         _builder.BuildStore(prevJmpBuf, globalJmpBuf);
         var msgVal = _builder.BuildLoad2(GetPointerType(GetInt8Type()), _globalExceptionMsg, "exc_msg");
+        var typeIdVal = _builder.BuildLoad2(GetInt32Type(), _globalExceptionTypeId, "exc_type_id");
 
-        var currentCheckBB = dispatchBB;
-        bool endedInCatchAll = false;
+        CatchClause? catchAllClause = null;
+        var typedCases = new List<(CatchClause Clause, LLVMBasicBlockRef BodyBB)>();
+        LLVMBasicBlockRef? catchAllBodyBB = null;
 
         for (int i = 0; i < stmt.CatchClauses.Count; i++)
         {
@@ -221,28 +252,40 @@ public partial class LlvmGenerator
                     $"Unknown exception type '{clause.ExceptionTypeName}' in catch clause. Declare it first with 'exception {clause.ExceptionTypeName};'.");
             }
 
-            _builder.PositionAtEnd(currentCheckBB);
             var catchBodyBB = _context.AppendBasicBlock(function, $"catch_body_{i}");
-
             if (isCatchAll)
             {
-                _builder.BuildBr(catchBodyBB);
-                EmitCatchClauseBody(clause, catchBodyBB, mergeBB, msgVal);
-                endedInCatchAll = true;
-                break;
+                catchAllClause = clause;
+                catchAllBodyBB = catchBodyBB;
+                break; // Catch-all must be the last clause (enforced by the parser).
             }
 
-            var nextCheckBB = _context.AppendBasicBlock(function, $"catch_check_{i + 1}");
-            EmitExceptionTypeCheck(msgVal, clause.ExceptionTypeName!, catchBodyBB, nextCheckBB);
-            EmitCatchClauseBody(clause, catchBodyBB, mergeBB, msgVal);
-            currentCheckBB = nextCheckBB;
+            typedCases.Add((clause, catchBodyBB));
         }
 
-        // No clause matched: propagate the exception to the enclosing handler (or abort if
-        // there is none), exactly like an uncaught throw would.
-        if (!endedInCatchAll)
+        // No catch-all: unmatched types fall through to a block that propagates the
+        // exception to the enclosing handler (or aborts if there is none).
+        var noMatchBB = catchAllBodyBB ?? _context.AppendBasicBlock(function, "catch_no_match");
+
+        var switchInst = _builder.BuildSwitch(typeIdVal, noMatchBB, (uint)typedCases.Count);
+        foreach (var (clause, bodyBB) in typedCases)
         {
-            _builder.PositionAtEnd(currentCheckBB);
+            var caseId = LLVMValueRef.CreateConstInt(GetInt32Type(), (ulong)GetExceptionTypeId(clause.ExceptionTypeName));
+            switchInst.AddCase(caseId, bodyBB);
+        }
+
+        foreach (var (clause, bodyBB) in typedCases)
+        {
+            EmitCatchClauseBody(clause, bodyBB, mergeBB, msgVal, typeIdVal);
+        }
+
+        if (catchAllClause != null)
+        {
+            EmitCatchClauseBody(catchAllClause, catchAllBodyBB!.Value, mergeBB, msgVal, typeIdVal);
+        }
+        else
+        {
+            _builder.PositionAtEnd(noMatchBB);
             EmitAbortOrLongjmp(msgVal, prevJmpBuf);
         }
 
@@ -250,25 +293,9 @@ public partial class LlvmGenerator
         _builder.PositionAtEnd(mergeBB);
     }
 
-    // Emits a runtime check for whether `msgVal` (the exception message) starts with the
-    // "typeName: " prefix, branching to `matchBB` if so and `noMatchBB` otherwise. This is
-    // how catch clauses filter by exception type: every runtime exception - built-in or
-    // user-thrown - is a message string that follows the "TypeName: description" convention.
-    private void EmitExceptionTypeCheck(LLVMValueRef msgVal, string typeName, LLVMBasicBlockRef matchBB, LLVMBasicBlockRef noMatchBB)
-    {
-        string prefix = typeName + ": ";
-        var prefixPtr = GetOrCreateGlobalStringPtr(prefix, "catch_type_prefix");
-        var strncmpFunc = GetOrAddFunction("strncmp", GetInt32Type(),
-            new[] { GetPointerType(GetInt8Type()), GetPointerType(GetInt8Type()), GetInt64Type() });
-        var cmpResult = _builder.BuildCall2(_functionTypes["strncmp"], strncmpFunc,
-            new[] { msgVal, prefixPtr, LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)prefix.Length, false) }, "type_cmp");
-        var matches = _builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, cmpResult, LLVMValueRef.CreateConstInt(GetInt32Type(), 0), "type_match");
-        _builder.BuildCondBr(matches, matchBB, noMatchBB);
-    }
-
     // Populates the exception variable and runs one catch clause's body in `catchBodyBB`,
     // branching to `mergeBB` afterwards (unless the body already terminates, e.g. via return).
-    private void EmitCatchClauseBody(CatchClause clause, LLVMBasicBlockRef catchBodyBB, LLVMBasicBlockRef mergeBB, LLVMValueRef msgVal)
+    private void EmitCatchClauseBody(CatchClause clause, LLVMBasicBlockRef catchBodyBB, LLVMBasicBlockRef mergeBB, LLVMValueRef msgVal, LLVMValueRef typeIdVal)
     {
         _builder.PositionAtEnd(catchBodyBB);
 
@@ -276,6 +303,8 @@ public partial class LlvmGenerator
         var excAlloca = BuildEntryAlloca(excType, clause.ExceptionName.Lexeme);
         var msgFieldPtr = _builder.BuildStructGEP2(excType, excAlloca, 0, "exc_msg_field");
         _builder.BuildStore(msgVal, msgFieldPtr);
+        var typeIdFieldPtr = _builder.BuildStructGEP2(excType, excAlloca, 1, "exc_type_id_field");
+        _builder.BuildStore(typeIdVal, typeIdFieldPtr);
         _namedValues[clause.ExceptionName.Lexeme] = (excAlloca, excType, "Exception");
 
         // Clear the exception active flag
@@ -305,56 +334,64 @@ public partial class LlvmGenerator
             exceptionValue = VisitExpression(stmt.Value);
         }
         
-        // Extract message from the exception struct and store in global
+        // Extract message (and, for an Exception struct, its declared type id) and store in
+        // the exception globals. Values not statically known to be a specific declared
+        // exception type (raw strings/pointers) get type id 0 (see GetExceptionTypeId), so
+        // they never spuriously match a specific `catch (Foo e)` by id.
         LLVMValueRef msgPtr;
+        LLVMValueRef typeIdVal;
         if (IsStringStructType(exceptionValue.TypeOf))
         {
             // STRING values carry a NUL-terminated data pointer; use it as the message.
             msgPtr = _builder.BuildExtractValue(exceptionValue, 0, "throw_msg");
+            typeIdVal = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
         }
         else if (exceptionValue.TypeOf.Kind == LLVMTypeKind.LLVMStructTypeKind)
         {
-            // It's an Exception struct, extract the message field
+            // It's an Exception struct, extract the message and type id fields
             msgPtr = _builder.BuildExtractValue(exceptionValue, 0, "throw_msg");
+            typeIdVal = _builder.BuildExtractValue(exceptionValue, 1, "throw_type_id");
         }
         else if (exceptionValue.TypeOf.Kind == LLVMTypeKind.LLVMPointerTypeKind)
         {
             // It's a CSTRING / raw pointer directly
             msgPtr = exceptionValue;
+            typeIdVal = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
         }
         else
         {
             // Create a generic message
             msgPtr = GetOrCreateGlobalStringPtr("unknown exception", "unknown_exc_msg");
+            typeIdVal = LLVMValueRef.CreateConstInt(GetInt32Type(), 0);
         }
 
-        EmitUnconditionalThrow(msgPtr);
+        EmitUnconditionalThrow(msgPtr, typeIdVal);
     }
 
     // Explicit `throw` statement (as opposed to a runtime check's EmitCondThrow): always
     // throws, so it delegates to the shared __zv_throw_uncond runtime function rather than
     // inlining the dispatch control flow at every throw site, then marks the current block
     // unreachable (the call never actually returns - it either longjmps or aborts).
-    private void EmitUnconditionalThrow(LLVMValueRef msgPtr)
+    private void EmitUnconditionalThrow(LLVMValueRef msgPtr, LLVMValueRef typeIdVal)
     {
         EnsureExceptionGlobals();
         var throwUncond = GetOrCreateZvThrowUncondFunction();
-        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msgPtr }, "");
+        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msgPtr, typeIdVal }, "");
         _builder.BuildUnreachable();
     }
 
-    // Generates (once per module) a shared `void __zv_throw_uncond(i8* msg)` function that
-    // performs the full exception dispatch (store message, pop cleanup stack, longjmp/abort).
-    // Every unconditional `throw` statement calls this instead of inlining the dispatch's
-    // several basic blocks at each throw site, which previously duplicated that control flow
-    // (and every check inside it) once per call site.
+    // Generates (once per module) a shared `void __zv_throw_uncond(i8* msg, i32 type_id)`
+    // function that performs the full exception dispatch (store message/type id, pop
+    // cleanup stack, longjmp/abort). Every unconditional `throw` statement calls this
+    // instead of inlining the dispatch's several basic blocks at each throw site, which
+    // previously duplicated that control flow (and every check inside it) once per call site.
     private LLVMValueRef GetOrCreateZvThrowUncondFunction()
     {
         const string name = "__zv_throw_uncond";
         var existing = _module.GetNamedFunction(name);
         if (existing.Handle != IntPtr.Zero) return existing;
 
-        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetPointerType(GetInt8Type()) });
+        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetPointerType(GetInt8Type()), GetInt32Type() });
         var func = _module.AddFunction(name, funcType);
         func.Linkage = LLVMLinkage.LLVMInternalLinkage;
         _functionTypes[name] = funcType;
@@ -365,7 +402,7 @@ public partial class LlvmGenerator
 
         // EmitExceptionDispatch always terminates every path it creates (longjmp/abort both
         // end in `unreachable`), so no explicit return is needed here.
-        EmitExceptionDispatch(func.GetParam(0));
+        EmitExceptionDispatch(func.GetParam(0), func.GetParam(1));
 
         if (savedBlock.Handle != IntPtr.Zero)
         {
@@ -374,10 +411,11 @@ public partial class LlvmGenerator
         return func;
     }
 
-    // Generates (once per module) a shared `void __zv_throw_cond(i1 cond, i8* msg)` function
-    // that throws (via __zv_throw_uncond) only if `cond` is true, otherwise returns. Every
-    // runtime bounds/null/failure check calls this instead of inlining its own branch +
-    // full dispatch control flow at each check site (see EmitCondThrow).
+    // Generates (once per module) a shared `void __zv_throw_cond(i1 cond, i8* msg, i32
+    // type_id)` function that throws (via __zv_throw_uncond) only if `cond` is true,
+    // otherwise returns. Every runtime bounds/null/failure check calls this instead of
+    // inlining its own branch + full dispatch control flow at each check site (see
+    // EmitCondThrow).
     private LLVMValueRef GetOrCreateZvThrowCondFunction()
     {
         const string name = "__zv_throw_cond";
@@ -386,7 +424,7 @@ public partial class LlvmGenerator
 
         var throwUncond = GetOrCreateZvThrowUncondFunction();
 
-        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetInt1Type(), GetPointerType(GetInt8Type()) });
+        var funcType = LLVMTypeRef.CreateFunction(GetVoidType(), new[] { GetInt1Type(), GetPointerType(GetInt8Type()), GetInt32Type() });
         var func = _module.AddFunction(name, funcType);
         func.Linkage = LLVMLinkage.LLVMInternalLinkage;
         _functionTypes[name] = funcType;
@@ -397,13 +435,14 @@ public partial class LlvmGenerator
 
         var cond = func.GetParam(0);
         var msg = func.GetParam(1);
+        var typeId = func.GetParam(2);
 
         var throwBB = _context.AppendBasicBlock(func, "throw_exc");
         var contBB = _context.AppendBasicBlock(func, "no_exc");
         _builder.BuildCondBr(cond, throwBB, contBB);
 
         _builder.PositionAtEnd(throwBB);
-        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msg }, "");
+        _builder.BuildCall2(_functionTypes["__zv_throw_uncond"], throwUncond, new[] { msg, typeId }, "");
         _builder.BuildUnreachable();
 
         _builder.PositionAtEnd(contBB);
@@ -416,13 +455,15 @@ public partial class LlvmGenerator
         return func;
     }
 
-    // Common exception dispatch: store the exception message, pop the cleanup stack to the
-    // top saved by the active try block, then either longjmp to the handler or abort.
-    private void EmitExceptionDispatch(LLVMValueRef msgPtr)
+    // Common exception dispatch: store the exception message and type id, pop the cleanup
+    // stack to the top saved by the active try block, then either longjmp to the handler or
+    // abort.
+    private void EmitExceptionDispatch(LLVMValueRef msgPtr, LLVMValueRef typeIdVal)
     {
         EnsureExceptionGlobals();
 
         _builder.BuildStore(msgPtr, _globalExceptionMsg);
+        _builder.BuildStore(typeIdVal, _globalExceptionTypeId);
         _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt1Type(), 1), _globalExceptionActive);
 
         var globalJmpBuf = GetGlobalJmpBufPtr();

@@ -251,9 +251,12 @@ public partial class LlvmGenerator
         var dataB = _builder.BuildExtractValue(b, 0, "concat_data_b");
         var lenB = _builder.BuildExtractValue(b, 1, "concat_len_b");
         var totalLen = _builder.BuildAdd(lenA, lenB, "concat_total_len");
+        // Over-allocate by one byte and NUL-terminate below so the resulting buffer can be
+        // used directly as a CSTRING (e.g. by cstr()) without another malloc+copy.
+        var bufSize = _builder.BuildAdd(totalLen, LLVMValueRef.CreateConstInt(GetInt64Type(), 1), "concat_buf_size");
 
         var malloc = GetOrAddFunction("malloc", GetPointerType(GetInt8Type()), new[] { GetInt64Type() });
-        var buffer = _builder.BuildCall2(_functionTypes["malloc"], malloc, new[] { totalLen }, "concat_buf");
+        var buffer = _builder.BuildCall2(_functionTypes["malloc"], malloc, new[] { bufSize }, "concat_buf");
         EmitNullCheckOrThrow(buffer, "OutOfMemoryException: memory allocation failed");
 
         var memcpy = GetOrAddFunction("memcpy", GetPointerType(GetInt8Type()), new[] { GetPointerType(GetInt8Type()), GetPointerType(GetInt8Type()), GetInt64Type() });
@@ -261,6 +264,9 @@ public partial class LlvmGenerator
 
         var destB = _builder.BuildGEP2(GetInt8Type(), buffer, new[] { lenA }, "concat_dest_b");
         _builder.BuildCall2(_functionTypes["memcpy"], memcpy, new[] { destB, dataB, lenB }, "concat_copy_b");
+
+        var nulPtr = _builder.BuildGEP2(GetInt8Type(), buffer, new[] { totalLen }, "concat_nul_ptr");
+        _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt8Type(), 0), nulPtr);
 
         var baseVal = LLVMValueRef.CreateConstNull(strType);
         var withData = _builder.BuildInsertValue(baseVal, buffer, 0, "concat_str_data");

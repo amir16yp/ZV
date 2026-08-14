@@ -195,6 +195,7 @@ public partial class LlvmGenerator : IDisposable
     // Exception handling runtime state
     private LLVMTypeRef? _exceptionType;
     private LLVMValueRef _globalExceptionMsg;
+    private LLVMValueRef _globalExceptionTypeId;
     private LLVMValueRef _globalExceptionActive;
     private bool _exceptionGlobalsInitialized;
 

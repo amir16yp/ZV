@@ -1963,7 +1963,9 @@ VOID test() {
     }
 }";
         string ir = Generate(source);
-        Assert.Contains("strncmp", ir);
+        // Catch dispatch filters by a compile-time-assigned numeric type id via a `switch`
+        // instruction, not by a runtime strncmp against the message text.
+        Assert.Contains("switch", ir);
         Assert.Contains("MyError: ", ir);
         GenerateAndVerify(source);
     }

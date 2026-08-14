@@ -351,6 +351,12 @@ public partial class LlvmGenerator
         if (arguments.Count != 1)
             throw new Exception("cstr() expects exactly 1 argument.");
 
+        // Note: cstr() always returns a fresh heap allocation for a STRING argument (never
+        // the source's own buffer), even for a STRING literal whose bytes already live in a
+        // NUL-terminated global constant - callers (e.g. `CSTRING s = cstr("literal");`)
+        // uniformly treat the result as an owned, freeable buffer and generate a matching
+        // destructor/free at scope exit, so handing out the global pointer directly would
+        // cause a free() on non-heap memory.
         var arg = VisitExpression(arguments[0]);
         if (IsStringStructType(arg.TypeOf))
         {
@@ -668,6 +674,9 @@ public partial class LlvmGenerator
     /// Delegates to the shared __zv_throw_cond runtime function (see
     /// GetOrCreateZvThrowCondFunction) instead of inlining the full dispatch control flow
     /// (branch + cleanup + longjmp/abort, several basic blocks) at every check site.
+    /// `message` is always a compile-time literal following the "TypeName: description"
+    /// convention (every call site in this compiler follows it), so the exception's type id
+    /// for catch dispatch (see GetExceptionTypeId) can be resolved at compile time too.
     /// </summary>
     private void EmitCondThrow(LLVMValueRef condition, string message)
     {
@@ -675,7 +684,10 @@ public partial class LlvmGenerator
 
         var throwCond = GetOrCreateZvThrowCondFunction();
         var msgPtr = GetOrCreateGlobalStringPtr(message, "exc_msg");
-        _builder.BuildCall2(_functionTypes["__zv_throw_cond"], throwCond, new[] { condition, msgPtr }, "");
+        int colonIndex = message.IndexOf(": ", StringComparison.Ordinal);
+        string? typeName = colonIndex >= 0 ? message[..colonIndex] : null;
+        var typeIdVal = LLVMValueRef.CreateConstInt(GetInt32Type(), (ulong)GetExceptionTypeId(typeName));
+        _builder.BuildCall2(_functionTypes["__zv_throw_cond"], throwCond, new[] { condition, msgPtr, typeIdVal }, "");
     }
 
     private LLVMValueRef GenerateGetTimestampCall(List<Expression> arguments)
@@ -770,12 +782,14 @@ public partial class LlvmGenerator
             msgPtr = BuildExceptionPrefixedMessage(typeName, msgPtr);
         }
 
-        // Build an Exception struct { i8* message }
+        // Build an Exception struct { i8* message, i32 type_id }
         var excType = GetExceptionType();
         var alloca = BuildEntryAlloca(excType, "exc_init");
         var msgFieldPtr = _builder.BuildStructGEP2(excType, alloca, 0, "exc_msg");
         _builder.BuildStore(msgPtr, msgFieldPtr);
-        
+        var typeIdFieldPtr = _builder.BuildStructGEP2(excType, alloca, 1, "exc_type_id");
+        _builder.BuildStore(LLVMValueRef.CreateConstInt(GetInt32Type(), (ulong)GetExceptionTypeId(typeName)), typeIdFieldPtr);
+
         return _builder.BuildLoad2(excType, alloca, "exc_val");
     }
 
