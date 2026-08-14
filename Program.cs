@@ -35,7 +35,7 @@ public class Program
         }
 
         string inputPath = args[0];
-        string outputPath = null;
+        string? outputPath = null;
         string targetMode = "exe";
         bool runAfterBuild = false;
         List<string> libSearchDirs = new List<string>();
@@ -127,7 +127,8 @@ public class Program
             }
         }
 
-        string llPath = (isExecutable || isLibraryTarget) ? Path.ChangeExtension(outputPath ?? inputPath, ".ll") : (outputPath ?? inputPath + ".ll");
+        string outputFile = !string.IsNullOrEmpty(outputPath) ? outputPath : inputPath;
+        string bcPath = (isExecutable || isLibraryTarget) ? Path.ChangeExtension(outputFile, ".bc") : (outputFile + ".bc");
 
         List<string> filesToProcess = new List<string>();
         if (File.Exists(inputPath))
@@ -194,23 +195,23 @@ public class Program
                 generator.GenerateFreestandingEntry();
             }
 
-            generator.EmitToFile(llPath);
-            Console.WriteLine($"LLVM IR written to {llPath}");
+            generator.EmitToFile(bcPath);
+            Console.WriteLine($"Bitcode written to {bcPath}");
 
             if (isFreestandingOsX86)
             {
-                if (CompileToOsX86Kernel(llPath, outputPath) && runAfterBuild)
+                if (CompileToOsX86Kernel(bcPath, outputFile) && runAfterBuild)
                 {
-                    LaunchQemuForDebugging(outputPath);
+                    LaunchQemuForDebugging(outputFile);
                 }
             }
             else if (isLibraryTarget)
             {
-                CompileWithClang(llPath, outputPath, generator.GetExternalLibraries(), libSearchDirs, shared: true);
+                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true);
             }
             else if (isExecutable)
             {
-                CompileWithClang(llPath, outputPath, generator.GetExternalLibraries(), libSearchDirs);
+                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs);
             }
             else
             {
@@ -412,7 +413,8 @@ public class Program
             string searchDirs = string.Join(" ", searchDirArgs);
             string directLibs = string.Join(" ", directLibArgs);
             string sharedFlags = shared ? (OperatingSystem.IsWindows() ? "-shared" : "-shared -fPIC") : "";
-            string clangArguments = $"\"{inputLl}\" -o \"{outputExe}\" {sharedFlags} {searchDirs} {libs} {directLibs}".Trim();
+            string optFlags = "-O2";
+            string clangArguments = $"\"{inputLl}\" {optFlags} -o \"{outputExe}\" {sharedFlags} {searchDirs} {libs} {directLibs}".Trim();
 
             Console.WriteLine($"Running: clang {clangArguments}");
 
@@ -624,7 +626,7 @@ SECTIONS
             File.WriteAllText(linkerScriptPath, OsX86LinkerScript);
 
             // Compile the LLVM IR to a 32-bit freestanding ELF object. No CRT, no libc.
-            string compileArgs = $"-target i686-unknown-none-elf -ffreestanding -fno-stack-protector " +
+            string compileArgs = $"-target i686-unknown-none-elf -O2 -ffreestanding -fno-stack-protector " +
                                   $"-fno-pic -fno-pie -fno-asynchronous-unwind-tables -m32 -c \"{inputLl}\" -o \"{objPath}\"";
 
             if (!RunProcess("clang", compileArgs, out string compileError))

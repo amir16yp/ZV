@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
@@ -270,11 +271,116 @@ public partial class LlvmGenerator : IDisposable
 
     public void EmitToFile(string fileName)
     {
-        _module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
-        _module.PrintToFile(fileName);
+        if (!TryVerify(out var message))
+        {
+            throw new CompileException(null, $"Generated module failed LLVM verification: {message}");
+        }
+
+        EnsureTargetInfo();
+
+        if (fileName.EndsWith(".bc", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_module.WriteBitcodeToFile(fileName) != 0)
+            {
+                throw new InvalidOperationException($"Failed to write bitcode to '{fileName}'.");
+            }
+        }
+        else
+        {
+            _module.PrintToFile(fileName);
+        }
     }
 
-    public string EmitToString() => _module.PrintToString();
+    public string EmitToString()
+    {
+        EnsureTargetInfo();
+        return _module.PrintToString();
+    }
+
+    // Sets a reasonable target triple and data layout for the module. This is deferred until
+    // emission so that callers (Program.cs, tests, the language server) can set target flags
+    // after constructing the generator.
+    private void EnsureTargetInfo()
+    {
+        if (!string.IsNullOrEmpty(_module.Target))
+        {
+            return;
+        }
+
+        string? triple;
+        string? dataLayout;
+
+        if (IsFreestandingTarget)
+        {
+            triple = "i686-unknown-none-elf";
+            dataLayout = "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128";
+        }
+        else
+        {
+            var arch = RuntimeInformation.ProcessArchitecture;
+
+            if (OperatingSystem.IsWindows())
+            {
+                triple = arch switch
+                {
+                    Architecture.X64 => "x86_64-pc-windows-msvc",
+                    Architecture.Arm64 => "aarch64-pc-windows-msvc",
+                    _ => "x86_64-pc-windows-msvc"
+                };
+                dataLayout = arch switch
+                {
+                    Architecture.X64 => "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+                    Architecture.Arm64 => "e-m:w-p270:32:32-p271:32:32-p272:64:64-p:64:64-i32:32-i64:64-i128:128-n32:64-S128-Fn32",
+                    _ => null
+                };
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                triple = arch switch
+                {
+                    Architecture.X64 => "x86_64-pc-linux-gnu",
+                    Architecture.Arm64 => "aarch64-pc-linux-gnu",
+                    _ => "x86_64-pc-linux-gnu"
+                };
+                dataLayout = arch switch
+                {
+                    Architecture.X64 => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+                    Architecture.Arm64 => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
+                    _ => null
+                };
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                triple = arch switch
+                {
+                    Architecture.X64 => "x86_64-apple-darwin",
+                    Architecture.Arm64 => "arm64-apple-darwin",
+                    _ => "x86_64-apple-darwin"
+                };
+                dataLayout = arch switch
+                {
+                    Architecture.X64 => "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+                    Architecture.Arm64 => "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
+                    _ => null
+                };
+            }
+            else
+            {
+                triple = null;
+                dataLayout = null;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(triple))
+        {
+            _module.Target = triple;
+        }
+
+        if (!string.IsNullOrEmpty(dataLayout))
+        {
+            _module.DataLayout = dataLayout;
+        }
+    }
 
     // Runs LLVM's module verifier without printing to stderr or aborting, for callers
     // (tests) that want to assert on validity directly rather than just inspecting the
