@@ -371,7 +371,17 @@ public partial class LlvmGenerator : IDisposable
         LogVerbose("Verifying generated module...");
         if (!TryVerify(out var message))
         {
-            throw new CompileException(null, $"Generated module failed LLVM verification: {message}");
+            string dumpPath = Path.ChangeExtension(fileName, ".invalid.ll");
+            try
+            {
+                EnsureTargetInfo();
+                _module.PrintToFile(dumpPath);
+            }
+            catch
+            {
+                // Best-effort dump; ignore failures here.
+            }
+            throw new CompileException(null, $"Generated module failed LLVM verification: {message} (dumped to {dumpPath})");
         }
 
         EnsureTargetInfo();

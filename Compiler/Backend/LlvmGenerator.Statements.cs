@@ -450,9 +450,10 @@ public partial class LlvmGenerator
         }
 
 
-        // Detect whether we're inside a function (builder has an insertion block)
-        var insertBlock = _builder.InsertBlock;
-        if (insertBlock.Handle == IntPtr.Zero)
+        // Detect whether we're at module scope. Use the explicit function-body flag; the
+        // builder's insertion block can linger in the last function after VisitFunctionDecl
+        // returns, which previously caused module-scope variables to be emitted as locals.
+        if (!_inFunctionBody)
         {
             // Module-scope variable: emit as a global instead of a stack allocation
             var global = _module.AddGlobal(type, stmt.Name.Lexeme);
@@ -574,8 +575,7 @@ public partial class LlvmGenerator
             CheckFixedArrayInitShape(arrayType, arrayInit, stmt.Location);
         }
 
-        var insertBlock = _builder.InsertBlock;
-        if (insertBlock.Handle == IntPtr.Zero)
+        if (!_inFunctionBody)
         {
             // Module-scope fixed-size array: emit as a global.
             var global = _module.AddGlobal(arrayType, stmt.Name.Lexeme);
