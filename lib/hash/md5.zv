@@ -1,0 +1,179 @@
+// md5.zv
+//
+// RFC 1321 MD5 message-digest algorithm. Writes a 16-byte (128-bit) digest into
+// the caller-supplied output buffer.
+//
+// Usage:
+//   #include "lib/hash/md5.zv"
+//   UINT8[16] digest;
+//   md5_cstring("abc", digest as PTR<UINT8>);
+
+UINT32[64] __md5_K = [
+    0xD76AA478, 0xE8C7B756, 0x242070DB, 0xC1BDCEEE,
+    0xF57C0FAF, 0x4787C62A, 0xA8304613, 0xFD469501,
+    0x698098D8, 0x8B44F7AF, 0xFFFF5BB1, 0x895CD7BE,
+    0x6B901122, 0xFD987193, 0xA679438E, 0x49B40821,
+    0xF61E2562, 0xC040B340, 0x265E5A51, 0xE9B6C7AA,
+    0xD62F105D, 0x02441453, 0xD8A1E681, 0xE7D3FBC8,
+    0x21E1CDE6, 0xC33707D6, 0xF4D50D87, 0x455A14ED,
+    0xA9E3E905, 0xFCEFA3F8, 0x676F02D9, 0x8D2A4C8A,
+    0xFFFA3942, 0x8771F681, 0x6D9D6122, 0xFDE5380C,
+    0xA4BEEA44, 0x4BDECFA9, 0xF6BB4B60, 0xBEBFBC70,
+    0x289B7EC6, 0xEAA127FA, 0xD4EF3085, 0x04881D05,
+    0xD9D4D039, 0xE6DB99E5, 0x1FA27CF8, 0xC4AC5665,
+    0xF4292244, 0x432AFF97, 0xAB9423A7, 0xFC93A039,
+    0x655B59C3, 0x8F0CCC92, 0xFFEFF47D, 0x85845DD1,
+    0x6FA87E4F, 0xFE2CE6E0, 0xA3014314, 0x4E0811A1,
+    0xF7537E82, 0xBD3AF235, 0x2AD7D2BB, 0xEB86D391
+];
+
+UINT32[64] __md5_S = [
+    7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
+    5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
+    4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
+    6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
+];
+
+UINT32 __md5_leftrotate(UINT32 x, UINT32 n) {
+    return (x << n) | (x >> (32 - n));
+}
+
+UINT32 __md5_read_le32(PTR<UINT8> p, INT64 off) {
+    unsafe {
+        // Load into typed UINT8 locals first so the subsequent cast to UINT32
+        // is known to be from an unsigned type and zero-extends. Reading a
+        // pointer element directly and casting can sign-extend bytes >= 0x80.
+        UINT8 b0 = p[off];
+        UINT8 b1 = p[off + 1];
+        UINT8 b2 = p[off + 2];
+        UINT8 b3 = p[off + 3];
+        return b0 as UINT32
+             | ((b1 as UINT32) << 8)
+             | ((b2 as UINT32) << 16)
+             | ((b3 as UINT32) << 24);
+    }
+}
+
+VOID __md5_write_le32(PTR<UINT8> p, INT64 off, UINT32 v) {
+    unsafe {
+        p[off + 0] = v as UINT8;
+        p[off + 1] = (v >> 8) as UINT8;
+        p[off + 2] = (v >> 16) as UINT8;
+        p[off + 3] = (v >> 24) as UINT8;
+    }
+}
+
+VOID md5(PTR<UINT8> data, INT64 len, PTR<UINT8> out) {
+    INT64 pad_zeros = (55 - (len % 64) + 64) % 64;
+    INT64 total = len + 1 + pad_zeros + 8;
+    PTR<UINT8> padded = alloc(total) as PTR<UINT8>;
+
+    INT64 j = 0;
+    unsafe {
+        while (j < len) {
+            padded[j] = data[j];
+            j = j + 1;
+        }
+        padded[len] = 0x80;
+        j = len + 1;
+        while (j < len + 1 + pad_zeros) {
+            padded[j] = 0;
+            j = j + 1;
+        }
+    }
+
+    UINT64 bits = (len * 8) as UINT64;
+    __md5_write_le32(padded, total - 8, bits as UINT32);
+    __md5_write_le32(padded, total - 4, (bits >> 32) as UINT32);
+
+    UINT32 a0 = 0x67452301;
+    UINT32 b0 = 0xEFCDAB89;
+    UINT32 c0 = 0x98BADCFE;
+    UINT32 d0 = 0x10325476;
+
+    UINT32[16] M;
+    INT64 chunk = 0;
+    while (chunk < total) {
+        INT32 k = 0;
+        while (k < 16) {
+            M[k] = __md5_read_le32(padded, chunk + k * 4);
+            k = k + 1;
+        }
+
+        UINT32 a = a0;
+        UINT32 b = b0;
+        UINT32 c = c0;
+        UINT32 d = d0;
+        UINT32 f;
+        UINT32 g;
+        UINT32 temp;
+
+        // Round 1
+        UINT32 i = 0;
+        while (i < 16) {
+            f = (b & c) | ((~b) & d);
+            g = i;
+            temp = d;
+            d = c;
+            c = b;
+            b = b + __md5_leftrotate(a + f + __md5_K[i] + M[g], __md5_S[i]);
+            a = temp;
+            i = i + 1;
+        }
+
+        // Round 2
+        i = 16;
+        while (i < 32) {
+            f = (b & d) | (c & (~d));
+            g = ((5 * i + 1) & 15) as UINT32;
+            temp = d;
+            d = c;
+            c = b;
+            b = b + __md5_leftrotate(a + f + __md5_K[i] + M[g], __md5_S[i]);
+            a = temp;
+            i = i + 1;
+        }
+
+        // Round 3
+        i = 32;
+        while (i < 48) {
+            f = b ^ c ^ d;
+            g = ((3 * i + 5) & 15) as UINT32;
+            temp = d;
+            d = c;
+            c = b;
+            b = b + __md5_leftrotate(a + f + __md5_K[i] + M[g], __md5_S[i]);
+            a = temp;
+            i = i + 1;
+        }
+
+        // Round 4
+        i = 48;
+        while (i < 64) {
+            f = c ^ (b | (~d));
+            g = ((7 * i) & 15) as UINT32;
+            temp = d;
+            d = c;
+            c = b;
+            b = b + __md5_leftrotate(a + f + __md5_K[i] + M[g], __md5_S[i]);
+            a = temp;
+            i = i + 1;
+        }
+
+        a0 = a0 + a;
+        b0 = b0 + b;
+        c0 = c0 + c;
+        d0 = d0 + d;
+
+        chunk = chunk + 64;
+    }
+
+    __md5_write_le32(out, 0,  a0);
+    __md5_write_le32(out, 4,  b0);
+    __md5_write_le32(out, 8,  c0);
+    __md5_write_le32(out, 12, d0);
+}
+
+VOID md5_cstring(CSTRING s, PTR<UINT8> out) {
+    md5(s as PTR<UINT8>, strlen(s), out);
+}

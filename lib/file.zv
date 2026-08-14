@@ -68,3 +68,29 @@ UINT8[] readallbytes(CSTRING path) {
 
     return buf;
 }
+
+// Raw binary file contents exposed as a pointer/length pair. This can be passed
+// directly to any hash function that takes a (PTR<UINT8>, INT64) input.
+struct FileBytes {
+    PTR<UINT8> data;
+    INT64 len;
+}
+
+// Read the whole file at path into a newly-allocated buffer.
+// The caller must free(FileBytes.data) when done.
+// Throws a FileOpenException if the file cannot be opened.
+FileBytes readfilebytes(CSTRING path) {
+    PTR<VOID> f = fopen(path, "rb");
+    fseek(f, 0, 2);
+    INT64 size = ftell(f);
+    fseek(f, 0, 0);
+
+    PTR<UINT8> buf = alloc(size) as PTR<UINT8>;
+    fread(buf, 1, size as UINT64, f);
+    fclose(f);
+
+    FileBytes result;
+    result.data = buf;
+    result.len = size;
+    return result;
+}
