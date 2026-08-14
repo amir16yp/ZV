@@ -73,9 +73,24 @@ public partial class LlvmGenerator
 
     private LLVMValueRef VisitLiteral(LiteralExpr expr)
     {
+        // Integer literals were historically always emitted as i32, which truncates
+        // 64-bit hex constants and mis-parses values above uint.MaxValue. Emit them
+        // as i64 when they don't fit in a signed 32-bit value.
+        if (expr.Type == TokenType.IntegerLiteral)
+        {
+            if (expr.Value is long longVal)
+            {
+                if (longVal < 0 || (ulong)longVal > uint.MaxValue)
+                {
+                    return LLVMValueRef.CreateConstInt(GetInt64Type(), (ulong)longVal, false);
+                }
+                return LLVMValueRef.CreateConstInt(GetInt32Type(), (ulong)longVal, false);
+            }
+            return LLVMValueRef.CreateConstInt(GetInt32Type(), ulong.Parse(expr.Value?.ToString() ?? "0"));
+        }
+
         return expr.Type switch
         {
-            TokenType.IntegerLiteral => LLVMValueRef.CreateConstInt(GetInt32Type(), ulong.Parse(expr.Value?.ToString() ?? "0")),
             TokenType.FloatLiteral => LLVMValueRef.CreateConstReal(GetDoubleType(), double.Parse(expr.Value?.ToString() ?? "0")),
             TokenType.True => LLVMValueRef.CreateConstInt(GetInt1Type(), 1),
             TokenType.False => LLVMValueRef.CreateConstInt(GetInt1Type(), 0),

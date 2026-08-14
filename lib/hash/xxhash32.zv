@@ -1,0 +1,92 @@
+// xxhash32.zv
+//
+// xxHash 32-bit. Fast non-cryptographic hash with good avalanche and
+// distribution. Useful for checksums, hash tables, and fingerprints.
+//
+// Usage:
+//   #include "lib/hash/xxhash32.zv"
+//   UINT32 h = xxhash32(data, len, seed);
+
+CONST UINT32 XXH32_P1 = 0x9E3779B1;
+CONST UINT32 XXH32_P2 = 0x85EBCA77;
+CONST UINT32 XXH32_P3 = 0xC2B2AE3D;
+CONST UINT32 XXH32_P4 = 0x27D4EB2F;
+CONST UINT32 XXH32_P5 = 0x165667B1;
+
+UINT32 __xxh32_read_le32(PTR<UINT8> p, INT64 off) {
+    unsafe {
+        return p[off] as UINT32
+             | ((p[off + 1] as UINT32) << 8)
+             | ((p[off + 2] as UINT32) << 16)
+             | ((p[off + 3] as UINT32) << 24);
+    }
+}
+
+UINT32 xxhash32(PTR<UINT8> data, INT64 len, UINT32 seed) {
+    UINT32 h32;
+    INT64 i = 0;
+
+    if (len >= 16) {
+        UINT32 v1 = seed + XXH32_P1 + XXH32_P2;
+        UINT32 v2 = seed + XXH32_P2;
+        UINT32 v3 = seed + 0;
+        UINT32 v4 = seed - XXH32_P1;
+
+        while (i + 16 <= len) {
+            v1 = v1 + __xxh32_read_le32(data, i) * XXH32_P2;
+            v1 = (v1 << 13) | (v1 >> 19);
+            v1 = v1 * XXH32_P1;
+
+            v2 = v2 + __xxh32_read_le32(data, i + 4) * XXH32_P2;
+            v2 = (v2 << 13) | (v2 >> 19);
+            v2 = v2 * XXH32_P1;
+
+            v3 = v3 + __xxh32_read_le32(data, i + 8) * XXH32_P2;
+            v3 = (v3 << 13) | (v3 >> 19);
+            v3 = v3 * XXH32_P1;
+
+            v4 = v4 + __xxh32_read_le32(data, i + 12) * XXH32_P2;
+            v4 = (v4 << 13) | (v4 >> 19);
+            v4 = v4 * XXH32_P1;
+
+            i = i + 16;
+        }
+
+        h32 = ((v1 << 1) | (v1 >> 31))
+            + ((v2 << 7) | (v2 >> 25))
+            + ((v3 << 12) | (v3 >> 20))
+            + ((v4 << 18) | (v4 >> 14));
+    } else {
+        h32 = seed + XXH32_P5;
+    }
+
+    h32 = h32 + len as UINT32;
+
+    while (i + 4 <= len) {
+        h32 = h32 + __xxh32_read_le32(data, i) * XXH32_P3;
+        h32 = (h32 << 17) | (h32 >> 15);
+        h32 = h32 * XXH32_P4;
+        i = i + 4;
+    }
+
+    unsafe {
+        while (i < len) {
+            h32 = h32 + data[i] as UINT32 * XXH32_P5;
+            h32 = (h32 << 11) | (h32 >> 21);
+            h32 = h32 * XXH32_P1;
+            i = i + 1;
+        }
+    }
+
+    h32 = h32 ^ (h32 >> 15);
+    h32 = h32 * XXH32_P2;
+    h32 = h32 ^ (h32 >> 13);
+    h32 = h32 * XXH32_P3;
+    h32 = h32 ^ (h32 >> 16);
+
+    return h32;
+}
+
+UINT32 xxhash32_cstring(CSTRING s, UINT32 seed) {
+    return xxhash32(s as PTR<UINT8>, strlen(s), seed);
+}

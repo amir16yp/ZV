@@ -1,0 +1,202 @@
+// siphash.zv
+//
+// SipHash-2-4 keyed hash. Designed to resist hash-flooding DoS attacks on
+// hash tables. The caller supplies a 16-byte key.
+//
+// Usage:
+//   #include "lib/hash/siphash.zv"
+//   UINT8[16] key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+//   UINT64 h = siphash_2_4(data, len, key);
+
+CONST UINT64 SIPHASH_IV0 = 0x736F6D6570736575;
+CONST UINT64 SIPHASH_IV1 = 0x646F72616E646F6D;
+CONST UINT64 SIPHASH_IV2 = 0x6C7967656E657261;
+CONST UINT64 SIPHASH_IV3 = 0x7465646279746573;
+
+UINT64 __siphash_read_le64(PTR<UINT8> p, INT64 off) {
+    unsafe {
+        return p[off] as UINT64
+             | ((p[off + 1] as UINT64) << 8)
+             | ((p[off + 2] as UINT64) << 16)
+             | ((p[off + 3] as UINT64) << 24)
+             | ((p[off + 4] as UINT64) << 32)
+             | ((p[off + 5] as UINT64) << 40)
+             | ((p[off + 6] as UINT64) << 48)
+             | ((p[off + 7] as UINT64) << 56);
+    }
+}
+
+UINT64 siphash_2_4(PTR<UINT8> data, INT64 len, UINT8[16] key) {
+    UINT64 k0 = __siphash_read_le64(key, 0);
+    UINT64 k1 = __siphash_read_le64(key, 8);
+
+    UINT64 v0 = SIPHASH_IV0 ^ k0;
+    UINT64 v1 = SIPHASH_IV1 ^ k1;
+    UINT64 v2 = SIPHASH_IV2 ^ k0;
+    UINT64 v3 = SIPHASH_IV3 ^ k1;
+
+    UINT64 b = len as UINT64 << 56;
+
+    INT64 i = 0;
+    INT64 nblocks = len / 8;
+    unsafe {
+        while (i < nblocks) {
+            UINT64 m = __siphash_read_le64(data, i * 8);
+            v3 = v3 ^ m;
+
+            // round 1
+            v0 = v0 + v1;
+            v1 = (v1 << 13) | (v1 >> 51);
+            v1 = v1 ^ v0;
+            v0 = (v0 << 32) | (v0 >> 32);
+            v2 = v2 + v3;
+            v3 = (v3 << 16) | (v3 >> 48);
+            v3 = v3 ^ v2;
+            v0 = v0 + v3;
+            v3 = (v3 << 21) | (v3 >> 43);
+            v3 = v3 ^ v0;
+            v2 = v2 + v1;
+            v1 = (v1 << 17) | (v1 >> 47);
+            v1 = v1 ^ v2;
+            v2 = (v2 << 32) | (v2 >> 32);
+
+            // round 2
+            v0 = v0 + v1;
+            v1 = (v1 << 13) | (v1 >> 51);
+            v1 = v1 ^ v0;
+            v0 = (v0 << 32) | (v0 >> 32);
+            v2 = v2 + v3;
+            v3 = (v3 << 16) | (v3 >> 48);
+            v3 = v3 ^ v2;
+            v0 = v0 + v3;
+            v3 = (v3 << 21) | (v3 >> 43);
+            v3 = v3 ^ v0;
+            v2 = v2 + v1;
+            v1 = (v1 << 17) | (v1 >> 47);
+            v1 = v1 ^ v2;
+            v2 = (v2 << 32) | (v2 >> 32);
+
+            v0 = v0 ^ m;
+            i = i + 1;
+        }
+    }
+
+    INT64 tail = nblocks * 8;
+    INT64 rem = len & 7;
+    unsafe {
+        if (rem >= 7) b = b | ((data[tail + 6] as UINT64) << 48);
+        if (rem >= 6) b = b | ((data[tail + 5] as UINT64) << 40);
+        if (rem >= 5) b = b | ((data[tail + 4] as UINT64) << 32);
+        if (rem >= 4) b = b | ((data[tail + 3] as UINT64) << 24);
+        if (rem >= 3) b = b | ((data[tail + 2] as UINT64) << 16);
+        if (rem >= 2) b = b | ((data[tail + 1] as UINT64) << 8);
+        if (rem >= 1) b = b | data[tail] as UINT64;
+    }
+
+    v3 = v3 ^ b;
+
+    // round 1
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    // round 2
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    v0 = v0 ^ b;
+    v2 = v2 ^ 0xFF;
+
+    // round 1
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    // round 2
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    // round 3
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    // round 4
+    v0 = v0 + v1;
+    v1 = (v1 << 13) | (v1 >> 51);
+    v1 = v1 ^ v0;
+    v0 = (v0 << 32) | (v0 >> 32);
+    v2 = v2 + v3;
+    v3 = (v3 << 16) | (v3 >> 48);
+    v3 = v3 ^ v2;
+    v0 = v0 + v3;
+    v3 = (v3 << 21) | (v3 >> 43);
+    v3 = v3 ^ v0;
+    v2 = v2 + v1;
+    v1 = (v1 << 17) | (v1 >> 47);
+    v1 = v1 ^ v2;
+    v2 = (v2 << 32) | (v2 >> 32);
+
+    return v0 ^ v1 ^ v2 ^ v3;
+}
+
+UINT64 siphash_cstring_2_4(CSTRING s, UINT8[16] key) {
+    return siphash_2_4(s as PTR<UINT8>, strlen(s), key);
+}

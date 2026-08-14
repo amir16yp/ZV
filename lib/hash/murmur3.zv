@@ -1,0 +1,65 @@
+// murmur3.zv
+//
+// MurmurHash3 32-bit. Good general-purpose non-cryptographic hash with
+// decent avalanche and distribution. Not suitable for cryptography.
+//
+// Usage:
+//   #include "lib/hash/murmur3.zv"
+//   UINT32 h = murmur3_32(data, len, seed);
+
+CONST UINT32 MURMUR3_C1 = 0xCC9E2D51;
+CONST UINT32 MURMUR3_C2 = 0x1B873593;
+
+UINT32 murmur3_32(PTR<UINT8> data, INT64 len, UINT32 seed) {
+    UINT32 h1 = seed;
+    INT64 nblocks = len / 4;
+    INT64 i = 0;
+
+    unsafe {
+        while (i < nblocks) {
+            UINT32 k1 = data[i * 4] as UINT32
+                      | ((data[i * 4 + 1] as UINT32) << 8)
+                      | ((data[i * 4 + 2] as UINT32) << 16)
+                      | ((data[i * 4 + 3] as UINT32) << 24);
+
+            k1 = k1 * MURMUR3_C1;
+            k1 = (k1 << 15) | (k1 >> 17);
+            k1 = k1 * MURMUR3_C2;
+
+            h1 = h1 ^ k1;
+            h1 = (h1 << 13) | (h1 >> 19);
+            h1 = h1 * 5 + 0xE6546B64;
+
+            i = i + 1;
+        }
+    }
+
+    INT64 tail = nblocks * 4;
+    UINT32 k1 = 0;
+    INT64 rem = len & 3;
+    unsafe {
+        if (rem >= 3) k1 = k1 ^ ((data[tail + 2] as UINT32) << 16);
+        if (rem >= 2) k1 = k1 ^ ((data[tail + 1] as UINT32) << 8);
+        if (rem >= 1) {
+            k1 = k1 ^ data[tail] as UINT32;
+            k1 = k1 * MURMUR3_C1;
+            k1 = (k1 << 15) | (k1 >> 17);
+            k1 = k1 * MURMUR3_C2;
+            h1 = h1 ^ k1;
+        }
+    }
+
+    h1 = h1 ^ len as UINT32;
+
+    h1 = h1 ^ (h1 >> 16);
+    h1 = h1 * 0x85EBCA6B;
+    h1 = h1 ^ (h1 >> 13);
+    h1 = h1 * 0xC2B2AE35;
+    h1 = h1 ^ (h1 >> 16);
+
+    return h1;
+}
+
+UINT32 murmur3_cstring_32(CSTRING s, UINT32 seed) {
+    return murmur3_32(s as PTR<UINT8>, strlen(s), seed);
+}

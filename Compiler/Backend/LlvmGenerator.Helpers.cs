@@ -78,32 +78,44 @@ public partial class LlvmGenerator
                 // UINT16; INT8/UINT8/CHAR are also promoted for ABI-safety even though %c
                 // only reads the low byte) are sign-extended to i32 here to match. There's
                 // no separate UINT16 LLVM type to zero-extend instead (see MapType), so this
-                // is sign-extension for both signed and unsigned 16-bit values, consistent
-                // with UINT32/UINT64 printing as signed elsewhere in this function.
-                if (type == GetInt1Type())
+                // is sign-extension for both signed and unsigned 16-bit values.
+                //
+                // For 32/64-bit values we pick %u/%llu for unsigned expressions so UINT32 and
+                // UINT64 print as their full unsigned value rather than as signed.
+                if (type.Kind == LLVMTypeKind.LLVMIntegerTypeKind)
                 {
-                    values.Add(_builder.BuildZExt(val, GetInt32Type(), "print_promote"));
-                    fmt += "%d";
-                }
-                else if (type == GetInt8Type())
-                {
-                    values.Add(_builder.BuildSExt(val, GetInt32Type(), "print_promote"));
-                    fmt += "%c";
-                }
-                else if (type == GetInt16Type())
-                {
-                    values.Add(_builder.BuildSExt(val, GetInt32Type(), "print_promote"));
-                    fmt += "%d";
-                }
-                else if (type == GetInt32Type())
-                {
-                    values.Add(val);
-                    fmt += "%d";
-                }
-                else if (type == GetInt64Type())
-                {
-                    values.Add(val);
-                    fmt += "%lld";
+                    int width = (int)type.IntWidth;
+                    bool unsigned = IsUnsignedExpression(arg);
+                    if (width == 1)
+                    {
+                        values.Add(_builder.BuildZExt(val, GetInt32Type(), "print_promote"));
+                        fmt += "%d";
+                    }
+                    else if (width == 8)
+                    {
+                        values.Add(_builder.BuildSExt(val, GetInt32Type(), "print_promote"));
+                        fmt += "%c";
+                    }
+                    else if (width == 16)
+                    {
+                        values.Add(_builder.BuildSExt(val, GetInt32Type(), "print_promote"));
+                        fmt += "%d";
+                    }
+                    else if (width == 32)
+                    {
+                        values.Add(val);
+                        fmt += unsigned ? "%u" : "%d";
+                    }
+                    else if (width == 64)
+                    {
+                        values.Add(val);
+                        fmt += unsigned ? "%llu" : "%lld";
+                    }
+                    else
+                    {
+                        values.Add(val);
+                        fmt += "%d";
+                    }
                 }
                 else if (type.Kind == LLVMTypeKind.LLVMFloatTypeKind)
                 {
@@ -400,6 +412,18 @@ public partial class LlvmGenerator
     {
         return type is PrimitiveTypeNode p && p.Type.Type is TokenType.UINT8 or TokenType.UINT16
             or TokenType.UINT32 or TokenType.UINT64 or TokenType.UINT128;
+    }
+
+    // Best-effort check to recover the signedness of an integer expression for printing.
+    // Falls back to signed when the expression type cannot be statically inferred.
+    private bool IsUnsignedExpression(Expression expr)
+    {
+        if (expr is LiteralExpr lit)
+        {
+            return lit.Type is TokenType.UINT8 or TokenType.UINT16 or TokenType.UINT32
+                or TokenType.UINT64 or TokenType.UINT128;
+        }
+        return IsUnsignedPrimitiveTypeNode(InferExprTypeNode(expr));
     }
 
     private static int PrimitiveIntWidth(TypeNode? type)
