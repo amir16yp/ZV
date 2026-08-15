@@ -16,6 +16,21 @@ public class Program
     // timing, in addition to the plain status lines that are always printed.
     private static bool Verbose = false;
 
+    // Optimization levels accepted by -copt, passed straight through to clang as -O<level>
+    // (see CompileWithClang). "2" is clang's own default for typical release builds.
+    private static readonly string[] ClangOptLevels = { "0", "1", "2", "3", "s", "z" };
+    private const string DefaultClangOptLevel = "2";
+
+    private static void PrintClangOptLevels()
+    {
+        Console.WriteLine("Available -copt levels (passed to clang as -O<level>):");
+        foreach (var level in ClangOptLevels)
+        {
+            string marker = level == DefaultClangOptLevel ? " (default)" : "";
+            Console.WriteLine($"  O{level}{marker}");
+        }
+    }
+
     private static void LogVerbose(string message)
     {
         if (Verbose)
@@ -28,7 +43,7 @@ public class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-v|--verbose]");
+            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]");
             Console.WriteLine("       ZV checkdeps");
             Console.WriteLine("       ZV --lsp");
             return;
@@ -51,6 +66,8 @@ public class Program
         string? outputPath = null;
         string targetMode = "exe";
         bool runAfterBuild = false;
+        bool optimize = false;
+        string clangOptLevel = DefaultClangOptLevel;
         List<string> libSearchDirs = new List<string>();
 
         for (int i = 1; i < args.Length; i++)
@@ -76,13 +93,43 @@ public class Program
             {
                 runAfterBuild = true;
             }
+            else if (args[i] == "-O" || args[i] == "--optimize")
+            {
+                // In-process LLVM optimization pipeline (mem2reg, instcombine, simplifycfg,
+                // reassociate, gvn) is opt-in: on some setups it can be slow or hang, so it
+                // shouldn't run by default.
+                optimize = true;
+            }
+            else if (args[i] == "-copt" && i + 1 < args.Length)
+            {
+                // Optimization level passed to clang's own linking/codegen pass (-O<level>).
+                // Independent of -O/--optimize above, which toggles ZV's own in-process LLVM
+                // pass pipeline.
+                string requested = args[i + 1];
+                i++;
+                if (string.Equals(requested, "list", StringComparison.OrdinalIgnoreCase))
+                {
+                    PrintClangOptLevels();
+                    return;
+                }
+
+                string normalized = requested.TrimStart('-', 'O', 'o');
+                if (!ClangOptLevels.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"Error: Unknown -copt level '{requested}'.");
+                    PrintClangOptLevels();
+                    Environment.ExitCode = 1;
+                    return;
+                }
+                clangOptLevel = normalized.ToLowerInvariant();
+            }
             else if (args[i] == "-v" || args[i] == "--verbose")
             {
                 Verbose = true;
             }
         }
 
-        LogVerbose($"input='{inputPath}', output='{outputPath ?? "(default)"}', target='{targetMode}', run={runAfterBuild}");
+        LogVerbose($"input='{inputPath}', output='{outputPath ?? "(default)"}', target='{targetMode}', run={runAfterBuild}, optimize={optimize}, clangOptLevel=O{clangOptLevel}");
 
         // Always include the input directory in the library search path so local
         // DLLs/.lib files next to the source can be linked without extra -L flags.
@@ -240,11 +287,19 @@ public class Program
             // never emits SSA directly (every local is an alloca/load/store), so mem2reg
             // (and everything that only becomes effective after it) matters regardless of
             // whether the subsequent clang invocation below also optimizes - it's the only
-            // optimization that happens at all for outputs that skip clang entirely.
-            LogVerbose("Running in-process LLVM optimization passes (mem2reg, instcombine, simplifycfg, reassociate, gvn)...");
-            var optStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            generator.RunOptimizationPasses();
-            LogVerbose($"Optimization passes complete ({optStopwatch.ElapsedMilliseconds}ms).");
+            // optimization that happens at all for outputs that skip clang entirely. Opt-in
+            // via -O/--optimize since this pass pipeline can be slow (or hang) on some setups.
+            if (optimize)
+            {
+                LogVerbose("Running in-process LLVM optimization passes (mem2reg, instcombine, simplifycfg, reassociate, gvn)...");
+                var optStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                generator.RunOptimizationPasses();
+                LogVerbose($"Optimization passes complete ({optStopwatch.ElapsedMilliseconds}ms).");
+            }
+            else
+            {
+                LogVerbose("Skipping in-process LLVM optimization passes (pass -O/--optimize to enable).");
+            }
 
             generator.EmitToFile(bcPath);
             Console.WriteLine($"Bitcode written to {bcPath}");
@@ -265,12 +320,12 @@ public class Program
             else if (isLibraryTarget)
             {
                 LogVerbose($"Linking as a shared library via clang -> '{outputFile}'...");
-                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true);
+                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true, optLevel: clangOptLevel);
             }
             else if (isExecutable)
             {
                 LogVerbose($"Linking as an executable via clang -> '{outputFile}'...");
-                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs);
+                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, optLevel: clangOptLevel);
             }
             else
             {
@@ -363,7 +418,7 @@ public class Program
         return null;
     }
 
-    public static void CompileWithClang(string inputLl, string outputExe, IEnumerable<string> libraries, List<string>? libSearchDirs = null, bool shared = false)
+    public static void CompileWithClang(string inputLl, string outputExe, IEnumerable<string> libraries, List<string>? libSearchDirs = null, bool shared = false, string optLevel = DefaultClangOptLevel)
     {
         Console.WriteLine(shared ? "Detecting Clang (building shared library)..." : "Detecting Clang...");
         try
@@ -472,7 +527,7 @@ public class Program
             string searchDirs = string.Join(" ", searchDirArgs);
             string directLibs = string.Join(" ", directLibArgs);
             string sharedFlags = shared ? (OperatingSystem.IsWindows() ? "-shared" : "-shared -fPIC") : "";
-            string optFlags = "-O2";
+            string optFlags = $"-O{optLevel}";
             string clangArguments = $"\"{inputLl}\" {optFlags} -o \"{outputExe}\" {sharedFlags} {searchDirs} {libs} {directLibs}".Trim();
 
             Console.WriteLine($"Running: clang {clangArguments}");

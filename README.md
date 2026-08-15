@@ -381,7 +381,7 @@ ZV/
 ## CLI Usage
 
 ```text
-ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-v|--verbose]
+ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]
 ZV checkdeps
 ```
 
@@ -393,6 +393,8 @@ ZV checkdeps
 | `-target os-x86` | Freestanding x86 kernel. |
 | `-L <dir>` | Add a directory to the linker's library search path. Repeatable. |
 | `-run` | After building an `os-x86` kernel, launch it in QEMU. |
+| `-O`, `--optimize` | Run LLVM's in-process optimization pipeline (mem2reg, instcombine, simplifycfg, reassociate, gvn) before emitting. Opt-in; off by default. |
+| `-copt <level>` | Optimization level passed to clang as `-O<level>` when linking (`O0`, `O1`, `O2`, `O3`, `Os`, `Oz`). Defaults to `O2`. Use `-copt list` to print the available levels. |
 | `-v`, `--verbose` | Print each compiler stage (lexing/parsing per file, codegen, optimization passes, emission, linking) with timing, prefixed `[verbose]`. |
 
 When a directory is passed, the compiler recursively scans for `.zv` files and
