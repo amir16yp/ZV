@@ -546,11 +546,10 @@ public partial class LlvmGenerator
         {
             RequireUnsafeForRawPointerIndex(expr.Location);
             dataPtr = target;
-            // This is still problematic in opaque mode. 
-            // In a full compiler, we'd have the ZV type here.
-            // For now, try to guess or use a default.
-            elementType = target.TypeOf.ElementType;
-            if (elementType.Handle == IntPtr.Zero) elementType = GetInt8Type(); // i8 fallback
+            // Opaque pointers don't expose a reliable element type, so infer it from
+            // the ZV declared type of the pointer expression when possible.
+            elementType = InferPointerElementType(expr.Target)
+                          ?? (target.TypeOf.ElementType.Handle != IntPtr.Zero ? target.TypeOf.ElementType : GetInt8Type());
         }
         else
         {
@@ -728,8 +727,8 @@ public partial class LlvmGenerator
         {
             RequireUnsafeForRawPointerIndex(expr.Location);
             dataPtr = target;
-            elementType = target.TypeOf.ElementType;
-            if (elementType.Handle == IntPtr.Zero) elementType = GetInt8Type();
+            elementType = InferPointerElementType(expr.Target)
+                          ?? (target.TypeOf.ElementType.Handle != IntPtr.Zero ? target.TypeOf.ElementType : GetInt8Type());
         }
         else
         {

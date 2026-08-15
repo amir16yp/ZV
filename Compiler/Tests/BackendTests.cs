@@ -2947,4 +2947,47 @@ INT32 second(INT32 i) {
         Assert.Contains("@table = global [4 x i32]", ir);
         Assert.DoesNotContain("alloca [4 x i32], align 4", ir);
     }
+
+    [Fact]
+    public void TestTypedPointerIndexingUsesElementType()
+    {
+        // Regression test: LLVM opaque pointers don't expose a reliable ElementType, so raw
+        // pointer indexing was always falling back to i8. Storing a multi-byte value through
+        // a typed pointer and reading it back would only touch the first byte. Pointer casts
+        // also need to preserve the underlying bytes, not reinterpret the numeric value.
+        string source = @"
+VOID test() {
+    PTR<INT32> p = alloc(4 as INT64) as PTR<INT32>;
+    unsafe { p[0] = 0x12345678; }
+    INT32 v;
+    unsafe { v = p[0]; }
+    print(""%d"", v);
+
+    PTR<FLOAT32> pf = alloc(4 as INT64) as PTR<FLOAT32>;
+    FLOAT32 f = 2.5 as FLOAT32;
+    unsafe { pf[0] = f; }
+    PTR<UINT8> bytes = pf as PTR<UINT8>;
+    UINT8 b0;
+    UINT8 b1;
+    UINT8 b2;
+    UINT8 b3;
+    unsafe {
+        b0 = bytes[0];
+        b1 = bytes[1];
+        b2 = bytes[2];
+        b3 = bytes[3];
+    }
+    print(""%u %u %u %u"", b0 as UINT32, b1 as UINT32, b2 as UINT32, b3 as UINT32);
+    free(p as PTR<VOID>);
+    free(pf as PTR<VOID>);
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("305419896", output!);
+        Assert.Contains("0 0 32 64", output!);
+    }
 }

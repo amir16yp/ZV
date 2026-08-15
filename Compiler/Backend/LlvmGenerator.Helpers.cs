@@ -451,6 +451,22 @@ public partial class LlvmGenerator
     // used only to recover primitive signedness (see IsUnsignedPrimitiveTypeNode) - this is
     // not a full type-inference pass, and returns null for anything it can't determine this
     // way. Callers must fall back to the previous default (signed) behavior when null.
+    // Best-effort inference of the element type of a raw pointer expression.
+    // Needed because LLVM opaque pointers don't expose a reliable ElementType.
+    private LLVMTypeRef? InferPointerElementType(Expression ptrExpr)
+    {
+        var typeNode = InferExprTypeNode(ptrExpr);
+        if (typeNode is PointerTypeNode pointer)
+        {
+            if (pointer.BaseType is PrimitiveTypeNode pt && pt.Type.Type == TokenType.VOID)
+            {
+                return GetInt8Type();
+            }
+            return MapTypeNode(pointer.BaseType);
+        }
+        return null;
+    }
+
     private TypeNode? InferExprTypeNode(Expression expr)
     {
         switch (expr)

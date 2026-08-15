@@ -47,6 +47,21 @@
 //   FLOAT64 val  = file_read_f64_le(bin);
 //   file_close(bin);
 //
+//   // Binary primitives (big-endian)
+//   FileStream bbin = file_open("data_be.bin", "rb");
+//   UINT16 be_tag = file_read_u16_be(bbin);
+//   UINT32 be_size = file_read_u32_be(bbin);
+//   INT64  be_len  = file_read_i64_be(bbin);
+//   FLOAT64 be_val = file_read_f64_be(bbin);
+//   file_close(bbin);
+//
+//   FileStream bout2 = file_open("data_be.bin", "wb");
+//   file_write_u16_be(bout2, 0xABCD);
+//   file_write_i32_be(bout2, -1);
+//   file_write_i64_be(bout2, 123456789);
+//   file_write_f64_be(bout2, 3.14159);
+//   file_close(bout2);
+//
 //   // Fixed-length ASCII field, e.g. a 4-byte magic header
 //   FileStream hdr = file_open("data.bin", "rb");
 //   CSTRING magic4 = file_read_cstring(hdr, 4);
@@ -442,6 +457,147 @@ VOID file_write_f64_le(FileStream fs, FLOAT64 v) {
     PTR<FLOAT64> p = alloc(8 as INT64) as PTR<FLOAT64>;
     unsafe { p[0] = v; }
     file_write(fs, p as PTR<UINT8>, 8);
+    free(p as PTR<VOID>);
+}
+
+// --- binary primitive readers/writers (big-endian) -----------------------------
+
+// Read a 16-bit big-endian unsigned value.
+UINT16 file_read_u16_be(FileStream fs) {
+    UINT8[2] b;
+    file_read(fs, b as PTR<UINT8>, 2);
+    return ((((b[0] as UINT16) << 8) | (b[1] as UINT16))) as UINT16;
+}
+
+// Read a 16-bit big-endian signed value.
+INT16 file_read_i16_be(FileStream fs) {
+    return file_read_u16_be(fs) as INT16;
+}
+
+// Read a 32-bit big-endian unsigned value.
+UINT32 file_read_u32_be(FileStream fs) {
+    UINT8[4] b;
+    file_read(fs, b as PTR<UINT8>, 4);
+    return ((((((b[0] as UINT32) << 24)
+         | ((b[1] as UINT32) << 16)
+         | ((b[2] as UINT32) << 8)
+         | (b[3] as UINT32))))) as UINT32;
+}
+
+// Read a 32-bit big-endian signed value.
+INT32 file_read_i32_be(FileStream fs) {
+    return file_read_u32_be(fs) as INT32;
+}
+
+// Read a 64-bit big-endian unsigned value.
+UINT64 file_read_u64_be(FileStream fs) {
+    UINT8[8] b;
+    file_read(fs, b as PTR<UINT8>, 8);
+    return (((((((b[0] as UINT64) << 56)
+         | ((b[1] as UINT64) << 48)
+         | ((b[2] as UINT64) << 40)
+         | ((b[3] as UINT64) << 32)
+         | ((b[4] as UINT64) << 24)
+         | ((b[5] as UINT64) << 16)
+         | ((b[6] as UINT64) << 8)
+         | (b[7] as UINT64)))))) as UINT64;
+}
+
+// Read a 64-bit big-endian signed value.
+INT64 file_read_i64_be(FileStream fs) {
+    return file_read_u64_be(fs) as INT64;
+}
+
+// Read a 32-bit big-endian float.
+FLOAT32 file_read_f32_be(FileStream fs) {
+    UINT32 u = file_read_u32_be(fs);
+    PTR<FLOAT32> p = alloc(4 as INT64) as PTR<FLOAT32>;
+    PTR<UINT32> pu = p as PTR<UINT32>;
+    unsafe { pu[0] = u; }
+    FLOAT32 v;
+    unsafe { v = p[0]; }
+    free(p as PTR<VOID>);
+    return v;
+}
+
+// Read a 64-bit big-endian float.
+FLOAT64 file_read_f64_be(FileStream fs) {
+    UINT64 u = file_read_u64_be(fs);
+    PTR<FLOAT64> p = alloc(8 as INT64) as PTR<FLOAT64>;
+    PTR<UINT64> pu = p as PTR<UINT64>;
+    unsafe { pu[0] = u; }
+    FLOAT64 v;
+    unsafe { v = p[0]; }
+    free(p as PTR<VOID>);
+    return v;
+}
+
+// Write a 16-bit big-endian unsigned value.
+VOID file_write_u16_be(FileStream fs, UINT16 v) {
+    UINT8[2] b;
+    b[0] = ((v >> 8) & 0xFF) as UINT8;
+    b[1] = (v & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 2);
+}
+
+// Write a 16-bit big-endian signed value.
+VOID file_write_i16_be(FileStream fs, INT16 v) {
+    file_write_u16_be(fs, v as UINT16);
+}
+
+// Write a 32-bit big-endian unsigned value.
+VOID file_write_u32_be(FileStream fs, UINT32 v) {
+    UINT8[4] b;
+    b[0] = ((v >> 24) & 0xFF) as UINT8;
+    b[1] = ((v >> 16) & 0xFF) as UINT8;
+    b[2] = ((v >> 8) & 0xFF) as UINT8;
+    b[3] = (v & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 4);
+}
+
+// Write a 32-bit big-endian signed value.
+VOID file_write_i32_be(FileStream fs, INT32 v) {
+    file_write_u32_be(fs, v as UINT32);
+}
+
+// Write a 64-bit big-endian unsigned value.
+VOID file_write_u64_be(FileStream fs, UINT64 v) {
+    UINT8[8] b;
+    b[0] = ((v >> 56) & 0xFF) as UINT8;
+    b[1] = ((v >> 48) & 0xFF) as UINT8;
+    b[2] = ((v >> 40) & 0xFF) as UINT8;
+    b[3] = ((v >> 32) & 0xFF) as UINT8;
+    b[4] = ((v >> 24) & 0xFF) as UINT8;
+    b[5] = ((v >> 16) & 0xFF) as UINT8;
+    b[6] = ((v >> 8) & 0xFF) as UINT8;
+    b[7] = (v & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 8);
+}
+
+// Write a 64-bit big-endian signed value.
+VOID file_write_i64_be(FileStream fs, INT64 v) {
+    file_write_u64_be(fs, v as UINT64);
+}
+
+// Write a 32-bit big-endian float.
+VOID file_write_f32_be(FileStream fs, FLOAT32 v) {
+    PTR<FLOAT32> p = alloc(4 as INT64) as PTR<FLOAT32>;
+    unsafe { p[0] = v; }
+    PTR<UINT32> pu = p as PTR<UINT32>;
+    UINT32 u;
+    unsafe { u = pu[0]; }
+    file_write_u32_be(fs, u);
+    free(p as PTR<VOID>);
+}
+
+// Write a 64-bit big-endian float.
+VOID file_write_f64_be(FileStream fs, FLOAT64 v) {
+    PTR<FLOAT64> p = alloc(8 as INT64) as PTR<FLOAT64>;
+    unsafe { p[0] = v; }
+    PTR<UINT64> pu = p as PTR<UINT64>;
+    UINT64 u;
+    unsafe { u = pu[0]; }
+    file_write_u64_be(fs, u);
     free(p as PTR<VOID>);
 }
 
