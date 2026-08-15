@@ -2,6 +2,24 @@
 //
 // Tiny path helpers. All results are owned CSTRINGs that are freed automatically
 // when bound to a CSTRING variable.
+//
+// Examples:
+//   #include "lib/path.zv"
+//
+//   CSTRING p = "C:\\foo\\bar\\baz.txt";
+//   print("dir: %s", path_dir(p));      // C:\foo\bar
+//   print("file: %s", path_file(p));     // baz.txt
+//   print("ext: %s", path_ext(p));      // txt
+//
+//   // Standard aliases
+//   print("dir: %s", dirname(p));
+//   print("file: %s", basename(p));
+//   print("ext: %s", extname(p));
+//
+//   print("joined: %s", join("a", "b"));            // a/b
+//   print("joined: %s", path_join("a/", "b"));     // a/b
+//   print("absolute? %d", is_absolute(p));
+//   print("normalized: %s", normalize("/a/b/../c//d/./e")); // /a/c/d/e
 
 BOOL __path_is_sep(INT8 c) {
     return c == '/' || c == '\\';

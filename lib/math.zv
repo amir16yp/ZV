@@ -7,6 +7,48 @@
 // Constants are written as raw literals instead of expressions like PI/180
 // because the current compiler crashes when global float constants reference
 // other globals during LLVM optimization.
+//
+// Examples:
+//   #include "lib/math.zv"
+//
+//   // Constants
+//   FLOAT64 circumference = 2.0 * PI * r;
+//   FLOAT64 radians = degrees * DEG2RAD;
+//   FLOAT64 degrees = radians * RAD2DEG;
+//
+//   // Integer helpers
+//   INT32 a = min_i32(3, 7);               // 3
+//   INT32 b = max_i32(3, 7);               // 7
+//   INT32 c = clamp_i32(10, 0, 5);         // 5
+//   INT32 d = abs_i32(-4);                 // 4
+//   INT32 e = sign_i32(-99);               // -1
+//
+//   // 64-bit variants
+//   INT64 x = min_i64(-1, 1);
+//   INT64 y = clamp_i64(x, 0, 100);
+//   INT64 z = abs_i64(-42);
+//   INT64 s = sign_i64(0);                 // 0
+//
+//   // 128-bit variants
+//   INT128 big = clamp_i128(v, lo, hi);
+//
+//   // Unsigned helpers (no abs/sign)
+//   UINT32 u = min_u32(3, 7);
+//   UINT64 v = clamp_u64(200, 0, 100);    // 100
+//   UINT128 w = max_u128(a, b);
+//
+//   // Float helpers
+//   FLOAT64 f = lerp_f64(0.0, 10.0, 0.5); // 5.0
+//   FLOAT64 g = clamp_f64(PI, 0.0, 1.0);  // 1.0
+//   FLOAT32 h = sign_f32(-2.5);           // -1.0
+//   FLOAT32 i = abs_f32(-3.5);           // 3.5
+//
+//   // Conversions and angle units
+//   INT32 deg = round_i32(rad2deg_f64(PI)); // 180
+//   FLOAT64 rad = deg2rad_f64(180.0);       // PI
+//   INT32 n = round_i32(3.7);              // 4
+//   INT64 m = floor_i64(3.9);              // 3
+//   INT64 o = ceil_i64(3.1);               // 4
 
 CONST FLOAT64 PI      = 3.14159265358979323846;
 CONST FLOAT64 TAU     = 6.28318530717958647692;

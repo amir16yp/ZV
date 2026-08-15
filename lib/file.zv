@@ -1,6 +1,81 @@
 // file.zv
 //
 // Simple file helpers.
+//
+// Examples:
+//   #include "lib/file.zv"
+//
+//   // Read or write the whole file
+//   CSTRING text = readall("input.txt");
+//   writeall("output.txt", text);
+//   appendall("output.txt", "\nmore text");
+//
+//   // Existence and size
+//   if (exists("input.txt")) {
+//       INT64 size = file_size("input.txt");
+//   }
+//
+//   // Byte arrays
+//   UINT8[] bytes = readallbytes("input.txt");
+//   FileBytes fb = readfilebytes("input.txt");
+//   // ... use fb.data and fb.len ...
+//   free(fb.data);
+//
+//   // Streaming
+//   FileStream f = file_open("input.txt", "r");
+//   while (!file_eof(f)) {
+//       CSTRING line = file_read_line(f);   // newline preserved
+//       if (strlen(line) == 0) { break; }
+//       print("%s", line);
+//   }
+//   file_close(f);
+//
+//   // Raw reads/writes and positioning
+//   UINT8[1024] buf;
+//   FileStream out = file_open("data.bin", "rb");
+//   INT64 got = file_read(out, buf as PTR<UINT8>, 1024);
+//   file_seek(out, 0, 0);                 // seek to start
+//   INT64 pos = file_tell(out);
+//   if (file_error(out)) { /* handle error */ }
+//   file_close(out);
+//
+//   // Binary primitives (little-endian)
+//   FileStream bin = file_open("data.bin", "rb");
+//   UINT8  tag   = file_read_u8(bin);
+//   UINT32 magic = file_read_u32_le(bin);
+//   INT64  size  = file_read_i64_le(bin);
+//   FLOAT64 val  = file_read_f64_le(bin);
+//   file_close(bin);
+//
+//   // Fixed-length ASCII field, e.g. a 4-byte magic header
+//   FileStream hdr = file_open("data.bin", "rb");
+//   CSTRING magic4 = file_read_cstring(hdr, 4);
+//   file_close(hdr);
+//
+//   FileStream bout = file_open("data.bin", "wb");
+//   file_write_u8(bout, 1);
+//   file_write_u32_le(bout, 0x12345678);
+//   file_write_i64_le(bout, -1);
+//   file_write_f64_le(bout, 3.14159);
+//   file_write_cstring(bout, "ZV");   // raw bytes, no NUL
+//   file_close(bout);
+//
+//   // Line output
+//   FileStream log = file_open("log.txt", "a");
+//   file_write_line(log, "hello, world");
+//   file_close(log);
+//
+//   // Temporary file
+//   FileStream tmp = tmpfile_stream();
+//   file_write(tmp, "temp" as PTR<UINT8>, 4);
+//   file_close(tmp);
+//
+//   // Read all lines
+//   FileLines lines = readlines("input.txt");
+//   for (INT64 i = 0; i < lines.count; i = i + 1) {
+//       print("line %lld: %s", i, file_lines_get(lines, i));
+//   }
+//   file_lines_free(lines);
 
 // Read the whole text file at path into an owned CSTRING.
 // Throws a FileOpenException if the file cannot be opened.
@@ -213,6 +288,180 @@ CSTRING file_read_line(FileStream fs) {
         return move(empty) as CSTRING;
     }
     return move(buf) as CSTRING;
+}
+
+// --- binary primitive readers/writers (little-endian) ------------------------
+
+// Read a single unsigned 8-bit value.
+UINT8 file_read_u8(FileStream fs) {
+    UINT8[1] b;
+    file_read(fs, b as PTR<UINT8>, 1);
+    return b[0];
+}
+
+// Read a single signed 8-bit value.
+INT8 file_read_i8(FileStream fs) {
+    return file_read_u8(fs) as INT8;
+}
+
+// Read a 16-bit little-endian unsigned value.
+UINT16 file_read_u16_le(FileStream fs) {
+    UINT8[2] b;
+    file_read(fs, b as PTR<UINT8>, 2);
+    return ((b[0] as UINT16) | ((b[1] as UINT16) << 8)) as UINT16;
+}
+
+// Read a 16-bit little-endian signed value.
+INT16 file_read_i16_le(FileStream fs) {
+    return file_read_u16_le(fs) as INT16;
+}
+
+// Read a 32-bit little-endian unsigned value.
+UINT32 file_read_u32_le(FileStream fs) {
+    UINT8[4] b;
+    file_read(fs, b as PTR<UINT8>, 4);
+    return (((b[0] as UINT32)
+         | ((b[1] as UINT32) << 8)
+         | ((b[2] as UINT32) << 16)
+         | ((b[3] as UINT32) << 24))) as UINT32;
+}
+
+// Read a 32-bit little-endian signed value.
+INT32 file_read_i32_le(FileStream fs) {
+    return file_read_u32_le(fs) as INT32;
+}
+
+// Read a 64-bit little-endian unsigned value.
+UINT64 file_read_u64_le(FileStream fs) {
+    UINT8[8] b;
+    file_read(fs, b as PTR<UINT8>, 8);
+    return (((b[0] as UINT64)
+         | ((b[1] as UINT64) << 8)
+         | ((b[2] as UINT64) << 16)
+         | ((b[3] as UINT64) << 24)
+         | ((b[4] as UINT64) << 32)
+         | ((b[5] as UINT64) << 40)
+         | ((b[6] as UINT64) << 48)
+         | ((b[7] as UINT64) << 56))) as UINT64;
+}
+
+// Read a 64-bit little-endian signed value.
+INT64 file_read_i64_le(FileStream fs) {
+    return file_read_u64_le(fs) as INT64;
+}
+
+// Read a 32-bit little-endian float.
+FLOAT32 file_read_f32_le(FileStream fs) {
+    PTR<FLOAT32> p = alloc(4 as INT64) as PTR<FLOAT32>;
+    file_read(fs, p as PTR<UINT8>, 4);
+    FLOAT32 v;
+    unsafe { v = p[0]; }
+    free(p as PTR<VOID>);
+    return v;
+}
+
+// Read a 64-bit little-endian float.
+FLOAT64 file_read_f64_le(FileStream fs) {
+    PTR<FLOAT64> p = alloc(8 as INT64) as PTR<FLOAT64>;
+    file_read(fs, p as PTR<UINT8>, 8);
+    FLOAT64 v;
+    unsafe { v = p[0]; }
+    free(p as PTR<VOID>);
+    return v;
+}
+
+// Write a single unsigned 8-bit value.
+VOID file_write_u8(FileStream fs, UINT8 v) {
+    UINT8[1] b;
+    b[0] = v;
+    file_write(fs, b as PTR<UINT8>, 1);
+}
+
+// Write a single signed 8-bit value.
+VOID file_write_i8(FileStream fs, INT8 v) {
+    file_write_u8(fs, v as UINT8);
+}
+
+// Write a 16-bit little-endian unsigned value.
+VOID file_write_u16_le(FileStream fs, UINT16 v) {
+    UINT8[2] b;
+    b[0] = (v & 0xFF) as UINT8;
+    b[1] = ((v >> 8) & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 2);
+}
+
+// Write a 16-bit little-endian signed value.
+VOID file_write_i16_le(FileStream fs, INT16 v) {
+    file_write_u16_le(fs, v as UINT16);
+}
+
+// Write a 32-bit little-endian unsigned value.
+VOID file_write_u32_le(FileStream fs, UINT32 v) {
+    UINT8[4] b;
+    b[0] = (v & 0xFF) as UINT8;
+    b[1] = ((v >> 8) & 0xFF) as UINT8;
+    b[2] = ((v >> 16) & 0xFF) as UINT8;
+    b[3] = ((v >> 24) & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 4);
+}
+
+// Write a 32-bit little-endian signed value.
+VOID file_write_i32_le(FileStream fs, INT32 v) {
+    file_write_u32_le(fs, v as UINT32);
+}
+
+// Write a 64-bit little-endian unsigned value.
+VOID file_write_u64_le(FileStream fs, UINT64 v) {
+    UINT8[8] b;
+    b[0] = (v & 0xFF) as UINT8;
+    b[1] = ((v >> 8) & 0xFF) as UINT8;
+    b[2] = ((v >> 16) & 0xFF) as UINT8;
+    b[3] = ((v >> 24) & 0xFF) as UINT8;
+    b[4] = ((v >> 32) & 0xFF) as UINT8;
+    b[5] = ((v >> 40) & 0xFF) as UINT8;
+    b[6] = ((v >> 48) & 0xFF) as UINT8;
+    b[7] = ((v >> 56) & 0xFF) as UINT8;
+    file_write(fs, b as PTR<UINT8>, 8);
+}
+
+// Write a 64-bit little-endian signed value.
+VOID file_write_i64_le(FileStream fs, INT64 v) {
+    file_write_u64_le(fs, v as UINT64);
+}
+
+// Write a 32-bit little-endian float.
+VOID file_write_f32_le(FileStream fs, FLOAT32 v) {
+    PTR<FLOAT32> p = alloc(4 as INT64) as PTR<FLOAT32>;
+    unsafe { p[0] = v; }
+    file_write(fs, p as PTR<UINT8>, 4);
+    free(p as PTR<VOID>);
+}
+
+// Write a 64-bit little-endian float.
+VOID file_write_f64_le(FileStream fs, FLOAT64 v) {
+    PTR<FLOAT64> p = alloc(8 as INT64) as PTR<FLOAT64>;
+    unsafe { p[0] = v; }
+    file_write(fs, p as PTR<UINT8>, 8);
+    free(p as PTR<VOID>);
+}
+
+// Read exactly `len` bytes from a stream into an owned, NUL-terminated CSTRING.
+// If fewer than `len` bytes are available, the result is shortened to the actual
+// bytes read. Caller must free the result.
+CSTRING file_read_cstring(FileStream fs, INT64 len) {
+    PTR<INT8> buf = alloc((len + 1) as INT64) as PTR<INT8>;
+    INT64 got = file_read(fs, buf as PTR<UINT8>, len);
+    if (got < 0) {
+        got = 0;
+    }
+    unsafe { buf[got] = 0; }
+    return move(buf) as CSTRING;
+}
+
+// Write the raw bytes of a CSTRING to a stream (excluding the terminating NUL).
+// Returns the number of bytes written.
+INT64 file_write_cstring(FileStream fs, CSTRING s) {
+    return file_write(fs, s as PTR<UINT8>, strlen(s));
 }
 
 // Open a temporary file stream in read/write mode. The file is automatically

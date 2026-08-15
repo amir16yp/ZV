@@ -13,6 +13,28 @@
 //   secprng_seed(0x123456789ABCDEF0);
 //   UINT32 x = secprng_u32();
 //   FLOAT64 f = secprng_f64(); // uniform in [0, 1)
+//
+// Examples:
+//   secprng_seed(0x123456789ABCDEF0);
+//
+//   UINT64 w = secprng_u64();
+//   UINT32 n = secprng_u32();
+//   UINT16 h = secprng_u16();
+//   UINT8  b = secprng_u8();
+//   INT64  i64 = secprng_i64();
+//   INT32  i32 = secprng_i32();
+//   INT16  i16 = secprng_i16();
+//   INT8   i8  = secprng_i8();
+//   BOOL   flag = secprng_bool();
+//   FLOAT64 f = secprng_f64();          // uniform [0, 1)
+//   FLOAT32 g = secprng_f32();
+//
+//   // Ranged variants (integer ranges are inclusive)
+//   UINT32 dice = secprng_u32_range(1, 6);
+//   INT32  roll = secprng_i32_range(-10, 10);
+//   UINT8  byte = secprng_u8_range(0, 255);
+//   FLOAT64 x = secprng_f64_range(0.0, 100.0); // half-open [0, 100)
+//   FLOAT32 y = secprng_f32_range(-1.0, 1.0);
 
 // --- internal state ----------------------------------------------------------
 

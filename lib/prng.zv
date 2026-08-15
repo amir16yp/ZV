@@ -9,6 +9,28 @@
 //   prng_seed(12345);
 //   UINT32 x = prng_u32();
 //   FLOAT64 f = prng_f64(); // uniform in [0, 1]
+//
+// Examples:
+//   prng_seed(12345);
+//
+//   UINT64 w = prng_u64();
+//   UINT32 n = prng_u32();
+//   UINT16 h = prng_u16();
+//   UINT8  b = prng_u8();
+//   INT64  i64 = prng_i64();
+//   INT32  i32 = prng_i32();
+//   INT16  i16 = prng_i16();
+//   INT8   i8  = prng_i8();
+//   BOOL   flag = prng_bool();
+//   FLOAT64 f = prng_f64();          // uniform [0, 1]
+//   FLOAT32 g = prng_f32();
+//
+//   // Ranged variants (integer ranges are inclusive)
+//   UINT32 dice = prng_u32_range(1, 6);
+//   INT32  roll = prng_i32_range(-10, 10);
+//   UINT8  byte = prng_u8_range(0, 255);
+//   FLOAT64 x = prng_f64_range(0.0, 100.0); // half-open [0, 100)
+//   FLOAT32 y = prng_f32_range(-1.0, 1.0);
 
 // LCG multiplier and increment constants from Numerical Recipes.
 CONST UINT64 PRNG_MULTIPLIER = 6364136223846793005;
