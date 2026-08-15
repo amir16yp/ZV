@@ -52,6 +52,12 @@ public partial class LlvmGenerator
             "fwrite" => GenerateFwriteCall(arguments),
             "fseek" => GenerateFseekCall(arguments),
             "ftell" => GenerateFtellCall(arguments),
+            "feof" => GenerateFeofCall(arguments),
+            "ferror" => GenerateFerrorCall(arguments),
+            "fgets" => GenerateFgetsCall(arguments),
+            "tmpfile" => GenerateTmpfileCall(arguments),
+            "memcpy" => GenerateMemcpyCall(arguments),
+            "memset" => GenerateMemsetCall(arguments),
             "remove" => GenerateRemoveCall(arguments),
             "rename" => GenerateRenameCall(arguments),
             "mkdir" => GenerateMkdirCall(arguments),
@@ -584,6 +590,88 @@ public partial class LlvmGenerator
         EmitCondThrow(isError, "FileException: ftell failed");
 
         return result;
+    }
+
+    private LLVMValueRef GenerateFeofCall(List<Expression> arguments)
+    {
+        var feof = GetOrAddFunction("feof", GetInt32Type(), new[] { GetPointerType(GetInt8Type()) });
+        var args = arguments.ConvertAll(VisitExpression).ToArray();
+        return _builder.BuildCall2(_functionTypes["feof"], feof, args, "feoftmp");
+    }
+
+    private LLVMValueRef GenerateFerrorCall(List<Expression> arguments)
+    {
+        var ferror = GetOrAddFunction("ferror", GetInt32Type(), new[] { GetPointerType(GetInt8Type()) });
+        var args = arguments.ConvertAll(VisitExpression).ToArray();
+        return _builder.BuildCall2(_functionTypes["ferror"], ferror, args, "ferrortmp");
+    }
+
+    private LLVMValueRef GenerateFgetsCall(List<Expression> arguments)
+    {
+        var fgets = GetOrAddFunction("fgets", GetPointerType(GetInt8Type()),
+            new[] { GetPointerType(GetInt8Type()), GetInt32Type(), GetPointerType(GetInt8Type()) });
+
+        if (arguments.Count != 3)
+            throw new Exception("fgets() expects exactly 3 arguments.");
+
+        var args = new LLVMValueRef[]
+        {
+            ConvertToType(VisitExpression(arguments[0]), GetPointerType(GetInt8Type())),
+            ConvertToType(VisitExpression(arguments[1]), GetInt32Type()),
+            ConvertToType(VisitExpression(arguments[2]), GetPointerType(GetInt8Type()))
+        };
+
+        return _builder.BuildCall2(_functionTypes["fgets"], fgets, args, "fgetstmp");
+    }
+
+    private LLVMValueRef GenerateTmpfileCall(List<Expression> arguments)
+    {
+        if (arguments.Count != 0)
+            throw new Exception("tmpfile() expects no arguments.");
+
+        var tmpfile = GetOrAddFunction("tmpfile", GetPointerType(GetInt8Type()), Array.Empty<LLVMTypeRef>());
+        var result = _builder.BuildCall2(_functionTypes["tmpfile"], tmpfile, Array.Empty<LLVMValueRef>(), "tmpfiletmp");
+
+        // Throw FileOpenException if tmpfile returns null.
+        EmitNullCheckOrThrow(result, "FileOpenException: failed to create temporary file");
+
+        return result;
+    }
+
+    private LLVMValueRef GenerateMemcpyCall(List<Expression> arguments)
+    {
+        var memcpy = GetOrAddFunction("memcpy", GetPointerType(GetInt8Type()),
+            new[] { GetPointerType(GetInt8Type()), GetPointerType(GetInt8Type()), GetInt64Type() });
+
+        if (arguments.Count != 3)
+            throw new Exception("memcpy() expects exactly 3 arguments (dest, src, count).");
+
+        var args = new LLVMValueRef[]
+        {
+            ConvertToType(VisitExpression(arguments[0]), GetPointerType(GetInt8Type())),
+            ConvertToType(VisitExpression(arguments[1]), GetPointerType(GetInt8Type())),
+            ConvertToType(VisitExpression(arguments[2]), GetInt64Type())
+        };
+
+        return _builder.BuildCall2(_functionTypes["memcpy"], memcpy, args, "memcpytmp");
+    }
+
+    private LLVMValueRef GenerateMemsetCall(List<Expression> arguments)
+    {
+        var memset = GetOrAddFunction("memset", GetPointerType(GetInt8Type()),
+            new[] { GetPointerType(GetInt8Type()), GetInt32Type(), GetInt64Type() });
+
+        if (arguments.Count != 3)
+            throw new Exception("memset() expects exactly 3 arguments (ptr, value, count).");
+
+        var args = new LLVMValueRef[]
+        {
+            ConvertToType(VisitExpression(arguments[0]), GetPointerType(GetInt8Type())),
+            ConvertToType(VisitExpression(arguments[1]), GetInt32Type()),
+            ConvertToType(VisitExpression(arguments[2]), GetInt64Type())
+        };
+
+        return _builder.BuildCall2(_functionTypes["memset"], memset, args, "memsettmp");
     }
 
     private LLVMValueRef GenerateRemoveCall(List<Expression> arguments)

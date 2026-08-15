@@ -2892,4 +2892,56 @@ VOID test() {
         Assert.Contains("Hi", output!);
         Assert.Contains("2", output!);
     }
+
+    [Fact]
+    public void TestNewFileBuiltinsGenerateValidIr()
+    {
+        // feof, ferror, fgets, tmpfile, memcpy, memset are now first-class builtins
+        // that can be used from user code without an extern declaration.
+        string source = @"
+VOID test() {
+    PTR<VOID> f = tmpfile();
+    INT32 at_eof = feof(f);
+    INT32 has_error = ferror(f);
+    INT8[16] buf;
+    PTR<INT8> r = fgets(buf as PTR<INT8>, 16, f);
+    INT8[8] a;
+    INT8[8] b;
+    memcpy(a as PTR<UINT8>, b as PTR<UINT8>, 8);
+    memset(a as PTR<UINT8>, 0, 8);
+    fclose(f);
+}";
+        GenerateAndVerify(source);
+        string ir = Generate(source);
+        Assert.Contains("call i32 @feof", ir);
+        Assert.Contains("call i32 @ferror", ir);
+        Assert.Contains("call ptr @fgets", ir);
+        Assert.Contains("call ptr @tmpfile", ir);
+        Assert.Contains("call ptr @memcpy", ir);
+        Assert.Contains("call ptr @memset", ir);
+    }
+
+    [Fact]
+    public void TestGlobalVariableAfterFunctionIsEmittedAsGlobal()
+    {
+        // Regression test: module-scope variables declared after a function used to be
+        // emitted as allocas inside the previous function because the builder's insertion
+        // block lingered there. This verifies a fixed-size array global is emitted at
+        // module scope and can be referenced from a later function.
+        string source = @"
+VOID first() {
+    INT32 x = 1;
+    print(x);
+}
+
+INT32[4] table = [10, 20, 30, 40];
+
+INT32 second(INT32 i) {
+    return table[i];
+}";
+        GenerateAndVerify(source);
+        string ir = Generate(source);
+        Assert.Contains("@table = global [4 x i32]", ir);
+        Assert.DoesNotContain("alloca [4 x i32], align 4", ir);
+    }
 }

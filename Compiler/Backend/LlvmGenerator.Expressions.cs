@@ -1335,7 +1335,7 @@ public partial class LlvmGenerator
         // Check for built-ins
         var builtins = new HashSet<string>
         {
-            "print", "copy", "move", "fopen", "fclose", "fread", "fwrite", "fseek", "ftell", "remove", "rename", "mkdir", "rmdir", "len", "alloc", "realloc", "cstr", "wstr", "array_copy", "get_timestamp", "get_timestamp_ms",
+            "print", "copy", "move", "fopen", "fclose", "fread", "fwrite", "fseek", "ftell", "feof", "ferror", "fgets", "tmpfile", "memcpy", "memset", "remove", "rename", "mkdir", "rmdir", "len", "alloc", "realloc", "cstr", "wstr", "array_copy", "get_timestamp", "get_timestamp_ms",
             "halt", "cli", "sti", "port_out8", "port_out16", "port_out32", "port_in8", "port_in16", "port_in32", "volatile_read", "volatile_write",
             "serial_init", "serial_write_char", "serial_write", "serial_read_char", "serial_has_data",
             "vga_putc", "vga_clear", "vga_print",

@@ -29,6 +29,14 @@ VOID writeall(CSTRING path, CSTRING content) {
     fclose(f);
 }
 
+// Append content to path. Creates the file if it does not exist.
+// Throws a FileOpenException if the file cannot be opened.
+VOID appendall(CSTRING path, CSTRING content) {
+    PTR<VOID> f = fopen(path, "a");
+    fwrite(content, 1, strlen(content) as UINT64, f);
+    fclose(f);
+}
+
 // Return the size of a file in bytes, or -1 if it cannot be opened.
 // Note: fopen currently throws on failure, so this is best-effort.
 INT64 file_size(CSTRING path) {
@@ -92,5 +100,203 @@ FileBytes readfilebytes(CSTRING path) {
     FileBytes result;
     result.data = buf;
     result.len = size;
+    return result;
+}
+
+// Streaming file handle wrapper.
+struct FileStream {
+    PTR<VOID> handle;
+}
+
+// Open a file stream. mode follows fopen semantics ("r", "w", "a", "rb", ...).
+// Caller must close with file_close.
+// Throws a FileOpenException if the file cannot be opened.
+FileStream file_open(CSTRING path, CSTRING mode) {
+    FileStream fs;
+    fs.handle = fopen(path, mode);
+    return fs;
+}
+
+// Close a file stream.
+VOID file_close(FileStream fs) {
+    fclose(fs.handle);
+}
+
+// Read up to len bytes from a stream into buf. Returns the number of bytes read.
+INT64 file_read(FileStream fs, PTR<UINT8> buf, INT64 len) {
+    return fread(buf, 1, len as UINT64, fs.handle) as INT64;
+}
+
+// Write len bytes from buf to a stream. Returns the number of bytes written.
+INT64 file_write(FileStream fs, PTR<UINT8> buf, INT64 len) {
+    return fwrite(buf, 1, len as UINT64, fs.handle) as INT64;
+}
+
+// Return the current file position, or -1 on error.
+INT64 file_tell(FileStream fs) {
+    return ftell(fs.handle);
+}
+
+// Seek to a position in a stream. whence follows fseek (0=set, 1=cur, 2=end).
+VOID file_seek(FileStream fs, INT64 off, INT32 whence) {
+    fseek(fs.handle, off, whence);
+}
+
+// Return true if the stream has reached end-of-file.
+BOOL file_eof(FileStream fs) {
+    return feof(fs.handle) != 0;
+}
+
+// Return true if a stream error indicator is set.
+BOOL file_error(FileStream fs) {
+    return ferror(fs.handle) != 0;
+}
+
+// Read one line from a stream into an owned CSTRING. The trailing newline is
+// preserved. Returns an empty string at EOF. Caller must free the result.
+// Throws if a memory allocation fails.
+CSTRING file_read_line(FileStream fs) {
+    INT64 cap = 128;
+    PTR<INT8> buf = alloc(cap) as PTR<INT8>;
+    INT64 len = 0;
+
+    PTR<INT8> chunk = alloc(128 as INT64) as PTR<INT8>;
+    while (true) {
+        PTR<INT8> r = fgets(chunk, 128, fs.handle);
+        if (r == null) {
+            break;
+        }
+        INT64 chunk_len = strlen(chunk);
+        if (chunk_len == 0) {
+            break;
+        }
+
+        // grow buf if needed
+        if (len + chunk_len + 1 > cap) {
+            INT64 new_cap = cap * 2;
+            while (new_cap < len + chunk_len + 1) {
+                new_cap = new_cap * 2;
+            }
+            PTR<INT8> new_buf = alloc(new_cap) as PTR<INT8>;
+            memcpy(new_buf, buf, len);
+            free(buf);
+            buf = new_buf;
+            cap = new_cap;
+        }
+
+        unsafe {
+            INT64 i = 0;
+            while (i < chunk_len) {
+                buf[len] = chunk[i];
+                len = len + 1;
+                i = i + 1;
+            }
+            buf[len] = 0;
+
+            if (chunk[chunk_len - 1] == 10) {
+                break;
+            }
+        }
+    }
+    free(chunk);
+
+    if (len == 0) {
+        free(buf);
+        PTR<INT8> empty = alloc(1 as INT64) as PTR<INT8>;
+        unsafe { empty[0] = 0; }
+        return move(empty) as CSTRING;
+    }
+    return move(buf) as CSTRING;
+}
+
+// Open a temporary file stream in read/write mode. The file is automatically
+// removed when the stream is closed.
+FileStream tmpfile_stream() {
+    FileStream fs;
+    fs.handle = tmpfile();
+    return fs;
+}
+
+// Line view over a text file. The text is stored as a single CSTRING where each
+// line is terminated by a NUL byte; 'starts' holds the byte offset of each line.
+// Free with file_lines_free().
+struct FileLines {
+    CSTRING data;
+    PTR<INT64> starts;
+    INT64 count;
+}
+
+// Return the i-th line from a FileLines view. No bounds checking.
+CSTRING file_lines_get(FileLines fl, INT64 i) {
+    unsafe {
+        return (fl.data as PTR<INT8>) + fl.starts[i];
+    }
+}
+
+// Free memory owned by a FileLines view.
+VOID file_lines_free(FileLines fl) {
+    free(fl.data as PTR<VOID>);
+    free(fl.starts as PTR<VOID>);
+}
+
+// Read all lines from a text file. Lines are split on '\n'; the trailing '\n'
+// is not included in the returned line text. Empty lines are preserved.
+// Returns a FileLines view that must be freed with file_lines_free().
+// Throws a FileOpenException if the file cannot be opened.
+FileLines readlines(CSTRING path) {
+    CSTRING text = readall(path);
+    INT64 n = strlen(text);
+    INT64 count = 0;
+    INT64 i = 0;
+    unsafe {
+        while (i < n) {
+            if (text[i] == 10) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+        // Include the last line even if the file does not end with '\n'.
+        if (n > 0 && text[n - 1] != 10) {
+            count = count + 1;
+        }
+        if (n == 0) {
+            count = 0;
+        }
+    }
+
+    FileLines result;
+    result.count = count;
+    result.starts = alloc(count * 8) as PTR<INT64>;
+    PTR<INT8> data = alloc(n + 1) as PTR<INT8>;
+    result.data = data as CSTRING;
+
+    INT64 line = 0;
+    INT64 start = 0;
+    i = 0;
+    unsafe {
+        while (i < n) {
+            if (line < count) {
+                result.starts[line] = start;
+            }
+            while (i < n && text[i] != 10) {
+                data[start] = text[i];
+                start = start + 1;
+                i = i + 1;
+            }
+            data[start] = 0;
+            start = start + 1;
+            line = line + 1;
+            // skip the '\n'
+            if (i < n && text[i] == 10) {
+                i = i + 1;
+            }
+        }
+        // Handle an empty file (result.count == 0).
+        if (count == 0) {
+            data[0] = 0;
+        }
+    }
+
+    free(text as PTR<VOID>);
     return result;
 }

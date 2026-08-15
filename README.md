@@ -53,6 +53,7 @@ bare metal, not because it's a production kernel toolchain.
 * [Type Aliases](#type-aliases)
 * [Compilation Targets](#compilation-targets)
 * [Examples](#examples)
+* [Standard Library Helpers](#standard-library-helpers)
 * [Development](#development)
 * [Reserved / Not Yet Implemented](#reserved--not-yet-implemented)
 
@@ -964,7 +965,13 @@ Built-ins are recognized by name and do not need an `extern` declaration.
 | `fwrite(buffer, size, count, f)` | Writes `buffer` to a file, returns bytes written (`INT64`). |
 | `fseek(f, offset, whence)` | Seeks within a file. Throws `FileSeekException` on failure. |
 | `ftell(f)` | Returns the current file position (`INT64`). Throws `FileException` on failure. |
-| `remove(path)` | Deletes a file. Throws `FileRemoveException` on failure. |
+| `feof(f)` | Returns non-zero if the stream has reached end-of-file (`INT32`). |
+|| `ferror(f)` | Returns non-zero if the stream's error indicator is set (`INT32`). |
+|| `fgets(buf, n, f)` | Reads up to `n-1` characters into `buf`, stopping at newline or EOF. Returns `buf` on success or `null` on EOF/error. |
+|| `tmpfile()` | Creates a temporary read/write file that is deleted on `fclose`. Returns `PTR<VOID>`. Throws `FileOpenException` on failure. |
+|| `memcpy(dest, src, count)` | Copies `count` bytes from `src` to `dest`. Both are `PTR<VOID>`/raw pointers. |
+|| `memset(ptr, value, count)` | Fills the first `count` bytes of `ptr` with `value` (`INT32`). |
+|| `remove(path)` | Deletes a file. Throws `FileRemoveException` on failure. |
 | `rename(oldPath, newPath)` | Renames/moves a file. Throws `FileRenameException` on failure. |
 | `mkdir(path, mode)` | Creates a directory. Throws `DirectoryException` on failure. |
 | `rmdir(path)` | Removes a directory. Throws `DirectoryException` on failure. |
@@ -2045,6 +2052,72 @@ dotnet run -- kernel.zv -target os-x86 -o kernel.elf -run
 ```
 
 ---
+
+## Standard Library Helpers
+
+The shipped `lib/` folder contains higher-level helpers built on top of the builtins. Include them with `#include "lib/<name>.zv"` (or `<lib/<name>.zv>` after installation).
+
+### File helpers (`lib/file.zv`)
+
+```zv
+#include "lib/file.zv"
+
+@entry
+UINT32 main(CSTRING[] args) {
+    // Read/write helpers
+    CSTRING text = readall("input.txt");          // owned CSTRING
+    writeall("output.txt", text);
+    appendall("output.txt", "\nmore text");
+
+    // Raw binary data for hash functions
+    FileBytes fb = readfilebytes("input.txt");
+    print("bytes: %lld", fb.len);
+    free(fb.data);   // caller owns the buffer
+
+    // Streaming
+    FileStream f = file_open("input.txt", "r");
+    while (!file_eof(f)) {
+        CSTRING line = file_read_line(f);   // trailing '\n' preserved
+        if (strlen(line) == 0) {
+            break;
+        }
+        print("%s", line);
+    }
+    file_close(f);
+
+    // Read all lines
+    FileLines lines = readlines("input.txt");
+    for (INT64 i = 0; i < lines.count; i = i + 1) {
+        print("line %lld: %s", i, file_lines_get(lines, i));
+    }
+    file_lines_free(lines);
+
+    // Temporary file stream (deleted automatically on close)
+    FileStream tmp = tmpfile_stream();
+    file_write(tmp, "temp data" as PTR<UINT8>, 9);
+    file_close(tmp);
+
+    return 0;
+}
+```
+
+### Path helpers (`lib/path.zv`)
+
+```zv
+#include "lib/path.zv"
+
+@entry
+UINT32 main(CSTRING[] args) {
+    CSTRING p = "C:\\foo\\bar\\baz.txt";
+    print("dir: %s", dirname(p));       // C:\foo\bar
+    print("base: %s", basename(p));    // baz.txt
+    print("ext: %s", extname(p));      // txt
+    print("joined: %s", join("a", "b"));
+    print("absolute? %d", is_absolute(p));
+    print("normalized: %s", normalize("/a/b/../c//d/./e"));
+    return 0;
+}
+```
 
 ## Development
 
