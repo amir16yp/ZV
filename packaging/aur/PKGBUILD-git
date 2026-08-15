@@ -28,11 +28,18 @@ build() {
 }
 
 package() {
-    install -Dm755 "${srcdir}/build/ZV" "$pkgdir/usr/bin/zv"
+    # Install the full self-contained publish output (ZV.dll, deps.json,
+    # runtimeconfig.json, native libraries, ...) together, since the apphost
+    # binary needs its companion files in the same directory to run.
+    install -dm755 "$pkgdir/usr/lib/zv"
+    cp -a "${srcdir}/build/." "$pkgdir/usr/lib/zv/"
+    chmod 755 "$pkgdir/usr/lib/zv/ZV"
 
-    mkdir -p "$pkgdir/usr/lib/zv"
     cp -r "${srcdir}/ZV/lib" "$pkgdir/usr/lib/zv/lib"
     find "$pkgdir/usr/lib/zv/lib" -type f -exec chmod 644 {} \;
+
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s /usr/lib/zv/ZV "$pkgdir/usr/bin/zv"
 
     install -Dm644 "${srcdir}/ZV/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
     install -Dm644 "${srcdir}/ZV/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

@@ -16,11 +16,21 @@ source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/ZV-linux-x64.t
 sha256sums=('SKIP')
 
 package() {
-    install -Dm755 zv "$pkgdir/usr/bin/zv"
+    # Install the full self-contained runtime output (zv, ZV.dll, deps.json,
+    # runtimeconfig.json, native libraries, ...) together, since the apphost
+    # binary needs its companion files in the same directory to run. Only
+    # `lib` (standard library), `setup`, and docs get their own destinations.
+    install -dm755 "$pkgdir/usr/lib/zv"
+    find . -maxdepth 1 -mindepth 1 \
+        ! -name lib ! -name setup ! -name README.md ! -name LICENSE.md \
+        -exec cp -a {} "$pkgdir/usr/lib/zv/" \;
+    chmod 755 "$pkgdir/usr/lib/zv/zv"
 
-    mkdir -p "$pkgdir/usr/lib/zv"
     cp -r lib "$pkgdir/usr/lib/zv/lib"
     find "$pkgdir/usr/lib/zv/lib" -type f -exec chmod 644 {} \;
+
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s /usr/lib/zv/zv "$pkgdir/usr/bin/zv"
 
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
     install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
