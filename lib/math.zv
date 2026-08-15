@@ -1,7 +1,8 @@
 // math.zv
 //
 // Tiny numeric helpers and common constants. Each integer/float width has its
-// own min/max/clamp so they work cleanly with ZV's explicit types.
+// own min/max/clamp so they work cleanly with ZV's explicit types. Function
+// names always include the full width (e.g. min_u64, not min_u).
 //
 // Constants are written as raw literals instead of expressions like PI/180
 // because the current compiler crashes when global float constants reference
@@ -23,11 +24,11 @@ INT32 sign_i32(INT32 x) { if (x > 0) return 1; if (x < 0) return -1; return 0; }
 
 // --- INT64 -------------------------------------------------------------------
 
-INT64 min_i(INT64 a, INT64 b) { return (a < b) ? a : b; }
-INT64 max_i(INT64 a, INT64 b) { return (a > b) ? a : b; }
-INT64 clamp_i(INT64 v, INT64 lo, INT64 hi) { return max_i(lo, min_i(hi, v)); }
-INT64 abs_i(INT64 x) { return (x < 0) ? -x : x; }
-INT64 sign_i(INT64 x) { if (x > 0) return 1 as INT64; if (x < 0) return -1 as INT64; return 0 as INT64; }
+INT64 min_i64(INT64 a, INT64 b) { return (a < b) ? a : b; }
+INT64 max_i64(INT64 a, INT64 b) { return (a > b) ? a : b; }
+INT64 clamp_i64(INT64 v, INT64 lo, INT64 hi) { return max_i64(lo, min_i64(hi, v)); }
+INT64 abs_i64(INT64 x) { return (x < 0) ? -x : x; }
+INT64 sign_i64(INT64 x) { if (x > 0) return 1 as INT64; if (x < 0) return -1 as INT64; return 0 as INT64; }
 
 // --- INT128 ------------------------------------------------------------------
 
@@ -45,9 +46,9 @@ UINT32 clamp_u32(UINT32 v, UINT32 lo, UINT32 hi) { return max_u32(lo, min_u32(hi
 
 // --- UINT64 ------------------------------------------------------------------
 
-UINT64 min_u(UINT64 a, UINT64 b) { return (a < b) ? a : b; }
-UINT64 max_u(UINT64 a, UINT64 b) { return (a > b) ? a : b; }
-UINT64 clamp_u(UINT64 v, UINT64 lo, UINT64 hi) { return max_u(lo, min_u(hi, v)); }
+UINT64 min_u64(UINT64 a, UINT64 b) { return (a < b) ? a : b; }
+UINT64 max_u64(UINT64 a, UINT64 b) { return (a > b) ? a : b; }
+UINT64 clamp_u64(UINT64 v, UINT64 lo, UINT64 hi) { return max_u64(lo, min_u64(hi, v)); }
 
 // --- UINT128 -----------------------------------------------------------------
 
@@ -66,18 +67,25 @@ FLOAT32 lerp_f32(FLOAT32 a, FLOAT32 b, FLOAT32 t) { return (a + (b - a) * t) as 
 
 // --- FLOAT64 -----------------------------------------------------------------
 
-FLOAT64 min_f(FLOAT64 a, FLOAT64 b) { return (a < b) ? a : b; }
-FLOAT64 max_f(FLOAT64 a, FLOAT64 b) { return (a > b) ? a : b; }
-FLOAT64 clamp_f(FLOAT64 v, FLOAT64 lo, FLOAT64 hi) { return max_f(lo, min_f(hi, v)); }
-FLOAT64 abs_f(FLOAT64 x) { return (x < 0.0) ? -x : x; }
-FLOAT64 sign_f(FLOAT64 x) { if (x > 0.0) return 1.0; if (x < 0.0) return -1.0; return 0.0; }
-FLOAT64 lerp(FLOAT64 a, FLOAT64 b, FLOAT64 t) { return a + (b - a) * t; }
+FLOAT64 min_f64(FLOAT64 a, FLOAT64 b) { return (a < b) ? a : b; }
+FLOAT64 max_f64(FLOAT64 a, FLOAT64 b) { return (a > b) ? a : b; }
+FLOAT64 clamp_f64(FLOAT64 v, FLOAT64 lo, FLOAT64 hi) { return max_f64(lo, min_f64(hi, v)); }
+FLOAT64 abs_f64(FLOAT64 x) { return (x < 0.0) ? -x : x; }
+FLOAT64 sign_f64(FLOAT64 x) { if (x > 0.0) return 1.0; if (x < 0.0) return -1.0; return 0.0; }
+FLOAT64 lerp_f64(FLOAT64 a, FLOAT64 b, FLOAT64 t) { return a + (b - a) * t; }
 
 // --- mixed helpers -----------------------------------------------------------
 
-INT64 floor_i(FLOAT64 x) { return x as INT64; }
-INT64 ceil_i(FLOAT64 x) { return (x + 0.9999999999999999) as INT64; }
-INT64 round_i(FLOAT64 x) { return (x + 0.5) as INT64; }
+INT32 floor_i32(FLOAT32 x) { return x as INT32; }
+INT32 ceil_i32(FLOAT32 x) { return (x + 0.99999994 as FLOAT32) as INT32; }
+INT32 round_i32(FLOAT32 x) { return (x + 0.5 as FLOAT32) as INT32; }
 
-FLOAT64 deg2rad(FLOAT64 d) { return d * DEG2RAD; }
-FLOAT64 rad2deg(FLOAT64 r) { return r * RAD2DEG; }
+INT64 floor_i64(FLOAT64 x) { return x as INT64; }
+INT64 ceil_i64(FLOAT64 x) { return (x + 0.9999999999999999) as INT64; }
+INT64 round_i64(FLOAT64 x) { return (x + 0.5) as INT64; }
+
+FLOAT32 deg2rad_f32(FLOAT32 d) { return d * DEG2RAD as FLOAT32; }
+FLOAT32 rad2deg_f32(FLOAT32 r) { return r * RAD2DEG as FLOAT32; }
+
+FLOAT64 deg2rad_f64(FLOAT64 d) { return d * DEG2RAD; }
+FLOAT64 rad2deg_f64(FLOAT64 r) { return r * RAD2DEG; }
