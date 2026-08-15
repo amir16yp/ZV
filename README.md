@@ -966,13 +966,13 @@ Built-ins are recognized by name and do not need an `extern` declaration.
 | `fseek(f, offset, whence)` | Seeks within a file. Throws `FileSeekException` on failure. |
 | `ftell(f)` | Returns the current file position (`INT64`). Throws `FileException` on failure. |
 | `feof(f)` | Returns non-zero if the stream has reached end-of-file (`INT32`). |
-|| `ferror(f)` | Returns non-zero if the stream's error indicator is set (`INT32`). |
-|| `fgets(buf, n, f)` | Reads up to `n-1` characters into `buf`, stopping at newline or EOF. Returns `buf` on success or `null` on EOF/error. |
-|| `fputs(str, f)` | Writes a NUL-terminated string to a stream. Returns `INT32`; non-negative on success, EOF on error. |
-|| `tmpfile()` | Creates a temporary read/write file that is deleted on `fclose`. Returns `PTR<VOID>`. Throws `FileOpenException` on failure. |
-|| `memcpy(dest, src, count)` | Copies `count` bytes from `src` to `dest`. Both are `PTR<VOID>`/raw pointers. |
-|| `memset(ptr, value, count)` | Fills the first `count` bytes of `ptr` with `value` (`INT32`). |
-|| `remove(path)` | Deletes a file. Throws `FileRemoveException` on failure. |
+| `ferror(f)` | Returns non-zero if the stream's error indicator is set (`INT32`). |
+| `fgets(buf, n, f)` | Reads up to `n-1` characters into `buf`, stopping at newline or EOF. Returns `buf` on success or `null` on EOF/error. |
+| `fputs(str, f)` | Writes a NUL-terminated string to a stream. Returns `INT32`; non-negative on success, EOF on error. |
+| `tmpfile()` | Creates a temporary read/write file that is deleted on `fclose`. Returns `PTR<VOID>`. Throws `FileOpenException` on failure. |
+| `memcpy(dest, src, count)` | Copies `count` bytes from `src` to `dest`. Both are `PTR<VOID>`/raw pointers. |
+| `memset(ptr, value, count)` | Fills the first `count` bytes of `ptr` with `value` (`INT32`). |
+| `remove(path)` | Deletes a file. Throws `FileRemoveException` on failure. |
 | `rename(oldPath, newPath)` | Renames/moves a file. Throws `FileRenameException` on failure. |
 | `mkdir(path, mode)` | Creates a directory. Throws `DirectoryException` on failure. |
 | `rmdir(path)` | Removes a directory. Throws `DirectoryException` on failure. |
