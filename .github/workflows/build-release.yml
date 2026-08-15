@@ -46,6 +46,8 @@ jobs:
         run: |
           Copy-Item -Recurse -Path lib -Destination ./publish/${{ matrix.rid }}/lib -Force
           Copy-Item -Recurse -Path setup -Destination ./publish/${{ matrix.rid }}/setup -Force
+          Copy-Item -Path README.md -Destination ./publish/${{ matrix.rid }}/README.md -Force
+          Copy-Item -Path LICENSE.md -Destination ./publish/${{ matrix.rid }}/LICENSE.md -Force
         if: matrix.os == 'windows-latest'
 
       - name: Copy standard library and installer scripts
@@ -53,6 +55,8 @@ jobs:
           mv ./publish/${{ matrix.rid }}/ZV ./publish/${{ matrix.rid }}/zv
           cp -R lib ./publish/${{ matrix.rid }}/lib
           cp -R setup ./publish/${{ matrix.rid }}/setup
+          cp README.md ./publish/${{ matrix.rid }}/README.md
+          cp LICENSE.md ./publish/${{ matrix.rid }}/LICENSE.md
         if: matrix.os != 'windows-latest'
 
       - name: Publish framework-dependent build for MSI

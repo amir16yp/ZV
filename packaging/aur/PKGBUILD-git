@@ -28,10 +28,10 @@ build() {
 }
 
 package() {
-    install -Dm755 "${srcdir}/build/zv" "$pkgdir/usr/bin/zv"
+    install -Dm755 "${srcdir}/build/ZV" "$pkgdir/usr/bin/zv"
 
     mkdir -p "$pkgdir/usr/lib/zv"
-    cp -r "${srcdir}/build/lib" "$pkgdir/usr/lib/zv/lib"
+    cp -r "${srcdir}/ZV/lib" "$pkgdir/usr/lib/zv/lib"
     find "$pkgdir/usr/lib/zv/lib" -type f -exec chmod 644 {} \;
 
     install -Dm644 "${srcdir}/ZV/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
