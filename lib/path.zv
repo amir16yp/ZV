@@ -4,7 +4,7 @@
 // when bound to a CSTRING variable.
 //
 // Examples:
-//   #include "lib/path.zv"
+//   #include <lib/path.zv>
 //
 //   CSTRING p = "C:\\foo\\bar\\baz.txt";
 //   print("dir: %s", path_dir(p));      // C:\foo\bar

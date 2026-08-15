@@ -4,12 +4,12 @@
 // light checksums. Not suitable for cryptography or collision-critical use.
 //
 // Usage:
-//   #include "lib/hash/fnv1a.zv"
+//   #include <lib/hash/fnv1a.zv>
 //   UINT32 h = fnv1a_32(data, len);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/fnv1a.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/fnv1a.zv>
 //   FileBytes fb = readfilebytes("input.txt");
 //   UINT32 h = fnv1a_32(fb.data, fb.len);
 //   free(fb.data);

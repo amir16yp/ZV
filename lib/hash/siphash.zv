@@ -4,13 +4,13 @@
 // hash tables. The caller supplies a 16-byte key.
 //
 // Usage:
-//   #include "lib/hash/siphash.zv"
+//   #include <lib/hash/siphash.zv>
 //   UINT8[16] key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 //   UINT64 h = siphash_2_4(data, len, key);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/siphash.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/siphash.zv>
 //   FileBytes fb = readfilebytes("input.txt");
 //   UINT8[16] key = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 //   UINT64 h = siphash_2_4(fb.data, fb.len, key);

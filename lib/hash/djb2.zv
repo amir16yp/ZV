@@ -4,12 +4,12 @@
 // commonly used for hash tables. Quality is fine for non-adversarial keys.
 //
 // Usage:
-//   #include "lib/hash/djb2.zv"
+//   #include <lib/hash/djb2.zv>
 //   UINT32 h = djb2(s);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/djb2.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/djb2.zv>
 //   CSTRING text = readall("input.txt");
 //   UINT32 h = djb2(text);
 

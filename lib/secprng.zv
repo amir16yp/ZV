@@ -9,7 +9,7 @@
 // stream of random bytes from a user-supplied seed.
 //
 // Usage:
-//   #include "lib/secprng.zv"
+//   #include <lib/secprng.zv>
 //   secprng_seed(0x123456789ABCDEF0);
 //   UINT32 x = secprng_u32();
 //   FLOAT64 f = secprng_f64(); // uniform in [0, 1)

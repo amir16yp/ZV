@@ -4,12 +4,12 @@
 // for typical string keys with very little code.
 //
 // Usage:
-//   #include "lib/hash/sdbm.zv"
+//   #include <lib/hash/sdbm.zv>
 //   UINT32 h = sdbm(s);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/sdbm.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/sdbm.zv>
 //   CSTRING text = readall("input.txt");
 //   UINT32 h = sdbm(text);
 

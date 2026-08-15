@@ -2056,7 +2056,7 @@ dotnet run -- kernel.zv -target os-x86 -o kernel.elf -run
 
 ## Standard Library Helpers
 
-The shipped `lib/` folder contains higher-level helpers built on top of the builtins. Include them with `#include "lib/<name>.zv"` (or `<lib/<name>.zv>` after installation).
+The shipped `lib/` folder contains higher-level helpers built on top of the builtins. Include them with `#include <lib/<name>.zv>`.
 
 | Module | What it covers |
 |--------|----------------|
@@ -2070,67 +2070,91 @@ The shipped `lib/` folder contains higher-level helpers built on top of the buil
 
 ### File helpers (`lib/file.zv`)
 
-```zv
-#include "lib/file.zv"
+`#include <lib/file.zv>`
 
-@entry
-UINT32 main(CSTRING[] args) {
-    // Read/write helpers
-    CSTRING text = readall("input.txt");          // owned CSTRING
-    writeall("output.txt", text);
-    appendall("output.txt", "\nmore text");
+Whole-file helpers, streaming, binary primitive I/O, and line handling.
 
-    // Raw binary data for hash functions
-    FileBytes fb = readfilebytes("input.txt");
-    print("bytes: %lld", fb.len);
-    free(fb.data);   // caller owns the buffer
-
-    // Streaming
-    FileStream f = file_open("input.txt", "r");
-    while (!file_eof(f)) {
-        CSTRING line = file_read_line(f);   // trailing '\n' preserved
-        if (strlen(line) == 0) {
-            break;
-        }
-        print("%s", line);
-    }
-    file_close(f);
-
-    // Read all lines
-    FileLines lines = readlines("input.txt");
-    for (INT64 i = 0; i < lines.count; i = i + 1) {
-        print("line %lld: %s", i, file_lines_get(lines, i));
-    }
-    file_lines_free(lines);
-
-    // Temporary file stream (deleted automatically on close)
-    FileStream tmp = tmpfile_stream();
-    file_write(tmp, "temp data" as PTR<UINT8>, 9);
-    file_close(tmp);
-
-    // Or use file_write_line(fs, line) to write a CSTRING with fputs.
-
-    return 0;
-}
-```
+- `readall(path)` — read a whole text file into an owned `CSTRING`.
+- `writeall(path, content)` — write text to a file, truncating any existing content.
+- `appendall(path, content)` — append text, creating the file if it does not exist.
+- `file_size(path)` — return the size of a file in bytes, or `-1` on error.
+- `exists(path)` — return `true` if the file can be opened for reading.
+- `readallbytes(path)` — read a whole file into an owned `UINT8[]`.
+- `readfilebytes(path)` — read a whole file into a `FileBytes { data, len }`; caller must `free(data)`.
+- `file_open(path, mode)` / `file_close(fs)` — open/close a `FileStream` (`mode` follows `fopen`).
+- `file_read(fs, buf, len)` / `file_write(fs, buf, len)` — raw byte I/O on a stream.
+- `file_tell(fs)` / `file_seek(fs, off, whence)` — stream positioning (`whence`: 0=set, 1=cur, 2=end).
+- `file_eof(fs)` / `file_error(fs)` — check stream state.
+- `file_read_line(fs)` — read one line into an owned `CSTRING`; newline is preserved.
+- `file_write_line(fs, line)` — write a `CSTRING` to a stream with `fputs`.
+- `tmpfile_stream()` — open a temporary read/write stream deleted automatically on close.
+- `readlines(path)` / `file_lines_get(lines, i)` / `file_lines_free(lines)` — read all lines into a `FileLines` view.
+- Binary primitive readers/writers (`_le` little-endian, `_be` big-endian): `file_read_u8`, `file_read_i8`, `file_read_u16_le`/`_be`, `file_read_i16_le`/`_be`, `file_read_u32_le`/`_be`, `file_read_i32_le`/`_be`, `file_read_u64_le`/`_be`, `file_read_i64_le`/`_be`, `file_read_f32_le`/`_be`, `file_read_f64_le`/`_be`, and the matching `file_write_*` functions.
+- `file_read_cstring(fs, len)` — read exactly `len` bytes into a NUL-terminated `CSTRING`.
 
 ### Path helpers (`lib/path.zv`)
 
-```zv
-#include "lib/path.zv"
+`#include <lib/path.zv>`
 
-@entry
-UINT32 main(CSTRING[] args) {
-    CSTRING p = "C:\\foo\\bar\\baz.txt";
-    print("dir: %s", dirname(p));       // C:\foo\bar
-    print("base: %s", basename(p));    // baz.txt
-    print("ext: %s", extname(p));      // txt
-    print("joined: %s", join("a", "b"));
-    print("absolute? %d", is_absolute(p));
-    print("normalized: %s", normalize("/a/b/../c//d/./e"));
-    return 0;
-}
-```
+Small path-manipulation helpers; results are owned `CSTRING`s.
+
+- `path_join(a, b)` — join two path components with a separator when needed.
+- `path_dir(p)` — directory portion of a path (`.` if none).
+- `path_file(p)` — file-name portion of a path.
+- `path_ext(p)` — file extension, or empty string if none.
+- `dirname(p)`, `basename(p)`, `extname(p)`, `join(a, b)` — standard aliases for the above.
+- `is_absolute(p)` — true for POSIX `/`, Windows drive, or UNC paths.
+- `normalize(p)` — collapse `.`/`..`, remove duplicate separators, and use `/` separators.
+
+### Math helpers (`lib/math.zv`)
+
+`#include <lib/math.zv>`
+
+Numeric constants and per-width numeric helpers.
+
+- Constants: `PI`, `TAU`, `E`, `DEG2RAD`, `RAD2DEG`.
+- Integer helpers for each signed width (`i32`, `i64`, `i128`): `min_*`, `max_*`, `clamp_*`, `abs_*`, `sign_*`.
+- Unsigned helpers for each width (`u32`, `u64`, `u128`): `min_*`, `max_*`, `clamp_*`.
+- Float helpers for `f32`/`f64`: `min_*`, `max_*`, `clamp_*`, `abs_*`, `sign_*`, `lerp_*`.
+- Conversion/angle helpers: `floor_i32`/`floor_i64`, `ceil_i32`/`ceil_i64`, `round_i32`/`round_i64`, `deg2rad_f32`/`deg2rad_f64`, `rad2deg_f32`/`rad2deg_f64`.
+
+### Pseudo-random helpers (`lib/prng.zv`)
+
+`#include <lib/prng.zv>`
+
+Fast, deterministic 64-bit LCG generator. Not cryptographically secure.
+
+- `prng_seed(seed)` — seed the generator.
+- Width-specific outputs: `prng_u8/16/32/64`, `prng_i8/16/32/64`, `prng_bool`.
+- Unit-float outputs: `prng_f32()` and `prng_f64()` in `[0, 1]`.
+- Ranged variants: `prng_*_range(min, max)`. Integer ranges are inclusive; float ranges are half-open `[min, max)`.
+
+### Secure PRNG helpers (`lib/secprng.zv`)
+
+`#include <lib/secprng.zv>`
+
+Deterministic, platform-independent ChaCha20-based CSPRNG. Still requires a proper entropy source for production security.
+
+- `secprng_seed(seed)` — seed the generator.
+- Width-specific outputs: `secprng_u8/16/32/64`, `secprng_i8/16/32/64`, `secprng_bool`.
+- Unit-float outputs: `secprng_f32()` and `secprng_f64()` in `[0, 1)`.
+- Ranged variants: `secprng_*_range(min, max)`. Integer ranges are inclusive; float ranges are half-open `[min, max)`.
+
+### Hash helpers (`lib/hash/*.zv`)
+
+`#include <lib/hash/<name>.zv>`
+
+Checksum and hash functions; most take a `(PTR<UINT8> data, INT64 len)` buffer and many also offer a `_cstring` variant.
+
+- `adler32(data, len)` / `adler32_cstring(s)` — Adler-32 checksum.
+- `crc32(data, len)` / `crc32_cstring(s)` / `crc32_update(crc, data, len)` / `crc32_byte(crc, b)` — CRC-32.
+- `djb2(s)` — DJB2 string hash.
+- `fnv1a_32(data, len)` / `fnv1a_cstring_32(s)` — FNV-1a 32-bit.
+- `md5(data, len, out)` / `md5_cstring(s, out)` — MD5; `out` is a `PTR<UINT8>` to a 16-byte buffer.
+- `murmur3_32(data, len, seed)` / `murmur3_cstring_32(s, seed)` — MurmurHash3 32-bit.
+- `sdbm(s)` — SDBM string hash.
+- `siphash_2_4(data, len, key)` / `siphash_cstring_2_4(s, key)` — SipHash-2-4; `key` is a `UINT8[16]`.
+- `xxhash32(data, len, seed)` / `xxhash32_cstring(s, seed)` — xxHash 32-bit.
 
 ## Development
 

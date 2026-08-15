@@ -4,13 +4,13 @@
 // the caller-supplied output buffer.
 //
 // Usage:
-//   #include "lib/hash/md5.zv"
+//   #include <lib/hash/md5.zv>
 //   UINT8[16] digest;
 //   md5_cstring("abc", digest as PTR<UINT8>);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/md5.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/md5.zv>
 //   FileBytes fb = readfilebytes("input.txt");
 //   UINT8[16] digest;
 //   md5(fb.data, fb.len, digest as PTR<UINT8>);

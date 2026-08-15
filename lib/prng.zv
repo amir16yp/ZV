@@ -5,7 +5,7 @@
 // not cryptographically secure and should not be used for security purposes.
 //
 // Usage:
-//   #include "lib/prng.zv"
+//   #include <lib/prng.zv>
 //   prng_seed(12345);
 //   UINT32 x = prng_u32();
 //   FLOAT64 f = prng_f64(); // uniform in [0, 1]

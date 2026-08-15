@@ -4,12 +4,12 @@
 // for short inputs, but weaker for long or adversarial data.
 //
 // Usage:
-//   #include "lib/hash/adler32.zv"
+//   #include <lib/hash/adler32.zv>
 //   UINT32 a = adler32(data, len);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/adler32.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/adler32.zv>
 //   FileBytes fb = readfilebytes("input.txt");
 //   UINT32 a = adler32(fb.data, fb.len);
 //   free(fb.data);

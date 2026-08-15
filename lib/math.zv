@@ -9,7 +9,7 @@
 // other globals during LLVM optimization.
 //
 // Examples:
-//   #include "lib/math.zv"
+//   #include <lib/math.zv>
 //
 //   // Constants
 //   FLOAT64 circumference = 2.0 * PI * r;

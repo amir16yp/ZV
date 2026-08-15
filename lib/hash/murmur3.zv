@@ -4,12 +4,12 @@
 // decent avalanche and distribution. Not suitable for cryptography.
 //
 // Usage:
-//   #include "lib/hash/murmur3.zv"
+//   #include <lib/hash/murmur3.zv>
 //   UINT32 h = murmur3_32(data, len, seed);
 //
 // Hash a file:
-//   #include "lib/file.zv"
-//   #include "lib/hash/murmur3.zv"
+//   #include <lib/file.zv>
+//   #include <lib/hash/murmur3.zv>
 //   FileBytes fb = readfilebytes("input.txt");
 //   UINT32 h = murmur3_32(fb.data, fb.len, 0);
 //   free(fb.data);

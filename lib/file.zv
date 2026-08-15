@@ -3,7 +3,7 @@
 // Simple file helpers.
 //
 // Examples:
-//   #include "lib/file.zv"
+//   #include <lib/file.zv>
 //
 //   // Read or write the whole file
 //   CSTRING text = readall("input.txt");
