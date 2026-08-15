@@ -6,6 +6,13 @@
 // Usage:
 //   #include "lib/hash/murmur3.zv"
 //   UINT32 h = murmur3_32(data, len, seed);
+//
+// Hash a file:
+//   #include "lib/file.zv"
+//   #include "lib/hash/murmur3.zv"
+//   FileBytes fb = readfilebytes("input.txt");
+//   UINT32 h = murmur3_32(fb.data, fb.len, 0);
+//   free(fb.data);
 
 CONST UINT32 MURMUR3_C1 = 0xCC9E2D51;
 CONST UINT32 MURMUR3_C2 = 0x1B873593;

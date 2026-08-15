@@ -7,6 +7,14 @@
 //   #include "lib/hash/md5.zv"
 //   UINT8[16] digest;
 //   md5_cstring("abc", digest as PTR<UINT8>);
+//
+// Hash a file:
+//   #include "lib/file.zv"
+//   #include "lib/hash/md5.zv"
+//   FileBytes fb = readfilebytes("input.txt");
+//   UINT8[16] digest;
+//   md5(fb.data, fb.len, digest as PTR<UINT8>);
+//   free(fb.data);
 
 UINT32[64] __md5_K = [
     0xD76AA478, 0xE8C7B756, 0x242070DB, 0xC1BDCEEE,

@@ -6,6 +6,12 @@
 // Usage:
 //   #include "lib/hash/sdbm.zv"
 //   UINT32 h = sdbm(s);
+//
+// Hash a file:
+//   #include "lib/file.zv"
+//   #include "lib/hash/sdbm.zv"
+//   CSTRING text = readall("input.txt");
+//   UINT32 h = sdbm(text);
 
 UINT32 sdbm(CSTRING s) {
     UINT32 hash = 0;

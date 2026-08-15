@@ -6,6 +6,13 @@
 // Usage:
 //   #include "lib/hash/fnv1a.zv"
 //   UINT32 h = fnv1a_32(data, len);
+//
+// Hash a file:
+//   #include "lib/file.zv"
+//   #include "lib/hash/fnv1a.zv"
+//   FileBytes fb = readfilebytes("input.txt");
+//   UINT32 h = fnv1a_32(fb.data, fb.len);
+//   free(fb.data);
 
 CONST UINT32 FNV1A_32_OFFSET_BASIS = 0x811C9DC5;
 CONST UINT32 FNV1A_32_PRIME         = 0x01000193;
