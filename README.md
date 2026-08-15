@@ -2058,6 +2058,16 @@ dotnet run -- kernel.zv -target os-x86 -o kernel.elf -run
 
 The shipped `lib/` folder contains higher-level helpers built on top of the builtins. Include them with `#include "lib/<name>.zv"` (or `<lib/<name>.zv>` after installation).
 
+| Module | What it covers |
+|--------|----------------|
+| `lib/file.zv` | Whole-file read/write, streaming, binary primitive I/O, line handling, temp files |
+| `lib/path.zv` | Path joining, splitting, extension extraction, normalization, absolute checks |
+| `lib/math.zv` | Constants and per-width `min`/`max`/`clamp`/`abs`/`sign`/`lerp`/`round`/`deg`/`rad` helpers |
+| `lib/prng.zv` | Fast deterministic 64-bit LCG pseudo-random numbers |
+| `lib/secprng.zv` | Deterministic ChaCha20-based CSPRNG |
+| `lib/hash/*.zv` | Checksums and hashes: adler32, crc32, djb2, fnv1a, md5, murmur3, sdbm, siphash, xxhash32 |
+| `lib/win/*.zv` | Windows API bindings (kept separate from the portable helpers above) |
+
 ### File helpers (`lib/file.zv`)
 
 ```zv
