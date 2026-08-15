@@ -1,0 +1,198 @@
+// hex.zv
+//
+// Hexadecimal encoding and decoding helpers.
+//
+// Usage:
+//   #include <lib/hex.zv>
+//
+//   UINT8[5] bytes = [0x48, 0x65, 0x6C, 0x6C, 0x6F];
+//   CSTRING h = hex_encode(bytes as PTR<UINT8>, 5); // "48656c6c6f"
+//
+//   CSTRING text = "hello";
+//   CSTRING t = hex_encode_cstring(text);          // "68656c6c6f"
+//
+//   UINT8[] back = hex_decode("48 65 6C 6C 6F");   // [0x48, 0x65, ...]
+//
+// Examples:
+//   UINT8[3] data = [0xDE, 0xAD, 0xBE];
+//   CSTRING lower = hex_encode(data as PTR<UINT8>, 3);   // "deadbe"
+//   CSTRING upper = hex_encode_upper(data as PTR<UINT8>, 3); // "DEADBE"
+//
+//   UINT8[] decoded = hex_decode("0xDE AD BE EF");
+//   for (INT64 i = 0; i < len(decoded); i = i + 1) {
+//       print("%02x", decoded[i] as INT32);
+//   }
+//
+//   try {
+//       UINT8[] bad = hex_decode("0xGG");
+//   } catch (e) {
+//       print("bad input: %s", e.message);
+//   }
+
+// Internal helper: encode bytes using the supplied digit table (lowercase or uppercase).
+CSTRING __hex_encode_with(PTR<UINT8> data, INT64 len, CSTRING table) {
+    if (len < 0) {
+        len = 0;
+    }
+
+    PTR<INT8> out = alloc((len * 2 + 1) as INT64) as PTR<INT8>;
+    if (len == 0) {
+        unsafe {
+            out[0] = 0;
+        }
+        return move(out) as CSTRING;
+    }
+
+    INT64 i = 0;
+    unsafe {
+        while (i < len) {
+            UINT8 b = data[i];
+            out[i * 2] = table[(b >> 4) as INT64];
+            out[i * 2 + 1] = table[(b & 0x0F) as INT64];
+            i = i + 1;
+        }
+        out[len * 2] = 0;
+    }
+
+    return move(out) as CSTRING;
+}
+
+// Encode len bytes from data into a lowercase hex CSTRING.
+CSTRING hex_encode(PTR<UINT8> data, INT64 len) {
+    return __hex_encode_with(data, len, "0123456789abcdef");
+}
+
+// Encode len bytes from data into an uppercase hex CSTRING.
+CSTRING hex_encode_upper(PTR<UINT8> data, INT64 len) {
+    return __hex_encode_with(data, len, "0123456789ABCDEF");
+}
+
+// Encode the bytes of a CSTRING into lowercase hex.
+CSTRING hex_encode_cstring(CSTRING s) {
+    return hex_encode(s as PTR<UINT8>, strlen(s));
+}
+
+// Encode a dynamic byte array into lowercase hex.
+CSTRING hex_encode_bytes(UINT8[] data) {
+    return hex_encode(data as PTR<UINT8>, len(data));
+}
+
+// Return true if c is a whitespace character that should be ignored by the decoder.
+BOOL __hex_is_space(INT8 c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+// Return the value (0-15) of a single hex digit, or -1 if it is not valid.
+INT8 __hex_value(INT8 c) {
+    if (c >= '0' && c <= '9') {
+        return (c - '0') as INT8;
+    }
+    if (c >= 'a' && c <= 'f') {
+        return (c - 'a' + 10) as INT8;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return (c - 'A' + 10) as INT8;
+    }
+    return -1 as INT8;
+}
+
+// Decode a hex string into an owned UINT8[].
+//
+// The input may contain an optional leading "0x" or "0X" prefix and arbitrary
+// whitespace between or around the digits. Each byte is represented by exactly
+// two hex digits. Throws an Exception on invalid characters or an odd number
+// of hex digits.
+UINT8[] hex_decode(CSTRING s) {
+    INT64 n = strlen(s);
+    INT64 i = 0;
+
+    // Skip leading whitespace.
+    while (i < n) {
+        INT8 c;
+        unsafe {
+            c = s[i];
+        }
+        if (!__hex_is_space(c)) {
+            break;
+        }
+        i = i + 1;
+    }
+
+    // Optional "0x" or "0X" prefix.
+    if (i + 1 < n) {
+        INT8 c0;
+        INT8 c1;
+        unsafe {
+            c0 = s[i];
+            c1 = s[i + 1];
+        }
+        if (c0 == '0' && (c1 == 'x' || c1 == 'X')) {
+            i = i + 2;
+        }
+    }
+
+    // Count and validate non-whitespace hex digits.
+    INT64 digits = 0;
+    INT64 j = i;
+    while (j < n) {
+        INT8 c;
+        unsafe {
+            c = s[j];
+        }
+        if (!__hex_is_space(c)) {
+            if (__hex_value(c) < 0) {
+                throw Exception("HexException: invalid hex character");
+            }
+            digits = digits + 1;
+        }
+        j = j + 1;
+    }
+
+    if ((digits & 1) != 0) {
+        throw Exception("HexException: odd number of hex digits");
+    }
+
+    INT64 out_len = digits / 2;
+    UINT8[] out = UINT8[out_len];
+
+    j = 0;
+    while (j < out_len) {
+        INT8 high;
+        INT8 low;
+
+        // Skip whitespace and read the high nibble.
+        while (i < n) {
+            INT8 c;
+            unsafe {
+                c = s[i];
+            }
+            if (!__hex_is_space(c)) {
+                high = c;
+                i = i + 1;
+                break;
+            }
+            i = i + 1;
+        }
+
+        // Skip whitespace and read the low nibble.
+        while (i < n) {
+            INT8 c;
+            unsafe {
+                c = s[i];
+            }
+            if (!__hex_is_space(c)) {
+                low = c;
+                i = i + 1;
+                break;
+            }
+            i = i + 1;
+        }
+
+        INT8 hv = __hex_value(high);
+        INT8 lv = __hex_value(low);
+        out[j] = (((hv as INT32) << 4) | (lv as INT32)) as UINT8;
+        j = j + 1;
+    }
+
+    return out;
+}

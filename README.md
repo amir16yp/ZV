@@ -2067,6 +2067,7 @@ The shipped `lib/` folder contains higher-level helpers built on top of the buil
 | `lib/math.zv` | Constants and per-width `min`/`max`/`clamp`/`abs`/`sign`/`lerp`/`round`/`deg`/`rad` helpers |
 | `lib/prng.zv` | Fast deterministic 64-bit LCG pseudo-random numbers |
 | `lib/secprng.zv` | Deterministic ChaCha20-based CSPRNG |
+| `lib/hex.zv` | Hexadecimal encoding and decoding for byte buffers and CSTRINGs |
 | `lib/hash/*.zv` | Checksums and hashes: adler32, crc32, djb2, fnv1a, md5, murmur3, sdbm, siphash, xxhash32 |
 | `lib/win/*.zv` | Windows API bindings (kept separate from the portable helpers above) |
 
@@ -2141,6 +2142,18 @@ Deterministic, platform-independent ChaCha20-based CSPRNG. Still requires a prop
 - Width-specific outputs: `secprng_u8/16/32/64`, `secprng_i8/16/32/64`, `secprng_bool`.
 - Unit-float outputs: `secprng_f32()` and `secprng_f64()` in `[0, 1)`.
 - Ranged variants: `secprng_*_range(min, max)`. Integer ranges are inclusive; float ranges are half-open `[min, max)`.
+
+### Hex helpers (`lib/hex.zv`)
+
+`#include <lib/hex.zv>`
+
+Encode byte buffers and CSTRINGs to hex, and decode hex back to `UINT8[]`.
+
+- `hex_encode(data, len)` — encode `len` bytes from `PTR<UINT8>` into a lowercase `CSTRING`.
+- `hex_encode_upper(data, len)` — same, using uppercase `A-F`.
+- `hex_encode_cstring(s)` — encode a `CSTRING` to lowercase hex.
+- `hex_encode_bytes(data)` — encode a `UINT8[]` to lowercase hex.
+- `hex_decode(s)` — decode a hex `CSTRING` into an owned `UINT8[]`. Accepts an optional `0x`/`0X` prefix and whitespace between digits. Throws on invalid characters or an odd number of hex digits.
 
 ### Hash helpers (`lib/hash/*.zv`)
 
