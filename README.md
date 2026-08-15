@@ -968,6 +968,7 @@ Built-ins are recognized by name and do not need an `extern` declaration.
 | `feof(f)` | Returns non-zero if the stream has reached end-of-file (`INT32`). |
 || `ferror(f)` | Returns non-zero if the stream's error indicator is set (`INT32`). |
 || `fgets(buf, n, f)` | Reads up to `n-1` characters into `buf`, stopping at newline or EOF. Returns `buf` on success or `null` on EOF/error. |
+|| `fputs(str, f)` | Writes a NUL-terminated string to a stream. Returns `INT32`; non-negative on success, EOF on error. |
 || `tmpfile()` | Creates a temporary read/write file that is deleted on `fclose`. Returns `PTR<VOID>`. Throws `FileOpenException` on failure. |
 || `memcpy(dest, src, count)` | Copies `count` bytes from `src` to `dest`. Both are `PTR<VOID>`/raw pointers. |
 || `memset(ptr, value, count)` | Fills the first `count` bytes of `ptr` with `value` (`INT32`). |
@@ -2096,6 +2097,8 @@ UINT32 main(CSTRING[] args) {
     FileStream tmp = tmpfile_stream();
     file_write(tmp, "temp data" as PTR<UINT8>, 9);
     file_close(tmp);
+
+    // Or use file_write_line(fs, line) to write a CSTRING with fputs.
 
     return 0;
 }

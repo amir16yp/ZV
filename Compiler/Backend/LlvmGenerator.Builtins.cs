@@ -55,6 +55,7 @@ public partial class LlvmGenerator
             "feof" => GenerateFeofCall(arguments),
             "ferror" => GenerateFerrorCall(arguments),
             "fgets" => GenerateFgetsCall(arguments),
+            "fputs" => GenerateFputsCall(arguments),
             "tmpfile" => GenerateTmpfileCall(arguments),
             "memcpy" => GenerateMemcpyCall(arguments),
             "memset" => GenerateMemsetCall(arguments),
@@ -622,6 +623,23 @@ public partial class LlvmGenerator
         };
 
         return _builder.BuildCall2(_functionTypes["fgets"], fgets, args, "fgetstmp");
+    }
+
+    private LLVMValueRef GenerateFputsCall(List<Expression> arguments)
+    {
+        var fputs = GetOrAddFunction("fputs", GetInt32Type(),
+            new[] { GetPointerType(GetInt8Type()), GetPointerType(GetInt8Type()) });
+
+        if (arguments.Count != 2)
+            throw new Exception("fputs() expects exactly 2 arguments (str, stream).");
+
+        var args = new LLVMValueRef[]
+        {
+            ConvertToType(VisitExpression(arguments[0]), GetPointerType(GetInt8Type())),
+            ConvertToType(VisitExpression(arguments[1]), GetPointerType(GetInt8Type()))
+        };
+
+        return _builder.BuildCall2(_functionTypes["fputs"], fputs, args, "fputstmp");
     }
 
     private LLVMValueRef GenerateTmpfileCall(List<Expression> arguments)

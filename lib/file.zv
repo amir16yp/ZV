@@ -152,6 +152,12 @@ BOOL file_error(FileStream fs) {
     return ferror(fs.handle) != 0;
 }
 
+// Write a CSTRING to a stream. Returns a non-negative value on success, EOF on
+// error (same as C fputs).
+INT32 file_write_line(FileStream fs, CSTRING line) {
+    return fputs(line, fs.handle);
+}
+
 // Read one line from a stream into an owned CSTRING. The trailing newline is
 // preserved. Returns an empty string at EOF. Caller must free the result.
 // Throws if a memory allocation fails.

@@ -2905,6 +2905,8 @@ VOID test() {
     INT32 has_error = ferror(f);
     INT8[16] buf;
     PTR<INT8> r = fgets(buf as PTR<INT8>, 16, f);
+    CSTRING msg = cstr(""hello"");
+    fputs(msg, f);
     INT8[8] a;
     INT8[8] b;
     memcpy(a as PTR<UINT8>, b as PTR<UINT8>, 8);
@@ -2916,6 +2918,7 @@ VOID test() {
         Assert.Contains("call i32 @feof", ir);
         Assert.Contains("call i32 @ferror", ir);
         Assert.Contains("call ptr @fgets", ir);
+        Assert.Contains("call i32 @fputs", ir);
         Assert.Contains("call ptr @tmpfile", ir);
         Assert.Contains("call ptr @memcpy", ir);
         Assert.Contains("call ptr @memset", ir);
