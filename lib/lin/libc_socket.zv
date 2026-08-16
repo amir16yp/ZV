@@ -1,0 +1,49 @@
+// libc_socket.zv
+//
+// ZV bindings for the POSIX sockets API (<sys/socket.h>, <arpa/inet.h>,
+// <netdb.h>). Part of libc on Linux (unlike SysV/Solaris there is no
+// separate libsocket), so the extern block uses an empty library name.
+//
+// `struct sockaddr`/`struct sockaddr_in`/`struct addrinfo` are represented
+// as opaque `PSOCKADDR`/`PADDRINFO` pointers (see lib/lin/types.zv):
+// allocate a raw buffer of the correct native size and populate it by hand,
+// or use `sockaddr_in` field offsets documented in your libc headers.
+
+#include "types.zv"
+#include "libc_socket_types.zv"
+
+extern "" {
+    INT32 socket(INT32 domain, INT32 type_val, INT32 protocol);
+    INT32 socketpair(INT32 domain, INT32 type_val, INT32 protocol, PTR<INT32> sv);
+    INT32 bind(INT32 sockfd, PSOCKADDR addr, socklen_t addrlen);
+    INT32 listen(INT32 sockfd, INT32 backlog);
+    INT32 accept(INT32 sockfd, PSOCKADDR addr, PTR<socklen_t> addrlen);
+    INT32 connect(INT32 sockfd, PSOCKADDR addr, socklen_t addrlen);
+    ssize_t send(INT32 sockfd, PTR<VOID> buf, SIZE_T len, INT32 flags);
+    ssize_t recv(INT32 sockfd, PTR<VOID> buf, SIZE_T len, INT32 flags);
+    ssize_t sendto(INT32 sockfd, PTR<VOID> buf, SIZE_T len, INT32 flags, PSOCKADDR dest_addr, socklen_t addrlen);
+    ssize_t recvfrom(INT32 sockfd, PTR<VOID> buf, SIZE_T len, INT32 flags, PSOCKADDR src_addr, PTR<socklen_t> addrlen);
+    INT32 shutdown(INT32 sockfd, INT32 how);
+    INT32 setsockopt(INT32 sockfd, INT32 level, INT32 optname, PTR<VOID> optval, socklen_t optlen);
+    INT32 getsockopt(INT32 sockfd, INT32 level, INT32 optname, PTR<VOID> optval, PTR<socklen_t> optlen);
+    INT32 getsockname(INT32 sockfd, PSOCKADDR addr, PTR<socklen_t> addrlen);
+    INT32 getpeername(INT32 sockfd, PSOCKADDR addr, PTR<socklen_t> addrlen);
+
+    UINT16 htons(UINT16 hostshort);
+    UINT16 ntohs(UINT16 netshort);
+    UINT32 htonl(UINT32 hostlong);
+    UINT32 ntohl(UINT32 netlong);
+    in_addr_t inet_addr(CSTRING cp);
+    CSTRING inet_ntoa(in_addr in_val);
+    INT32 inet_pton(INT32 af, CSTRING src, PTR<VOID> dst);
+    CSTRING inet_ntop(INT32 af, PTR<VOID> src, CSTRING dst, socklen_t size);
+
+    INT32 getaddrinfo(CSTRING node, CSTRING service, PADDRINFO hints, PTR<PADDRINFO> res);
+    VOID freeaddrinfo(PADDRINFO res);
+    CSTRING gai_strerror(INT32 errcode);
+    PTR<VOID> gethostbyname(CSTRING name);
+    CSTRING hstrerror(INT32 err);
+
+    INT32 poll(PTR<VOID> fds, UINT64 nfds, INT32 timeout);
+    INT32 select(INT32 nfds, PTR<VOID> readfds, PTR<VOID> writefds, PTR<VOID> exceptfds, PTIMEVAL timeout_val);
+}

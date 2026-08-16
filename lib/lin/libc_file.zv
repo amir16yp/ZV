@@ -1,0 +1,102 @@
+// libc_file.zv
+//
+// ZV bindings for POSIX file I/O (<fcntl.h>, <unistd.h>, <sys/stat.h>).
+// These are part of the standard C library, already linked into every
+// hosted target, so the extern block below uses an empty library name.
+
+#include "types.zv"
+
+// --- fcntl.h open() flags (Linux x86_64) -------------------------------------
+#define O_RDONLY 0x0000
+#define O_WRONLY 0x0001
+#define O_RDWR   0x0002
+#define O_CREAT  0x0040
+#define O_EXCL   0x0080
+#define O_NOCTTY 0x0100
+#define O_TRUNC  0x0200
+#define O_APPEND 0x0400
+#define O_NONBLOCK 0x0800
+#define O_DIRECTORY 0x10000
+#define O_CLOEXEC 0x80000
+#define O_SYNC   0x101000
+
+// --- sys/stat.h mode bits -----------------------------------------------------
+#define S_IRWXU 0x1C0
+#define S_IRUSR 0x100
+#define S_IWUSR 0x080
+#define S_IXUSR 0x040
+#define S_IRWXG 0x038
+#define S_IRGRP 0x020
+#define S_IWGRP 0x010
+#define S_IXGRP 0x008
+#define S_IRWXO 0x007
+#define S_IROTH 0x004
+#define S_IWOTH 0x002
+#define S_IXOTH 0x001
+#define S_IFMT   0xF000
+#define S_IFDIR  0x4000
+#define S_IFREG  0x8000
+#define S_IFLNK  0xA000
+
+// --- unistd.h seek whence values ---------------------------------------------
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+// --- unistd.h access() modes --------------------------------------------------
+#define F_OK 0
+#define X_OK 1
+#define W_OK 2
+#define R_OK 4
+
+extern "" {
+    INT32 open(CSTRING pathname, INT32 flags, mode_t mode);
+    INT32 openat(INT32 dirfd, CSTRING pathname, INT32 flags, mode_t mode);
+    INT32 creat(CSTRING pathname, mode_t mode);
+    INT32 close(INT32 fd);
+    ssize_t read(INT32 fd, PTR<VOID> buf, SIZE_T count);
+    ssize_t write(INT32 fd, PTR<VOID> buf, SIZE_T count);
+    ssize_t pread(INT32 fd, PTR<VOID> buf, SIZE_T count, off_t offset);
+    ssize_t pwrite(INT32 fd, PTR<VOID> buf, SIZE_T count, off_t offset);
+    off_t lseek(INT32 fd, off_t offset, INT32 whence);
+    INT32 ftruncate(INT32 fd, off_t length);
+    INT32 truncate(CSTRING path, off_t length);
+    INT32 fsync(INT32 fd);
+    INT32 fdatasync(INT32 fd);
+    INT32 dup(INT32 oldfd);
+    INT32 dup2(INT32 oldfd, INT32 newfd);
+    INT32 pipe(PTR<INT32> pipefd);
+    INT32 fcntl(INT32 fd, INT32 cmd, INT64 arg);
+    INT32 ioctl(INT32 fd, UINT64 request, PTR<VOID> arg);
+
+    INT32 unlink(CSTRING pathname);
+    INT32 unlinkat(INT32 dirfd, CSTRING pathname, INT32 flags);
+    INT32 remove(CSTRING pathname);
+    INT32 rename(CSTRING oldpath, CSTRING newpath);
+    INT32 link(CSTRING oldpath, CSTRING newpath);
+    INT32 symlink(CSTRING target, CSTRING linkpath);
+    ssize_t readlink(CSTRING pathname, CSTRING buf, SIZE_T bufsiz);
+    INT32 chmod(CSTRING pathname, mode_t mode);
+    INT32 fchmod(INT32 fd, mode_t mode);
+    INT32 chown(CSTRING pathname, uid_t owner, gid_t group);
+    INT32 fchown(INT32 fd, uid_t owner, gid_t group);
+    INT32 access(CSTRING pathname, INT32 mode);
+
+    INT32 stat(CSTRING pathname, PSTAT statbuf);
+    INT32 lstat(CSTRING pathname, PSTAT statbuf);
+    INT32 fstat(INT32 fd, PSTAT statbuf);
+    mode_t umask(mode_t mask);
+
+    FILEPTR fopen(CSTRING pathname, CSTRING mode);
+    FILEPTR fdopen(INT32 fd, CSTRING mode);
+    INT32 fclose(FILEPTR stream);
+    SIZE_T fread(PTR<VOID> ptr, SIZE_T size, SIZE_T nmemb, FILEPTR stream);
+    SIZE_T fwrite(PTR<VOID> ptr, SIZE_T size, SIZE_T nmemb, FILEPTR stream);
+    INT32 fseek(FILEPTR stream, INT64 offset, INT32 whence);
+    INT64 ftell(FILEPTR stream);
+    VOID rewind(FILEPTR stream);
+    INT32 fflush(FILEPTR stream);
+    INT32 feof(FILEPTR stream);
+    INT32 ferror(FILEPTR stream);
+    INT32 fileno(FILEPTR stream);
+}

@@ -1357,7 +1357,12 @@ public partial class LlvmGenerator
             "thread_spawn", "thread_join", "thread_sleep_ms",
             "mutex_create", "mutex_lock", "mutex_unlock", "mutex_destroy"
         };
-        if (builtins.Contains(calleeName) || ParseBuiltinNames.Contains(calleeName) || CursesBuiltinNames.Contains(calleeName) || ThreadBuiltinNames.Contains(calleeName) || AtomicBuiltinNames.Contains(calleeName))
+        // An explicit user/extern declaration of the same name (e.g. a raw `extern "" { fopen(...); }`
+        // binding in lib/lin) always shadows a builtin: _functionValues is only ever populated by
+        // FunctionDeclStmt/ExternFunctionDecl, never by the builtin codegen helpers, so this check
+        // has no effect unless the user actually declared that name themselves.
+        if (!_functionValues.ContainsKey(calleeName) &&
+            (builtins.Contains(calleeName) || ParseBuiltinNames.Contains(calleeName) || CursesBuiltinNames.Contains(calleeName) || ThreadBuiltinNames.Contains(calleeName) || AtomicBuiltinNames.Contains(calleeName)))
         {
             return GenerateBuiltinCall(calleeName, expr.Arguments);
         }

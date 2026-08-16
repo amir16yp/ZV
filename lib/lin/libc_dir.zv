@@ -1,0 +1,20 @@
+// libc_dir.zv
+//
+// ZV bindings for POSIX directory/path APIs (<dirent.h>, <unistd.h>).
+
+#include "types.zv"
+
+extern "" {
+    INT32 mkdir(CSTRING pathname, mode_t mode);
+    INT32 rmdir(CSTRING pathname);
+    CSTRING getcwd(CSTRING buf, SIZE_T size);
+    INT32 chdir(CSTRING path);
+    INT32 fchdir(INT32 fd);
+    CSTRING realpath(CSTRING path, CSTRING resolved_path);
+
+    DIRPTR opendir(CSTRING name);
+    DIRPTR fdopendir(INT32 fd);
+    PTR<VOID> readdir(DIRPTR dirp);
+    VOID rewinddir(DIRPTR dirp);
+    INT32 closedir(DIRPTR dirp);
+}

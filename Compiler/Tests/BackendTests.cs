@@ -2265,6 +2265,28 @@ VOID test() {
     }
 
     [Fact]
+    public void TestExternDeclarationShadowsBuiltinOfSameName()
+    {
+        // `exit` is normally a builtin (see TestExitCallsLibcExit), but an explicit
+        // `extern` declaration of the same name should take precedence, calling the
+        // user's own declared symbol (here aliased to a different native name) rather
+        // than silently falling back to the builtin. Uses an empty library name (no
+        // linker flag added; see LlvmGenerator.Statements.cs VisitExternDecl) so this
+        // is platform-neutral and doesn't imply linking against any real library.
+        string source = @"
+extern """" {
+    VOID exit(INT32 code) = ""my_custom_exit"";
+}
+
+VOID test() {
+    exit(0);
+}";
+        string ir = Generate(source);
+        Assert.Contains("call void @my_custom_exit(i32 0)", ir);
+        Assert.DoesNotContain("@exit(i32 0)", ir);
+    }
+
+    [Fact]
     public void TestCstrPassthroughOfExistingCstringIsNotFreed()
     {
         string source = @"

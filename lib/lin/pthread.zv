@@ -1,0 +1,62 @@
+// pthread.zv
+//
+// Raw ZV bindings for POSIX threads (<pthread.h>) beyond what ZV's built-in
+// cross-platform thread/mutex builtins expose (see the "Threading" section
+// of the language builtins, backed by LlvmGenerator.Threading.cs). Use
+// these directly when you need pthread features the builtins don't cover,
+// such as read-write locks, barriers, or detached/joinable attributes.
+//
+// glibc's pthread_mutex_t/pthread_cond_t/pthread_rwlock_t/pthread_barrier_t
+// are opaque, fixed-size structs. Allocate a raw buffer at least as large as
+// the real struct (64 bytes is enough headroom on all common glibc/musl
+// x86_64 builds) and pass a pointer to it, the same convention ZV's own
+// mutex builtin uses internally.
+
+#include "types.zv"
+
+#define PTHREAD_CREATE_JOINABLE 0
+#define PTHREAD_CREATE_DETACHED 1
+
+extern "pthread" {
+    INT32 pthread_create(PTR<pthread_t> thread, PPTHREAD_ATTR attr, PTR<VOID> start_routine, PTR<VOID> arg);
+    INT32 pthread_join(pthread_t thread, PTR<PTR<VOID>> retval);
+    INT32 pthread_detach(pthread_t thread);
+    pthread_t pthread_self();
+    INT32 pthread_equal(pthread_t t1, pthread_t t2);
+    VOID pthread_exit(PTR<VOID> retval);
+    INT32 pthread_cancel(pthread_t thread);
+
+    INT32 pthread_attr_init(PPTHREAD_ATTR attr);
+    INT32 pthread_attr_destroy(PPTHREAD_ATTR attr);
+    INT32 pthread_attr_setdetachstate(PPTHREAD_ATTR attr, INT32 detachstate);
+
+    INT32 pthread_mutex_init(PTR<VOID> mutex, PPTHREAD_MUTEXATTR attr);
+    INT32 pthread_mutex_destroy(PTR<VOID> mutex);
+    INT32 pthread_mutex_lock(PTR<VOID> mutex);
+    INT32 pthread_mutex_trylock(PTR<VOID> mutex);
+    INT32 pthread_mutex_unlock(PTR<VOID> mutex);
+
+    INT32 pthread_cond_init(PTR<VOID> cond, PPTHREAD_CONDATTR attr);
+    INT32 pthread_cond_destroy(PTR<VOID> cond);
+    INT32 pthread_cond_wait(PTR<VOID> cond, PTR<VOID> mutex);
+    INT32 pthread_cond_timedwait(PTR<VOID> cond, PTR<VOID> mutex, PTIMESPEC abstime);
+    INT32 pthread_cond_signal(PTR<VOID> cond);
+    INT32 pthread_cond_broadcast(PTR<VOID> cond);
+
+    INT32 pthread_rwlock_init(PTR<VOID> rwlock, PTR<VOID> attr);
+    INT32 pthread_rwlock_destroy(PTR<VOID> rwlock);
+    INT32 pthread_rwlock_rdlock(PTR<VOID> rwlock);
+    INT32 pthread_rwlock_wrlock(PTR<VOID> rwlock);
+    INT32 pthread_rwlock_unlock(PTR<VOID> rwlock);
+
+    INT32 pthread_barrier_init(PTR<VOID> barrier, PTR<VOID> attr, UINT32 count);
+    INT32 pthread_barrier_destroy(PTR<VOID> barrier);
+    INT32 pthread_barrier_wait(PTR<VOID> barrier);
+
+    INT32 pthread_key_create(PTR<pthread_key_t> key, PTR<VOID> destructor);
+    INT32 pthread_key_delete(pthread_key_t key);
+    INT32 pthread_setspecific(pthread_key_t key, PTR<VOID> value);
+    PTR<VOID> pthread_getspecific(pthread_key_t key);
+
+    INT32 pthread_setname_np(pthread_t thread, CSTRING name);
+}

@@ -1,0 +1,44 @@
+// libc_signal.zv
+//
+// ZV bindings for POSIX signal handling (<signal.h>).
+
+#include "types.zv"
+
+// --- signal.h signal numbers (Linux x86_64) ----------------------------------
+#define SIGHUP  1
+#define SIGINT  2
+#define SIGQUIT 3
+#define SIGILL  4
+#define SIGTRAP 5
+#define SIGABRT 6
+#define SIGBUS  7
+#define SIGFPE  8
+#define SIGKILL 9
+#define SIGUSR1 10
+#define SIGSEGV 11
+#define SIGUSR2 12
+#define SIGPIPE 13
+#define SIGALRM 14
+#define SIGTERM 15
+#define SIGCHLD 17
+#define SIGCONT 18
+#define SIGSTOP 19
+#define SIGTSTP 20
+
+// --- signal.h sigaction() flags ------------------------------------------
+#define SA_RESTART 0x10000000
+#define SA_SIGINFO 0x00000004
+#define SA_NOCLDWAIT 0x00000002
+
+extern "" {
+    PTR<VOID> signal(INT32 signum, PTR<VOID> handler);
+    INT32 raise(INT32 sig);
+    INT32 sigaction(INT32 signum, PSIGACTION act, PSIGACTION oldact);
+    INT32 sigemptyset(PTR<VOID> set);
+    INT32 sigfillset(PTR<VOID> set);
+    INT32 sigaddset(PTR<VOID> set, INT32 signum);
+    INT32 sigdelset(PTR<VOID> set, INT32 signum);
+    INT32 sigismember(PTR<VOID> set, INT32 signum);
+    INT32 sigprocmask(INT32 how, PTR<VOID> set, PTR<VOID> oldset);
+    INT32 pthread_kill(pthread_t thread, INT32 sig);
+}
