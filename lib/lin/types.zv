@@ -1,0 +1,77 @@
+// types.zv
+//
+// Common POSIX/Linux type aliases for use with the ZV bindings in lib/lin.
+// Sized to the Linux x86_64 (LP64) glibc ABI.
+//
+// Where possible these are declared as `newtype` so that distinct POSIX
+// integer kinds (pid_t vs. uid_t, etc.) cannot be silently mixed. They have
+// the same ABI as their underlying ZV type, so they can be used directly in
+// `extern` blocks. Structs that are normally accessed by pointer only
+// (struct stat, struct timespec, struct sockaddr, ...) are represented as
+// `PTR<VOID>` — allocate a raw buffer of the right size and pass a pointer
+// to it, the same convention used by lib/win for opaque structs.
+
+// --- Integer typedefs --------------------------------------------------------
+
+newtype pid_t   = INT32;
+newtype uid_t   = UINT32;
+newtype gid_t   = UINT32;
+newtype mode_t  = UINT32;
+newtype off_t   = INT64;
+newtype off64_t = INT64;
+newtype time_t  = INT64;
+newtype clock_t = INT64;
+newtype clockid_t = INT32;
+newtype suseconds_t = INT64;
+newtype useconds_t  = UINT32;
+newtype dev_t   = UINT64;
+newtype ino_t   = UINT64;
+newtype ino64_t = UINT64;
+newtype nlink_t = UINT64;
+newtype blksize_t = INT64;
+newtype blkcnt_t  = INT64;
+newtype ssize_t = INT64;
+newtype id_t    = UINT32;
+newtype key_t   = INT32;
+newtype sig_atomic_t = INT32;
+
+newtype SIZE_T  = UINT64;
+newtype SSIZE_T = INT64;
+
+// --- Sockets -----------------------------------------------------------------
+
+newtype socklen_t  = UINT32;
+newtype sa_family_t = UINT16;
+newtype in_port_t  = UINT16;
+newtype in_addr_t  = UINT32;
+
+// --- Common pointer typedefs -------------------------------------------------
+
+type LPVOID  = PTR<VOID>;
+type PVOID   = PTR<VOID>;
+type LPCVOID = PTR<VOID>;
+
+// Opaque `FILE*` / `DIR*` handles from <stdio.h> / <dirent.h>.
+type FILEPTR = PTR<VOID>;
+type DIRPTR  = PTR<VOID>;
+
+// Opaque struct pointers: caller allocates a raw buffer of the correct
+// native size and passes a pointer to it.
+type PSTAT      = PTR<VOID>; // struct stat *
+type PTIMESPEC  = PTR<VOID>; // struct timespec *
+type PTIMEVAL   = PTR<VOID>; // struct timeval *
+type PTM        = PTR<VOID>; // struct tm *
+type PSOCKADDR  = PTR<VOID>; // struct sockaddr *
+type PADDRINFO  = PTR<VOID>; // struct addrinfo *
+type PSIGACTION = PTR<VOID>; // struct sigaction *
+type PPTHREAD_MUTEXATTR = PTR<VOID>;
+type PPTHREAD_CONDATTR  = PTR<VOID>;
+type PPTHREAD_ATTR      = PTR<VOID>;
+
+// pthread handle types are opaque, fixed-size structs in glibc; treat as
+// raw byte buffers sized generously (see comments in libc_pthread.zv for
+// the buffer-size convention used with these).
+type pthread_t      = UINT64;
+type pthread_key_t  = UINT32;
+
+newtype in_addr = UINT32;

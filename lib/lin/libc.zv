@@ -1,0 +1,22 @@
+// libc.zv
+//
+// Aggregated ZV bindings for the Linux/POSIX C library API. Include this
+// file to pull in all lib/lin sub-modules at once, mirroring lib/win/*.zv's
+// aggregator headers (e.g. kernel32.zv).
+//
+// Individual sub-modules can also be included directly if you only need a
+// subset (e.g. just "libc_file.zv" for file I/O).
+
+#include "types.zv"
+
+#include "libc_file.zv"
+#include "libc_dir.zv"
+#include "libc_process.zv"
+#include "libc_signal.zv"
+#include "libc_mem.zv"
+#include "libc_time.zv"
+#include "libc_errno.zv"
+#include "libc_socket_types.zv"
+#include "libc_socket.zv"
+#include "libc_dl.zv"
+#include "pthread.zv"

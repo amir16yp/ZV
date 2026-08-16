@@ -1,0 +1,20 @@
+// libc_dl.zv
+//
+// ZV bindings for the POSIX dynamic-loading API (<dlfcn.h>).
+// Requires linking against libdl (folded into libc on glibc >= 2.34, but a
+// compatibility libdl.so is still shipped, so linking it explicitly is safe
+// on both older and newer glibc).
+
+#include "types.zv"
+
+#define RTLD_LAZY   0x0001
+#define RTLD_NOW    0x0002
+#define RTLD_GLOBAL 0x0100
+#define RTLD_LOCAL  0x0000
+
+extern "dl" {
+    PTR<VOID> dlopen(CSTRING filename, INT32 flags);
+    PTR<VOID> dlsym(PTR<VOID> handle, CSTRING symbol);
+    INT32 dlclose(PTR<VOID> handle);
+    CSTRING dlerror();
+}

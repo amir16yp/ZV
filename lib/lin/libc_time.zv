@@ -1,0 +1,25 @@
+// libc_time.zv
+//
+// ZV bindings for POSIX time APIs (<time.h>, <sys/time.h>).
+
+#include "types.zv"
+
+// --- time.h clock ids ------------------------------------------------------
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
+#define CLOCK_PROCESS_CPUTIME_ID 2
+#define CLOCK_THREAD_CPUTIME_ID 3
+
+extern "" {
+    time_t time(PTR<time_t> tloc);
+    INT32 gettimeofday(PTIMEVAL tv, PTR<VOID> tz);
+    INT32 clock_gettime(clockid_t clk_id, PTIMESPEC tp);
+    INT32 clock_settime(clockid_t clk_id, PTIMESPEC tp);
+    INT32 clock_getres(clockid_t clk_id, PTIMESPEC res);
+    INT32 nanosleep(PTIMESPEC req, PTIMESPEC rem);
+    PTM localtime(PTR<time_t> timer);
+    PTM gmtime(PTR<time_t> timer);
+    time_t mktime(PTM tm);
+    SIZE_T strftime(CSTRING s, SIZE_T max, CSTRING format, PTM tm);
+    FLOAT64 difftime(time_t time1, time_t time0);
+}
