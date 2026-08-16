@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target.X86_16;
 
 namespace ZV.Compiler.Target;
 
@@ -65,11 +66,11 @@ public sealed class X86_16Backend
         // Kernel entry point. Set up segment registers and a stack, then call the user's
         // entry function. If it returns, hang.
         _asm.EmitCli();
-        _asm.EmitByte(0x31); _asm.EmitByte(0xC0); // xor ax, ax
-        _asm.EmitByte(0x8E); _asm.EmitByte(0xD8); // mov ds, ax
-        _asm.EmitByte(0x8E); _asm.EmitByte(0xC0); // mov es, ax
-        _asm.EmitByte(0x8E); _asm.EmitByte(0xD0); // mov ss, ax
-        _asm.EmitMovRegImm16(X86_16Register.SP, 0x7C00);
+        _asm.EmitXor(Operand.Reg(X86_16Register.AX), Operand.Reg(X86_16Register.AX));
+        _asm.EmitMov(X86_16SegmentRegister.DS, X86_16Register.AX);
+        _asm.EmitMov(X86_16SegmentRegister.ES, X86_16Register.AX);
+        _asm.EmitMov(X86_16SegmentRegister.SS, X86_16Register.AX);
+        _asm.EmitMov(X86_16Register.SP, (ushort)0x7C00);
         _asm.EmitSti();
 
         var entry = FindEntryFunction();

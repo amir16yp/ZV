@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using ZV.Compiler.Target.X86_16;
 
 namespace ZV.Compiler.Target;
 
@@ -28,8 +29,8 @@ public static class BootSectorGenerator
         boot.EmitDataString(message);
 
         boot.DefineLabel("setup");
-        boot.EmitByte(0xB8); boot.EmitByte(0x00); boot.EmitByte(0x00); // mov ax, 0
-        boot.EmitByte(0x8E); boot.EmitByte(0xD8);                      // mov ds, ax
+        boot.EmitMov(X86_16Register.AX, (ushort)0);
+        boot.EmitMov(X86_16SegmentRegister.DS, X86_16Register.AX);
         boot.EmitMovRegImm16(X86_16Register.SI, "msg");
         boot.EmitCall("print");
         boot.DefineLabel("hang");
@@ -77,11 +78,11 @@ public static class BootSectorGenerator
 
         boot.DefineLabel("setup");
         boot.EmitCli();
-        boot.EmitByte(0x31); boot.EmitByte(0xC0); // xor ax, ax
-        boot.EmitByte(0x8E); boot.EmitByte(0xD8); // mov ds, ax
-        boot.EmitByte(0x8E); boot.EmitByte(0xC0); // mov es, ax
-        boot.EmitByte(0x8E); boot.EmitByte(0xD0); // mov ss, ax
-        boot.EmitMovRegImm16(X86_16Register.SP, 0x7C00);
+        boot.EmitXor(Operand.Reg(X86_16Register.AX), Operand.Reg(X86_16Register.AX));
+        boot.EmitMov(X86_16SegmentRegister.DS, X86_16Register.AX);
+        boot.EmitMov(X86_16SegmentRegister.ES, X86_16Register.AX);
+        boot.EmitMov(X86_16SegmentRegister.SS, X86_16Register.AX);
+        boot.EmitMov(X86_16Register.SP, (ushort)0x7C00);
         boot.EmitSti();
 
         boot.EmitMovRegImm16(X86_16Register.SI, "loading_msg");
@@ -90,8 +91,8 @@ public static class BootSectorGenerator
         // Read kernel sectors: AH=2, AL=count, CH=0, CL=2, DH=0, DL=original drive.
         boot.EmitMovRegImm16(X86_16Register.AX, (ushort)(0x0200 | kernelSectorCount));
         boot.EmitMovRegImm16(X86_16Register.BX, KernelLoadAddress);
-        boot.EmitMovRegImm16(X86_16Register.CX, 0x0002); // cylinder 0, sector 2
-        boot.EmitByte(0x30); boot.EmitByte(0xF6);        // xor dh, dh
+        boot.EmitMov(X86_16Register.CX, (ushort)0x0002); // cylinder 0, sector 2
+        boot.EmitXor(Operand.Reg(X86_16Register8.DH), Operand.Reg(X86_16Register8.DH));
         boot.EmitInt(0x13);
         boot.EmitJcShort("disk_error");
 
