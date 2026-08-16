@@ -186,6 +186,21 @@ public partial class LlvmGenerator
                 _builder.BuildRetVoid();
             }
         }
+        else
+        {
+            // A non-void function whose body can fall off the end without hitting a
+            // `return` is a bug (falling off the end of a non-void function is undefined
+            // behavior, same as in C) - warn about it instead of letting LLVM's verifier
+            // fail with an opaque "basic block has no terminator" error. `unreachable`
+            // keeps the module valid; if this path is ever actually reached at runtime it
+            // traps, which is at least a clean failure instead of returning garbage.
+            var lastInst = _builder.InsertBlock.LastInstruction;
+            if (lastInst.Handle == IntPtr.Zero || lastInst.IsATerminatorInst.Handle == IntPtr.Zero)
+            {
+                AddWarning(stmt.Location, $"Function '{stmt.Name.Lexeme}' does not return a value on all code paths.");
+                _builder.BuildUnreachable();
+            }
+        }
         
         if (savedBuilderBlock.Handle != IntPtr.Zero)
         {
@@ -289,6 +304,7 @@ public partial class LlvmGenerator
         _loopTargets.Push((endBB, condBB));
         EnterScope();
         _loopStartScopeDepths.Add(_scopes.Count - 1);
+        _breakTargets.Push((endBB, _scopes.Count - 1));
 
         _builder.BuildBr(condBB);
 
@@ -317,6 +333,7 @@ public partial class LlvmGenerator
         LeaveScope();
         _loopStartScopeDepths.RemoveAt(_loopStartScopeDepths.Count - 1);
         _loopTargets.Pop();
+        _breakTargets.Pop();
     }
 
     private void VisitFor(ForStmt stmt)
@@ -336,6 +353,7 @@ public partial class LlvmGenerator
         _loopTargets.Push((endBB, incBB));
         EnterScope();
         _loopStartScopeDepths.Add(_scopes.Count - 1);
+        _breakTargets.Push((endBB, _scopes.Count - 1));
 
         _builder.BuildBr(condBB);
 
@@ -381,6 +399,139 @@ public partial class LlvmGenerator
         LeaveScope();
         _loopStartScopeDepths.RemoveAt(_loopStartScopeDepths.Count - 1);
         _loopTargets.Pop();
+        _breakTargets.Pop();
+    }
+
+    // `switch (Discriminant) { ... }`. Each case gets its own basic block; unlike C there is
+    // no implicit fallthrough (see SwitchStmt) - a case implicitly branches to the switch's
+    // end block unless its body ends with an explicit `fallthrough;` (see VisitFallthrough)
+    // or another terminator (return/throw/break/continue).
+    private void VisitSwitch(SwitchStmt stmt)
+    {
+        int cstrMark = _pendingCstrTemps.Count;
+        var discriminant = VisitExpression(stmt.Discriminant);
+        FreeUnclaimedCstrTemps(cstrMark);
+
+        if (discriminant.TypeOf.Kind != LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            throw new CompileException(stmt.Location, "'switch' discriminant must be an integer, BOOL, or CHAR expression.");
+        }
+
+        var function = _builder.InsertBlock.Parent;
+        var endBlock = _context.AppendBasicBlock(function, "switch_end");
+
+        var caseBlocks = new List<LLVMBasicBlockRef>();
+        for (int i = 0; i < stmt.Cases.Count; i++)
+        {
+            caseBlocks.Add(_context.AppendBasicBlock(function, stmt.Cases[i].IsDefault ? "switch_default" : $"switch_case_{i}"));
+        }
+
+        LLVMBasicBlockRef defaultBlock = endBlock;
+        for (int i = 0; i < stmt.Cases.Count; i++)
+        {
+            if (stmt.Cases[i].IsDefault)
+            {
+                defaultBlock = caseBlocks[i];
+                break;
+            }
+        }
+
+        // EnterScope() must run before the switch instruction below, the same way loops
+        // call EnterScope() before their branch away from the pre-loop block: once
+        // BuildSwitch terminates the current block, the builder has to move to a new block
+        // before anything else can be emitted into it (EnterScope() emits cleanup-stack-save
+        // stores via BuildEntryAlloca).
+        EnterScope();
+        int switchScopeDepth = _scopes.Count - 1;
+        _breakTargets.Push((endBlock, switchScopeDepth));
+
+        var switchInst = _builder.BuildSwitch(discriminant, defaultBlock, (uint)stmt.Cases.Count);
+        for (int i = 0; i < stmt.Cases.Count; i++)
+        {
+            foreach (var valueExpr in stmt.Cases[i].Values)
+            {
+                var caseValue = EvaluateConstantIntegerExpr(valueExpr, discriminant.TypeOf);
+                switchInst.AddCase(caseValue, caseBlocks[i]);
+            }
+        }
+
+        for (int i = 0; i < stmt.Cases.Count; i++)
+        {
+            _builder.PositionAtEnd(caseBlocks[i]);
+
+            // `fallthrough;` inside this case jumps straight into the next case's block
+            // (textual order, regardless of where `default:` sits); there's nothing to fall
+            // into from the last case.
+            LLVMBasicBlockRef? fallthroughTarget = i + 1 < stmt.Cases.Count ? caseBlocks[i + 1] : (LLVMBasicBlockRef?)null;
+            _fallthroughTargets.Push(fallthroughTarget);
+
+            foreach (var bodyStmt in stmt.Cases[i].Body)
+            {
+                VisitStatement(bodyStmt);
+            }
+
+            _fallthroughTargets.Pop();
+
+            // No explicit terminator (break/return/throw/continue/fallthrough) at the end of
+            // this case's body - implicitly "break" out of the switch. This is the one
+            // deliberate departure from C: silently falling into the next case is a classic,
+            // easy-to-miss bug, so it now requires the explicit `fallthrough;` above instead.
+            var lastInst = _builder.InsertBlock.LastInstruction;
+            if (lastInst.Handle == IntPtr.Zero || lastInst.IsATerminatorInst.Handle == IntPtr.Zero)
+            {
+                CleanupToDepth(switchScopeDepth);
+                _builder.BuildBr(endBlock);
+            }
+        }
+
+        _breakTargets.Pop();
+        LeaveScope();
+
+        _builder.PositionAtEnd(endBlock);
+    }
+
+    private void VisitFallthrough(FallthroughStmt stmt)
+    {
+        if (_fallthroughTargets.Count == 0)
+        {
+            throw new CompileException(stmt.Location, "'fallthrough' can only be used inside a 'switch' case.");
+        }
+
+        var target = _fallthroughTargets.Peek();
+        if (target == null)
+        {
+            throw new CompileException(stmt.Location, "'fallthrough' cannot be used in the last case of a 'switch'.");
+        }
+
+        _builder.BuildBr(target.Value);
+    }
+
+    // Evaluates a `case` label to an LLVM constant integer of the discriminant's type.
+    // Case labels must be compile-time constants (like C), so only literals (optionally
+    // negated) are accepted here.
+    private LLVMValueRef EvaluateConstantIntegerExpr(Expression expr, LLVMTypeRef targetType)
+    {
+        long value = EvaluateConstantCaseValue(expr);
+        return LLVMValueRef.CreateConstInt(targetType, unchecked((ulong)value), true);
+    }
+
+    private long EvaluateConstantCaseValue(Expression expr)
+    {
+        switch (expr)
+        {
+            case LiteralExpr { Type: TokenType.IntegerLiteral, Value: not null } lit:
+                return Convert.ToInt64(lit.Value);
+            case LiteralExpr { Type: TokenType.CharacterLiteral, Value: char ch }:
+                return ch;
+            case LiteralExpr { Type: TokenType.True }:
+                return 1;
+            case LiteralExpr { Type: TokenType.False }:
+                return 0;
+            case UnaryExpr { Operator.Type: TokenType.Minus } unary:
+                return -EvaluateConstantCaseValue(unary.Right);
+            default:
+                throw new CompileException(expr.Location, "'case' labels must be a constant integer, BOOL, or CHAR literal.");
+        }
     }
 
     private void VisitStructDecl(StructDeclStmt stmt)
@@ -765,11 +916,16 @@ public partial class LlvmGenerator
 
     private void VisitBreak(BreakStmt stmt)
     {
-        if (_loopTargets.Count == 0)
-            throw new Exception("'break' outside of loop.");
+        // _breakTargets holds the innermost loop OR switch (whichever is closer), matching C
+        // semantics where `break` exits either one. `continue` deliberately uses the separate
+        // _loopTargets stack below instead, since only loops push there - a `continue` inside
+        // a `switch` case must skip the switch and continue the enclosing loop.
+        if (_breakTargets.Count == 0)
+            throw new Exception("'break' outside of loop or switch.");
 
-        CleanupToDepth(_loopStartScopeDepths[_loopStartScopeDepths.Count - 1]);
-        _builder.BuildBr(_loopTargets.Peek().EndBlock);
+        var (endBlock, scopeDepth) = _breakTargets.Peek();
+        CleanupToDepth(scopeDepth);
+        _builder.BuildBr(endBlock);
     }
 
     private void VisitContinue(ContinueStmt stmt)

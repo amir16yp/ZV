@@ -82,8 +82,11 @@ public class Parser
             if (IsType(tokens[lookahead]))
             {
                 lookahead++;
-                // Skip PTR<...> angle brackets (possibly nested: PTR<PTR<T>>)
-                if (lookahead < tokens.Count && tokens[lookahead - 1].Type == TokenType.PTR &&
+                // Skip PTR<...>/FUNCPTR<...> angle brackets (possibly nested, e.g. PTR<PTR<T>>
+                // or FUNCPTR<PTR<VOID>(INT32)>). The parens inside a FUNCPTR<...> don't need
+                // special handling here since this loop only tracks angle-bracket depth.
+                if (lookahead < tokens.Count &&
+                    (tokens[lookahead - 1].Type == TokenType.PTR || tokens[lookahead - 1].Type == TokenType.FuncPtr) &&
                     tokens[lookahead].Type == TokenType.Less)
                 {
                     lookahead++; // skip '<'
@@ -157,6 +160,24 @@ public class Parser
                     var voidToken = new Token(TokenType.VOID, "VOID", null, token.Location);
                     type = new PointerTypeNode(new PrimitiveTypeNode(voidToken, token.Location), token.Location);
                 }
+            }
+            else if (token.Type == TokenType.FuncPtr)
+            {
+                // FUNCPTR<ReturnType(ParamType, ParamType, ...)>
+                Consume(TokenType.Less, "Expect '<' after 'FUNCPTR'.");
+                TypeNode returnType = ParseType();
+                Consume(TokenType.LeftParen, "Expect '(' after function pointer return type.");
+                List<TypeNode> paramTypes = new List<TypeNode>();
+                if (!Check(TokenType.RightParen))
+                {
+                    do
+                    {
+                        paramTypes.Add(ParseType());
+                    } while (Match(TokenType.Comma));
+                }
+                Consume(TokenType.RightParen, "Expect ')' after function pointer parameter types.");
+                Consume(TokenType.Greater, "Expect '>' after function pointer type.");
+                type = new FunctionPointerTypeNode(returnType, paramTypes, token.Location);
             }
             else if (token.Type == TokenType.Identifier)
             {
@@ -313,6 +334,8 @@ public class Parser
         if (Match(TokenType.Free)) return FreeStatement();
         if (Match(TokenType.Try)) return TryCatchStatement();
         if (Match(TokenType.Throw)) return ThrowStatement();
+        if (Match(TokenType.Switch)) return SwitchStatement();
+        if (Match(TokenType.Fallthrough)) return FallthroughStatement();
         if (Match(TokenType.Type)) return TypeAliasStatement(false);
         if (Match(TokenType.Newtype)) return TypeAliasStatement(true);
         if (Match(TokenType.ExceptionDecl)) return ExceptionTypeDeclaration();
@@ -387,6 +410,73 @@ public class Parser
         Expression value = Expression();
         Consume(TokenType.Semicolon, "Expect ';' after throw expression.");
         return new ThrowStmt(value, keyword.Location);
+    }
+
+    // `switch (expr) { case C1: ...; case C2: case C3: ...; default: ...; }`. Stacked case
+    // labels (no statements between them) share a single body. Unlike C there is no
+    // implicit fallthrough - see SwitchStmt/FallthroughStmt.
+    private Statement SwitchStatement()
+    {
+        SourceLocation loc = Previous().Location;
+        Consume(TokenType.LeftParen, "Expect '(' after 'switch'.");
+        Expression discriminant = Expression();
+        Consume(TokenType.RightParen, "Expect ')' after switch expression.");
+        Consume(TokenType.LeftBrace, "Expect '{' before switch body.");
+
+        var cases = new List<SwitchCase>();
+        bool sawDefault = false;
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            SourceLocation caseLoc = Peek().Location;
+            var values = new List<Expression>();
+            bool isDefault = false;
+
+            // Collect every stacked `case`/`default` label before the first statement.
+            while (Check(TokenType.Case) || Check(TokenType.Default))
+            {
+                if (Match(TokenType.Case))
+                {
+                    values.Add(Expression());
+                    Consume(TokenType.Colon, "Expect ':' after case value.");
+                }
+                else
+                {
+                    Advance(); // consume 'default'
+                    if (sawDefault)
+                    {
+                        throw Error(Previous(), "A 'switch' may only have one 'default' clause.");
+                    }
+                    isDefault = true;
+                    sawDefault = true;
+                    Consume(TokenType.Colon, "Expect ':' after 'default'.");
+                }
+            }
+
+            if (values.Count == 0 && !isDefault)
+            {
+                throw Error(Peek(), "Expect 'case' or 'default' in switch body.");
+            }
+
+            var body = new List<Statement>();
+            while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RightBrace) && !IsAtEnd())
+            {
+                var decl = Declaration();
+                if (decl != null) body.Add(decl);
+            }
+
+            cases.Add(new SwitchCase(values, body, isDefault, caseLoc));
+        }
+
+        Consume(TokenType.RightBrace, "Expect '}' after switch body.");
+        return new SwitchStmt(discriminant, cases, loc);
+    }
+
+    private Statement FallthroughStatement()
+    {
+        Token keyword = Previous();
+        Consume(TokenType.Semicolon, "Expect ';' after 'fallthrough'.");
+        return new FallthroughStmt(keyword.Location);
     }
 
     // `exception Name;` declares a custom, nominally-named runtime exception type. Once

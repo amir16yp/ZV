@@ -95,6 +95,9 @@ public static class CompilationService
 
             string ir = generator.EmitToString();
             result.LlvmIr = ir;
+            var warningDiagnostics = WarningsToDiagnostics(generator.Warnings, inputPath);
+            result.Diagnostics = warningDiagnostics;
+            messages.AddRange(warningDiagnostics.Select(FormatDiagnostic));
             messages.Add($"LLVM IR written to {llPath}");
             messages.Add("Compilation successful.");
             result.Success = true;
@@ -154,6 +157,9 @@ public static class CompilationService
 
             string ir = generator.EmitToString();
             result.LlvmIr = ir;
+            var warningDiagnostics = WarningsToDiagnostics(generator.Warnings, fileName ?? "");
+            result.Diagnostics = warningDiagnostics;
+            messages.AddRange(warningDiagnostics.Select(FormatDiagnostic));
             messages.Add("Compilation successful.");
             result.Success = true;
         }
@@ -202,6 +208,7 @@ public static class CompilationService
 
             using var generator = new LlvmGenerator("zv_module");
             generator.Generate(statements);
+            diagnostics.AddRange(WarningsToDiagnostics(generator.Warnings, fileName ?? ""));
         }
         catch (CompileException ex)
         {
@@ -228,6 +235,24 @@ public static class CompilationService
             Column = e.Location.Column,
             Message = e.Message,
             Severity = "error"
+        }).ToList();
+    }
+
+    // Non-fatal compiler diagnostics (see LlvmGenerator.Warnings) don't always have a
+    // location (module-wide notes would not), so this takes a nullable one. Named
+    // differently from ToDiagnostics because SourceLocation is a reference type, so
+    // `SourceLocation` and `SourceLocation?` erase to the same overload signature.
+    private static List<Diagnostic> WarningsToDiagnostics(
+        IEnumerable<(global::ZV.Compiler.Lexer.SourceLocation? Location, string Message)> warnings,
+        string fallbackFile)
+    {
+        return warnings.Select(w => new Diagnostic
+        {
+            File = w.Location?.File ?? fallbackFile,
+            Line = w.Location?.Line ?? 0,
+            Column = w.Location?.Column ?? 0,
+            Message = w.Message,
+            Severity = "warning"
         }).ToList();
     }
 

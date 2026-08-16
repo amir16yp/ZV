@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
@@ -29,6 +30,20 @@ public partial class LlvmGenerator
             // corresponding format specifier so unsigned conversions (%u/%x/etc.) are
             // zero-extended while signed ones (%d/%i) are sign-extended.
             var roles = ParsePrintfArgRoles(fmtStr);
+
+            // Catch the classic C printf footgun at compile time instead of at runtime:
+            // a mismatched argument count or an argument whose type doesn't match its
+            // format specifier both produce garbage output (or a crash) in plain C. Since
+            // print() already parses the format string above for ABI-promotion purposes,
+            // validating it costs nothing extra and fits the same "catch it structurally"
+            // philosophy as array bounds checks and use-after-free tracking.
+            int suppliedValueArgs = arguments.Count - 1;
+            if (suppliedValueArgs != roles.Count)
+            {
+                throw new CompileException(arguments[0].Location,
+                    $"print() format string \"{fmtStr}\" expects {roles.Count} argument(s) but {suppliedValueArgs} were provided.");
+            }
+
             int roleIndex = 0;
             for (int i = 1; i < arguments.Count; i++)
             {
@@ -38,6 +53,14 @@ public partial class LlvmGenerator
                 {
                     var (kind, spec) = roles[roleIndex];
                     specifier = kind == PrintfArgRoleKind.Value ? spec : 'd'; // width/precision '*' consume a signed int
+                    if (kind == PrintfArgRoleKind.Value)
+                    {
+                        string? mismatch = DescribePrintfSpecifierMismatch(spec, val.TypeOf);
+                        if (mismatch != null)
+                        {
+                            throw new CompileException(arguments[i].Location, mismatch);
+                        }
+                    }
                     roleIndex++;
                 }
                 args.Add(PromotePrintfArg(val, specifier));
@@ -237,6 +260,59 @@ public partial class LlvmGenerator
         return value;
     }
 
+    /// <summary>
+    /// Returns a diagnostic message if <paramref name="type"/> can't plausibly satisfy the
+    /// given printf conversion specifier, or null if it's compatible. This is a best-effort
+    /// check (it doesn't distinguish e.g. INT32 from INT64), but it catches the common
+    /// mistakes: passing a STRING/struct where an integer or float is expected, passing a
+    /// pointer to "%d", passing a raw STRING (instead of cstr()) to "%s", etc.
+    /// </summary>
+    private string? DescribePrintfSpecifierMismatch(char specifier, LLVMTypeRef type)
+    {
+        bool isInt = type.Kind == LLVMTypeKind.LLVMIntegerTypeKind;
+        bool isFloat = IsFloatingType(type);
+        bool isPointer = type.Kind == LLVMTypeKind.LLVMPointerTypeKind;
+
+        switch (specifier)
+        {
+            case 'd': case 'i': case 'u': case 'o': case 'x': case 'X': case 'c':
+                if (!isInt)
+                    return $"print() format specifier '%{specifier}' expects an integer argument, but got {DescribeTypeForDiagnostic(type)}.";
+                break;
+            case 'f': case 'F': case 'e': case 'E': case 'g': case 'G': case 'a': case 'A':
+                if (!isFloat)
+                    return $"print() format specifier '%{specifier}' expects a floating-point argument, but got {DescribeTypeForDiagnostic(type)}.";
+                break;
+            case 's':
+                if (IsStringStructType(type))
+                    return "print() format specifier '%s' does not accept a STRING value directly; use '%.*s', or convert it with cstr() first.";
+                if (!isPointer)
+                    return $"print() format specifier '%s' expects a CSTRING argument, but got {DescribeTypeForDiagnostic(type)}.";
+                break;
+            case 'p':
+                if (!isPointer)
+                    return $"print() format specifier '%p' expects a pointer argument, but got {DescribeTypeForDiagnostic(type)}.";
+                break;
+            default:
+                // Unrecognized/rare conversions (e.g. 'n') aren't validated further.
+                break;
+        }
+        return null;
+    }
+
+    private static string DescribeTypeForDiagnostic(LLVMTypeRef type)
+    {
+        return type.Kind switch
+        {
+            LLVMTypeKind.LLVMIntegerTypeKind => type.IntWidth == 1 ? "a BOOL" : $"a {type.IntWidth}-bit integer",
+            LLVMTypeKind.LLVMFloatTypeKind => "a FLOAT32",
+            LLVMTypeKind.LLVMDoubleTypeKind => "a FLOAT64",
+            LLVMTypeKind.LLVMPointerTypeKind => "a pointer",
+            LLVMTypeKind.LLVMStructTypeKind => "a struct/STRING value",
+            _ => type.Kind.ToString(),
+        };
+    }
+
     private LLVMValueRef ConvertToType(LLVMValueRef value, LLVMTypeRef targetType)
     {
         if (value.TypeOf.Handle == targetType.Handle) return value;
@@ -338,6 +414,10 @@ public partial class LlvmGenerator
             var pointeeType = MapTypeNode(pointer.BaseType);
             return GetPointerType(pointeeType);
         }
+        else if (typeNode is FunctionPointerTypeNode funcPtr)
+        {
+            return GetPointerType(GetFunctionPointerFunctionType(funcPtr));
+        }
         else if (typeNode is UserTypeNode user)
         {
             if (_typeAliases.TryGetValue(user.Name.Lexeme, out var aliasedType))
@@ -351,6 +431,16 @@ public partial class LlvmGenerator
             throw new Exception($"Unknown type: {user.Name.Lexeme}");
         }
         throw new NotImplementedException($"Type mapping for {typeNode.GetType().Name} not implemented.");
+    }
+
+    // The underlying `Ret (Params...)` function type of a FUNCPTR<...> type node - needed
+    // both to build its pointer type (MapTypeNode above) and, at an indirect-call site, to
+    // know how to call through a value of that pointer type (see VisitCall).
+    private LLVMTypeRef GetFunctionPointerFunctionType(FunctionPointerTypeNode funcPtr)
+    {
+        var returnType = MapTypeNode(funcPtr.ReturnType);
+        var paramTypes = funcPtr.ParamTypes.Select(MapTypeNode).ToArray();
+        return LLVMTypeRef.CreateFunction(returnType, paramTypes);
     }
 
     // Returns the newtype name declared by `type`, or null if `type` does not refer to a

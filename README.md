@@ -39,6 +39,7 @@ bare metal, not because it's a production kernel toolchain.
 * [Structs and Arrays](#structs-and-arrays)
 * [Casts](#casts)
 * [Extern Bindings](#extern-bindings)
+* [Function Pointers](#function-pointers)
 * [Directives](#directives)
 * [#include Directives](#include-directives)
 * [Built-in Functions](#built-in-functions)
@@ -54,8 +55,8 @@ bare metal, not because it's a production kernel toolchain.
 * [Compilation Targets](#compilation-targets)
 * [Examples](#examples)
 * [Standard Library Helpers](#standard-library-helpers)
+* [Compiler Diagnostics: Errors and Warnings](#compiler-diagnostics-errors-and-warnings)
 * [Development](#development)
-* [Reserved / Not Yet Implemented](#reserved--not-yet-implemented)
 
 ---
 
@@ -464,6 +465,7 @@ Primitive types are case-insensitive:
 | C string | `CSTRING` (NUL-terminated `i8*`) |
 | Wide string | `WSTRING` (NUL-terminated UTF-16 `i16*`) |
 | Typed pointer | `PTR<T>` (pointer to `T`; `PTR<VOID>` is an opaque `i8*`) |
+| Function pointer | `FUNCPTR<ReturnType(ParamType, ...)>` (pointer to a function with that signature; see [Function Pointers](#function-pointers)) |
 | Dynamic arrays | `INT32[]`, `CSTRING[]`, etc. (fat pointer: `{ T*, i64 }`) |
 | Fixed-size arrays | `INT32[64]`, etc. (`[64 x T]` stack value) |
 | User-defined | `struct Point { ... }` |
@@ -547,7 +549,42 @@ break;
 continue;
 return;
 return x;
+
+switch (x) {
+    case 1:
+        print("one");
+    case 2:
+    case 3:
+        print("two or three");
+        break;
+    default:
+        print("something else");
+}
 ```
+
+`switch` is one deliberate departure from C: a case does **not** fall through into the
+next one by default. Each case implicitly "breaks" at the end of its body - the classic
+missing-`break` bug simply can't happen - unless you opt into falling through explicitly
+with `fallthrough;`:
+
+```zv
+switch (x) {
+    case 1:
+        print("one");
+        fallthrough;   // explicitly cascade into case 2's body
+    case 2:
+        print("one or two");
+    default:
+        print("default only runs for other values");
+}
+```
+
+Stacked labels with no statements between them (`case 2: case 3: ...` above) share a
+single body, same as C. `case` values must be constant integer, `BOOL`, or `CHAR`
+literals (optionally negated), and the discriminant must be an integer, `BOOL`, or `CHAR`
+expression. `break` exits the nearest enclosing `switch` or loop (whichever is innermost);
+`continue` always targets the nearest enclosing loop, skipping over an enclosing `switch`,
+exactly as in C.
 
 ### Operators
 
@@ -861,6 +898,45 @@ DLL, regenerating it only if the DLL changes.
 * You can also point directly at an existing `.lib` (`extern "./vendor/mylib.lib"`)
 to skip export-table generation entirely.
 
+### Function Pointers
+
+A huge fraction of real-world C APIs take a callback: `qsort`'s comparator, `signal`'s
+handler, Win32's `EnumWindows`/`WNDPROC`, and so on. `FUNCPTR<ReturnType(ParamType, ...)>`
+is a pointer to a function of that exact signature, so those bindings can be written and
+called the same way as any other `extern` function instead of being special-cased:
+
+```zv
+INT32 add(INT32 a, INT32 b) {
+    return a + b;
+}
+
+VOID demo() {
+    FUNCPTR<INT32(INT32, INT32)> op = add;   // a bare function name decays to its address
+    print("%d", op(3, 4));                    // real indirect call, checked against the signature
+}
+```
+
+A bare reference to a top-level function (used as a value, not called) decays to its
+address, which is bitcast-compatible with any pointer type - including a generic
+`PTR<VOID>` callback parameter - via assignment, `as`, or a function call argument, the
+same way `thread_spawn()` takes a worker function internally:
+
+```zv
+extern "msvcrt.dll" {
+    FUNCPTR<VOID(INT32)> signal(INT32 sig, FUNCPTR<VOID(INT32)> handler);
+}
+
+VOID on_interrupt(INT32 sig) {
+    print("caught signal %d", sig);
+}
+
+signal(2, on_interrupt);
+```
+
+Calling *through* a `FUNCPTR<...>`-typed variable (as `op(3, 4)` does above) is a real
+indirect call: the argument count and types are checked against the declared signature at
+compile time, just like an ordinary function call.
+
 ### Directives
 
 ```zv
@@ -941,7 +1017,7 @@ Built-ins are recognized by name and do not need an `extern` declaration.
 
 | Function | Description |
 |----------|-------------|
-| `print(...)` | Print to stdout. If the first argument is a string literal it is used as a `printf` format; otherwise a format is inferred from the argument types. `STRING` values print as length-delimited UTF-8. |
+| `print(...)` | Print to stdout. If the first argument is a string literal it is used as a `printf` format; otherwise a format is inferred from the argument types. `STRING` values print as length-delimited UTF-8. When a literal format string is given, both the argument count and each argument's type are checked against the format specifiers **at compile time** (see [Compiler Diagnostics](#compiler-diagnostics-errors-and-warnings)) - a mismatch (wrong count, `%d` given a `STRING`, `%s` given a raw `STRING` instead of a `CSTRING`, ...) is a compile error instead of the garbage output/crash it would be in plain C. |
 | `len(s)` | Returns the length of a `STRING` or dynamic array (`INT64`). |
 | `cstr(s)` | Converts a `STRING` to a `CSTRING` by allocating a fresh, NUL-terminated heap copy of its bytes (a no-op passthrough if `s` is already a `CSTRING`). Bound directly to a variable it is owned and freed at end of scope; used inline it is freed automatically after the enclosing statement. See [Strings](#strings). |
 | `wstr(s)` | Converts a `STRING` or `CSTRING` to a `WSTRING` by allocating a fresh, NUL-terminated UTF-16 copy using `MultiByteToWideChar(CP_UTF8)`. Passing an existing `WSTRING` returns it unchanged. Lifetime is handled the same as `cstr()`. Currently only supported on Windows. |
@@ -2170,6 +2246,25 @@ Checksum and hash functions; most take a `(PTR<UINT8> data, INT64 len)` buffer a
 - `sdbm(s)` — SDBM string hash.
 - `siphash_2_4(data, len, key)` / `siphash_cstring_2_4(s, key)` — SipHash-2-4; `key` is a `UINT8[16]`.
 - `xxhash32(data, len, seed)` / `xxhash32_cstring(s, seed)` — xxHash 32-bit.
+
+## Compiler Diagnostics: Errors and Warnings
+
+Most mistakes ZV can detect (bad types, use-after-free, out-of-bounds constant indices,
+`print()` format mismatches, ...) are hard compile errors, in keeping with catching bugs
+structurally instead of at runtime. A smaller set of things are non-fatal **warnings**:
+almost certainly mistakes, but not blockers, so compilation still succeeds:
+
+* **Unreachable code** — a statement that can never execute because an earlier one in the
+  same block always returns, throws, breaks, or continues.
+* **A non-void function that doesn't return a value on all code paths** — falling off the
+  end of a non-void function is undefined behavior in C; ZV still compiles it (inserting a
+  trap so the module stays valid) but warns about it instead of silently producing garbage
+  if that path is ever actually reached.
+
+Warnings are printed to the console as `warning: [file:line:col] message` alongside the
+usual build output, and are surfaced as `"warning"`-severity diagnostics through the
+language server (`ZV --lsp`), so they show up as squiggles in an editor the same way
+errors do.
 
 ## Development
 

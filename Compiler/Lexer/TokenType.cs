@@ -41,6 +41,10 @@ public enum TokenType
     Try,        // try
     Catch,      // catch
     Throw,      // throw
+    Switch,     // switch
+    Case,       // case
+    Default,    // default
+    Fallthrough, // fallthrough
     ExceptionDecl, // exception (declares a custom exception type; distinct from the
                    // "Exception"/"EXCEPTION" builtin type keyword, EXCEPTION below)
     Free,       // free
@@ -63,6 +67,7 @@ public enum TokenType
     BOOL, CHAR, VOID,
     STRING, CSTRING, WSTRING,
     PTR,
+    FuncPtr,    // FUNCPTR<ReturnType(ParamType, ...)> - a pointer to a function of that signature
     EXCEPTION,
     PROCESS,
     EndOfFile

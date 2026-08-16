@@ -1283,6 +1283,17 @@ public partial class LlvmGenerator
     {
         if (!_namedValues.TryGetValue(expr.Name, out var entry))
         {
+            // Not a local/global variable - if it names a top-level function instead, treat
+            // a bare reference to it (not immediately called) as taking its address. LLVM
+            // function values are already pointer-typed, so this "just works" as a function
+            // pointer: it can be stored in a FUNCPTR<...>-typed variable (bitcast to the
+            // exact signature) or passed straight through to a PTR<VOID> callback parameter,
+            // the same way thread_spawn() does internally but without needing a string name.
+            if (_functionValues.TryGetValue(expr.Name, out var function))
+            {
+                return function;
+            }
+
             throw new Exception($"Unknown variable name: {expr.Name}");
         }
 
@@ -1353,6 +1364,16 @@ public partial class LlvmGenerator
 
         if (!_functionValues.TryGetValue(calleeName, out var function))
         {
+            // Not a top-level function - if it's a local/global variable declared as
+            // FUNCPTR<...>, this is a call *through* a function pointer value rather than a
+            // direct call to a named function.
+            if (_namedValues.ContainsKey(calleeName) &&
+                _variableDeclaredTypeNodes.TryGetValue(calleeName, out var declaredType) &&
+                declaredType is FunctionPointerTypeNode funcPtrType)
+            {
+                return VisitIndirectCall(varExpr, funcPtrType, expr.Arguments);
+            }
+
             throw new Exception($"Unknown function referenced: {calleeName}");
         }
 
@@ -1437,5 +1458,38 @@ public partial class LlvmGenerator
         }
 
         return _builder.BuildCall2(functionType, function, args.ToArray(), "calltmp");
+    }
+
+    // Calls through a FUNCPTR<...>-typed variable, e.g. `callback(1, 2)` where `callback`
+    // was declared `FUNCPTR<INT32(INT32, INT32)>`. This is a real indirect call (LLVM loads
+    // the stored function pointer and calls through it), checked against the declared
+    // signature the same way a direct call is checked against a function's parameter list.
+    private LLVMValueRef VisitIndirectCall(VariableExpr callee, FunctionPointerTypeNode funcPtrType, List<Expression> arguments)
+    {
+        var functionType = GetFunctionPointerFunctionType(funcPtrType);
+        var paramTypes = functionType.GetParamTypes();
+
+        if (arguments.Count != paramTypes.Length)
+        {
+            throw new CompileException(callee.Location,
+                $"Function pointer '{callee.Name}' expects {paramTypes.Length} argument(s) but {arguments.Count} were provided.");
+        }
+
+        var funcPtrValue = VisitVariable(callee);
+
+        var args = new List<LLVMValueRef>();
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var val = VisitExpression(arguments[i]);
+            args.Add(ConvertToType(val, paramTypes[i]));
+        }
+
+        if (functionType.ReturnType.Kind == LLVMTypeKind.LLVMVoidTypeKind)
+        {
+            _builder.BuildCall2(functionType, funcPtrValue, args.ToArray(), "");
+            return default;
+        }
+
+        return _builder.BuildCall2(functionType, funcPtrValue, args.ToArray(), "indirect_calltmp");
     }
 }

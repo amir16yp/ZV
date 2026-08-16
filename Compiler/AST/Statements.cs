@@ -59,3 +59,18 @@ public record ExceptionTypeDeclStmt(Token Name, Expression? DefaultMessage, Sour
 public record TypeAliasStmt(Token Name, TypeNode AliasedType, bool IsNewtype, SourceLocation Location) : Statement(Location);
 
 public record UnsafeStmt(Statement Body, SourceLocation Location) : Statement(Location);
+
+// One `case`/`default` group within a `switch`. `Values` holds every constant expression
+// stacked onto this group (`case 1: case 2: ...` shares a single Body); it is empty when
+// `IsDefault` is true. See SwitchStmt.
+public record SwitchCase(List<Expression> Values, List<Statement> Body, bool IsDefault, SourceLocation Location);
+
+// `switch (Discriminant) { case ...: ...; default: ...; }`. Unlike C, a case does NOT fall
+// through into the next one by default - each case implicitly "breaks" at the end of its
+// body unless it ends with an explicit `fallthrough;` statement. This keeps the C-familiar
+// syntax while removing the classic missing-`break` footgun.
+public record SwitchStmt(Expression Discriminant, List<SwitchCase> Cases, SourceLocation Location) : Statement(Location);
+
+// Explicit opt-in to fall through from one `switch` case into the next one's body. Only
+// legal as (effectively) the last statement of a case body; see VisitFallthrough.
+public record FallthroughStmt(SourceLocation Location) : Statement(Location);

@@ -2990,4 +2990,189 @@ VOID test() {
         Assert.Contains("305419896", output!);
         Assert.Contains("0 0 32 64", output!);
     }
+
+    [Fact]
+    public void TestSwitchDoesNotFallThroughByDefault()
+    {
+        // Unlike C, a case implicitly "breaks" unless it ends with `fallthrough;`. Case 1
+        // should print only "one", not cascade into case 2's body.
+        string source = @"
+VOID test() {
+    INT32 x = 1;
+    switch (x) {
+        case 1:
+            print(""one"");
+        case 2:
+            print(""two"");
+        default:
+            print(""other"");
+    }
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("one", output!);
+        Assert.DoesNotContain("two", output!);
+        Assert.DoesNotContain("other", output!);
+    }
+
+    [Fact]
+    public void TestSwitchExplicitFallthrough()
+    {
+        // `fallthrough;` opts into cascading into the next case's body.
+        string source = @"
+VOID test() {
+    INT32 x = 1;
+    switch (x) {
+        case 1:
+            print(""one"");
+            fallthrough;
+        case 2:
+            print(""two"");
+        default:
+            print(""other"");
+    }
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("one", output!);
+        Assert.Contains("two", output!);
+        Assert.DoesNotContain("other", output!);
+    }
+
+    [Fact]
+    public void TestSwitchStackedCaseLabelsAndDefault()
+    {
+        string source = @"
+VOID test() {
+    INT32 x = 3;
+    switch (x) {
+        case 1:
+        case 2:
+            print(""low"");
+            break;
+        case 3:
+        case 4:
+            print(""high"");
+            break;
+        default:
+            print(""other"");
+    }
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("high", output!);
+        Assert.DoesNotContain("low", output!);
+        Assert.DoesNotContain("other", output!);
+    }
+
+    [Fact]
+    public void TestFallthroughOutsideSwitchIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    fallthrough;
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestFunctionPointerAssignmentAndIndirectCall()
+    {
+        // A bare reference to a top-level function decays to its address, which can be
+        // stored in a FUNCPTR<...>-typed variable and called through indirectly.
+        string source = @"
+INT32 add(INT32 a, INT32 b) {
+    return a + b;
+}
+
+VOID test() {
+    FUNCPTR<INT32(INT32, INT32)> op = add;
+    INT32 result = op(3, 4);
+    print(""%d"", result);
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("7", output!);
+    }
+
+    [Fact]
+    public void TestFunctionPointerAsGenericCallbackParameter()
+    {
+        // A bare function reference should also decay when passed directly as a PTR<VOID>
+        // argument, generalizing the pattern thread_spawn() uses internally.
+        string source = @"
+VOID callback() {
+    print(""called back"");
+}
+
+VOID invoke(PTR<VOID> fn) {
+    FUNCPTR<VOID()> typed = fn as FUNCPTR<VOID()>;
+    typed();
+}
+
+VOID test() {
+    invoke(callback);
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("called back", output!);
+    }
+
+    [Fact]
+    public void TestPrintFormatArgumentCountMismatchIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    print(""%d %d"", 1);
+}";
+        var ex = Assert.Throws<CompileException>(() => Generate(source));
+        Assert.Contains("expects 2 argument", ex.Message);
+    }
+
+    [Fact]
+    public void TestPrintFormatSpecifierTypeMismatchIsCompileError()
+    {
+        string source = @"
+VOID test() {
+    STRING s = ""hi"";
+    print(""%d"", s);
+}";
+        Assert.Throws<CompileException>(() => Generate(source));
+    }
+
+    [Fact]
+    public void TestPrintFormatMatchingArgumentsStillWorks()
+    {
+        string source = @"
+VOID test() {
+    print(""%d and %s"", 42, cstr(""hi""));
+}";
+        string ir = Generate(source);
+        GenerateAndVerify(source);
+
+        var output = CompileAndRunIr(ir);
+        if (output == null) return; // clang not available; skip
+
+        Assert.Contains("42 and hi", output!);
+    }
 }

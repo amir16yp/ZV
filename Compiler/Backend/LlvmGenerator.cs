@@ -66,6 +66,18 @@ public partial class LlvmGenerator : IDisposable
     private readonly HashSet<string> _constVariables = new();
     private readonly HashSet<string> _externalLibraries = new();
     private readonly Stack<(LLVMBasicBlockRef EndBlock, LLVMBasicBlockRef ContinueBlock)> _loopTargets = new();
+
+    // `break` targets: pushed by both loops and `switch` statements (whichever is innermost),
+    // since `break` exits either. Kept separate from _loopTargets so `continue` - which only
+    // makes sense for a loop - can keep using that stack and skip over an enclosing switch.
+    // The int is the scope depth to clean up to, mirroring _loopStartScopeDepths for loops.
+    private readonly Stack<(LLVMBasicBlockRef EndBlock, int ScopeDepth)> _breakTargets = new();
+
+    // The basic block a `fallthrough;` statement inside the switch case currently being
+    // generated should branch to (the next case's block), or null if it's the last case.
+    // Pushed/popped once per case by VisitSwitch.
+    private readonly Stack<LLVMBasicBlockRef?> _fallthroughTargets = new();
+
     private readonly Dictionary<string, LLVMTypeRef> _typeAliases = new();
 
     // Names of runtime exception "types" that may be used as a catch-clause filter and,
@@ -244,6 +256,23 @@ public partial class LlvmGenerator : IDisposable
         {
             Console.WriteLine($"[verbose] llvm: {message}");
         }
+    }
+
+    // Non-fatal diagnostics: things that are almost certainly mistakes (unreachable code, a
+    // non-void function that can fall off its end without returning, ...) but that don't
+    // block compilation the way a CompileException does. Populated during Generate() and
+    // surfaced by callers (Program.cs prints them to the console; the language server turns
+    // them into "warning"-severity Diagnostics).
+    public List<(SourceLocation? Location, string Message)> Warnings { get; } = new();
+
+    // Basic blocks we've already warned about containing unreachable code, so a run of
+    // several statements after a single terminator (return/throw/break/continue) produces
+    // one warning instead of one per statement.
+    private readonly HashSet<IntPtr> _warnedUnreachableBlocks = new();
+
+    private void AddWarning(SourceLocation? location, string message)
+    {
+        Warnings.Add((location, message));
     }
 
     public LlvmGenerator(string moduleName)
@@ -559,6 +588,10 @@ public partial class LlvmGenerator : IDisposable
                 var lastInst = currentBlock.LastInstruction;
                 if (lastInst.Handle != IntPtr.Zero && lastInst.IsATerminatorInst.Handle != IntPtr.Zero)
                 {
+                    if (_warnedUnreachableBlocks.Add(currentBlock.Handle))
+                    {
+                        AddWarning(stmt.Location, "Unreachable code: this statement can never execute because an earlier statement always returns, throws, breaks, or continues.");
+                    }
                     return;
                 }
             }
@@ -624,6 +657,12 @@ public partial class LlvmGenerator : IDisposable
                 break;
             case UnsafeStmt unsafeStmt:
                 VisitUnsafe(unsafeStmt);
+                break;
+            case SwitchStmt switchStmt:
+                VisitSwitch(switchStmt);
+                break;
+            case FallthroughStmt fallthroughStmt:
+                VisitFallthrough(fallthroughStmt);
                 break;
             default:
                 throw new NotImplementedException($"Statement type {stmt.GetType().Name} not implemented.");

@@ -39,6 +39,18 @@ public class Program
         }
     }
 
+    // Prints non-fatal compiler diagnostics (see LlvmGenerator.Warnings): things worth the
+    // programmer's attention (unreachable code, a non-void function that can fall off its
+    // end, ...) that don't block compilation the way a CompileException does.
+    private static void PrintWarnings(IEnumerable<(ZV.Compiler.Lexer.SourceLocation? Location, string Message)> warnings)
+    {
+        foreach (var (location, message) in warnings)
+        {
+            string prefix = location != null ? $"[{location.File}:{location.Line}:{location.Column}] " : "";
+            Console.WriteLine($"warning: {prefix}{message}");
+        }
+    }
+
     public static async System.Threading.Tasks.Task Main(string[] args)
     {
         if (args.Length == 0)
@@ -276,6 +288,7 @@ public class Program
             generator.Verbose = Verbose;
             generator.Generate(allStatements);
             LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
+            PrintWarnings(generator.Warnings);
 
             if (isFreestandingOsX86)
             {
