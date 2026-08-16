@@ -65,6 +65,7 @@ public class Parser
                 }
             }
 
+            if (Match(TokenType.EmbedDirective)) return EmbedDirective();
             if (Check(TokenType.Extern)) return ExternDeclaration();
             if (Check(TokenType.Packed) || Check(TokenType.Struct)) return StructDeclaration(isPacked);
             if (Match(TokenType.Type)) return TypeAliasStatement(false);
@@ -213,6 +214,29 @@ public class Parser
         }
 
         return type;
+    }
+
+    private Statement EmbedDirective()
+    {
+        Token directive = Previous();
+        Token path = Consume(TokenType.StringLiteral, "Expect string path after '#embed'.");
+        Token kind = Consume(TokenType.Identifier, "Expect embed kind ('resource' or 'file') after path.");
+
+        Token? destination = null;
+        string kindText = kind.Lexeme.ToLowerInvariant();
+        if (kindText == "file")
+        {
+            if (Check(TokenType.StringLiteral))
+            {
+                destination = Advance();
+            }
+        }
+        else if (kindText != "resource")
+        {
+            throw Error(kind, "Embed kind must be 'resource' or 'file'.");
+        }
+
+        return new EmbedStmt(path, kind, destination, directive.Location);
     }
 
     private Statement StructDeclaration(bool packedFromAttr = false)

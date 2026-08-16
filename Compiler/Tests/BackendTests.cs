@@ -2247,9 +2247,9 @@ VOID main() {
         var tokens = lexer.ScanTokens();
         var parser = new ZV.Compiler.Parser.Parser(tokens);
         var statements = parser.Parse();
-        using var generator = new LlvmGenerator("test_module") { IsFreestandingTarget = true };
+        using var generator = new LlvmGenerator("test_module") { Target = ZV.Compiler.Target.TargetParser.Parse("x86-32-baremetal") };
         var ex = Assert.Throws<CompileException>(() => generator.Generate(statements));
-        Assert.Contains("freestanding", ex.Message);
+        Assert.Contains("bare-metal", ex.Message);
     }
 
     [Fact]
@@ -2707,7 +2707,7 @@ VOID test() {
         var tokens = lexer.ScanTokens();
         var parser = new ZV.Compiler.Parser.Parser(tokens);
         var statements = parser.Parse();
-        using var generator = new LlvmGenerator("test_module") { IsFreestandingTarget = true };
+        using var generator = new LlvmGenerator("test_module") { Target = ZV.Compiler.Target.TargetParser.Parse("x86-32-baremetal") };
         generator.Generate(statements);
         string ir = generator.EmitToString();
         Assert.DoesNotContain("thread_local", ir);
@@ -2743,7 +2743,7 @@ VOID test() {
         var tokens = lexer.ScanTokens();
         var parser = new ZV.Compiler.Parser.Parser(tokens);
         var statements = parser.Parse();
-        using var generator = new LlvmGenerator("test_module") { IsFreestandingTarget = true };
+        using var generator = new LlvmGenerator("test_module") { Target = ZV.Compiler.Target.TargetParser.Parse("x86-32-baremetal") };
         generator.Generate(statements);
         string ir = generator.EmitToString();
         Assert.Contains("@__zv_cleanup_head = internal global ptr null", ir);

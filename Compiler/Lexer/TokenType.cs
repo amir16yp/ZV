@@ -58,11 +58,13 @@ public enum TokenType
     Const,      // CONST
     Unsafe,     // unsafe
     DefineDirective,
+    EmbedDirective,   // #embed <path> [resource|file]
     Attribute,        // @entry, @export, @packed, etc.
 
     // Primitive Types
     INT8, INT16, INT32, INT64, INT128,
     UINT8, UINT16, UINT32, UINT64, UINT128,
+    ISIZE, USIZE,
     FLOAT32, FLOAT64,
     BOOL, CHAR, VOID,
     STRING, CSTRING, WSTRING,

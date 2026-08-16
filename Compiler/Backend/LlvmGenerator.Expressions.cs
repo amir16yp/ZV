@@ -1346,11 +1346,6 @@ public partial class LlvmGenerator
         var builtins = new HashSet<string>
         {
             "print", "copy", "move", "fopen", "fclose", "fread", "fwrite", "fseek", "ftell", "feof", "ferror", "fgets", "fputs", "tmpfile", "memcpy", "memset", "remove", "rename", "mkdir", "rmdir", "len", "alloc", "realloc", "cstr", "wstr", "array_copy", "get_timestamp", "get_timestamp_ms",
-            "halt", "cli", "sti", "port_out8", "port_out16", "port_out32", "port_in8", "port_in16", "port_in32", "volatile_read", "volatile_write",
-            "serial_init", "serial_write_char", "serial_write", "serial_read_char", "serial_has_data",
-            "vga_putc", "vga_clear", "vga_print",
-            "ps2_has_data", "ps2_read_data", "ps2_write_data", "ps2_send_command", "ps2_scancode_to_ascii", "keyboard_getchar",
-            "fb_available", "fb_width", "fb_height", "fb_pitch", "fb_bpp", "fb_set_pixel", "fb_fill_rect", "fb_clear",
             "strlen", "strcmp", "strncmp", "strcpy", "strncpy", "strcat", "strncat", "strchr", "strstr",
             "strdup", "str_concat", "str_equals", "to_upper", "to_lower",
             "Exception", "respawn", "exit",

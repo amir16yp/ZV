@@ -4,43 +4,14 @@ using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
 public partial class LlvmGenerator
 {
-    // Low-level kernel/freestanding-only builtins (CPU intrinsics, port I/O, VGA/serial/PS2/
-    // framebuffer access, etc). These have no meaning on a hosted OS process and are rejected
-    // outright unless compiling for a freestanding/kernel target - see IsFreestandingTarget and
-    // CheckKernelBuiltinAvailable() below.
-    private static readonly HashSet<string> KernelBuiltinNames = new()
-    {
-        "halt", "cli", "sti",
-        "port_out8", "port_out16", "port_out32",
-        "port_in8", "port_in16", "port_in32",
-        "volatile_read", "volatile_write",
-        "serial_init", "serial_write_char", "serial_write", "serial_read_char", "serial_has_data",
-        "vga_putc", "vga_clear", "vga_print",
-        "ps2_has_data", "ps2_read_data", "ps2_write_data", "ps2_send_command", "ps2_scancode_to_ascii",
-        "keyboard_getchar",
-        "fb_available", "fb_width", "fb_height", "fb_pitch", "fb_bpp", "fb_set_pixel", "fb_fill_rect", "fb_clear"
-    };
-
-    // Rejects kernel/freestanding-only builtins when compiling for a normal (hosted) target.
-    private void CheckKernelBuiltinAvailable(string name)
-    {
-        if (!IsFreestandingTarget)
-        {
-            throw new Exception($"'{name}' is a kernel builtin and is only available when targeting a freestanding/kernel target " +
-                                 "(e.g. 'os-x86'): it has no meaning on a hosted Windows/Linux process.");
-        }
-    }
-
     private LLVMValueRef GenerateBuiltinCall(string name, List<Expression> arguments)
     {
-        if (KernelBuiltinNames.Contains(name))
-            CheckKernelBuiltinAvailable(name);
-
         return name switch
         {
             "print" => GeneratePrintCall(arguments),
@@ -71,39 +42,6 @@ public partial class LlvmGenerator
             "realloc" => GenerateReallocCall(arguments),
             "get_timestamp" => GenerateGetTimestampCall(arguments),
             "get_timestamp_ms" => GenerateGetTimestampMsCall(arguments),
-            "halt" => GenerateHaltCall(),
-            "cli" => GenerateCliCall(),
-            "sti" => GenerateStiCall(),
-            "port_out8" => GeneratePortOutCall(arguments, 8),
-            "port_out16" => GeneratePortOutCall(arguments, 16),
-            "port_out32" => GeneratePortOutCall(arguments, 32),
-            "port_in8" => GeneratePortInCall(arguments, 8),
-            "port_in16" => GeneratePortInCall(arguments, 16),
-            "port_in32" => GeneratePortInCall(arguments, 32),
-            "volatile_read" => GenerateVolatileReadCall(arguments),
-            "volatile_write" => GenerateVolatileWriteCall(arguments),
-            "serial_init" => GenerateSerialInitCall(arguments),
-            "serial_write_char" => GenerateSerialWriteCharCall(arguments),
-            "serial_write" => GenerateSerialWriteCall(arguments),
-            "serial_read_char" => GenerateSerialReadCharCall(arguments),
-            "serial_has_data" => GenerateSerialHasDataCall(arguments),
-            "vga_putc" => GenerateVgaPutcCall(arguments),
-            "vga_clear" => GenerateVgaClearCall(arguments),
-            "vga_print" => GenerateVgaPrintCall(arguments),
-            "ps2_has_data" => GeneratePs2HasDataCall(arguments),
-            "ps2_read_data" => GeneratePs2ReadDataCall(arguments),
-            "ps2_write_data" => GeneratePs2WriteDataCall(arguments),
-            "ps2_send_command" => GeneratePs2SendCommandCall(arguments),
-            "ps2_scancode_to_ascii" => GeneratePs2ScancodeToAsciiCall(arguments),
-            "keyboard_getchar" => GenerateKeyboardGetcharCall(arguments),
-            "fb_available" => GenerateFbAvailableCall(arguments),
-            "fb_width" => GenerateFbWidthCall(arguments),
-            "fb_height" => GenerateFbHeightCall(arguments),
-            "fb_pitch" => GenerateFbPitchCall(arguments),
-            "fb_bpp" => GenerateFbBppCall(arguments),
-            "fb_set_pixel" => GenerateFbSetPixelCall(arguments),
-            "fb_fill_rect" => GenerateFbFillRectCall(arguments),
-            "fb_clear" => GenerateFbClearCall(arguments),
             "strlen" => GenerateStrlenCall(arguments),
             "strcmp" => GenerateStrcmpCall(arguments),
             "strncmp" => GenerateStrncmpCall(arguments),

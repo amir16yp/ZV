@@ -10,17 +10,20 @@ explicit control over memory, resources, and hardware, keeps the syntax close
 to C, and treats native interop and bare-metal kernels as first-class
 concerns rather than afterthoughts.
 
-The compiler is written in C# (.NET 10) using LLVMSharp, and it supports three
-distinct targets:
+The compiler is written in C# (.NET 10) using LLVMSharp. The frontend and a
+target-independent LLVM backend support normal hosted processes, while a new
+x86-16 bare-metal backend compiles a ZV kernel directly to a bootable raw image
+without an IR layer:
 
-* **Hosted executable** (`exe`) — compiled with Clang into a normal Windows or
-Linux process.
-* **Shared library** (`lib`) — compiled with Clang into a Windows DLL or Linux
-shared object, exposing only functions marked `export`.
-* **Freestanding x86 kernel** (`os-x86`) — a tech-demo target that compiles
-into a Multiboot-compatible ELF kernel bootable with QEMU or GRUB. It exists
-mostly because I wanted to prove the same frontend could go all the way down to
-bare metal, not because it's a production kernel toolchain.
+* **Hosted executable** (`-target x86-32-hosted|amd64-hosted`) — compiled with
+Clang into a normal Windows or Linux process.
+* **Shared library** (`-target x86-32-hosted|amd64-hosted ... lib`) — compiled
+with Clang into a Windows DLL or Linux shared object, exposing only functions
+marked `export`.
+* **x86-16 bare-metal kernel** (`-target x86-16-baremetal`) — a custom 16-bit
+real-mode backend that emits a boot sector, kernel, and optional embedded files
+into a raw disk image bootable with QEMU.
+* **x86-32 / AMD64 bare-metal ELF** — LLVM backend with `-target x86-32-baremetal|amd64-baremetal`.
 
 ---
 
@@ -318,9 +321,10 @@ Unix).
 
 ### Prerequisites
 
-* [Clang](https://clang.llvm.org/) and `ld.lld` in your `PATH` (needed for
-`exe`, `lib`, and `os-x86` linking)
-* Optional: [QEMU](https://www.qemu.org/) (to boot `-target os-x86` kernels)
+* [Clang](https://clang.llvm.org/) in your `PATH` (needed for hosted `exe` and
+`lib` linking)
+* Optional: [QEMU](https://www.qemu.org/) (`qemu-system-i386`) to boot x86-16
+bare-metal images with `-run`
 
 To build the compiler itself from source you also need the
 [.NET 10 SDK](https://dotnet.microsoft.com/).
@@ -339,17 +343,23 @@ dotnet test
 ### Compile a ZV Program
 
 ```bash
-# Compile a single file to LLVM IR
+# Compile a single file to LLVM IR (native hosted target by default)
 dotnet run -- hello.zv
 
-# Compile and link a hosted executable
+# Compile and link a hosted executable for the native target
 dotnet run -- hello.zv -o hello.exe
 
 # Compile and link a shared library (.dll on Windows, .so on Linux)
-dotnet run -- mylib.zv -target lib -o mylib.dll
+dotnet run -- mylib.zv -target x86-32-hosted -o mylib.dll lib
 
-# Build a bootable x86 kernel and launch it in QEMU
-dotnet run -- kernel.zv -target os-x86 -o kernel.elf -run
+# Build an x86-16 bare-metal kernel and launch it in QEMU
+dotnet run -- kernel.zv -target x86-16-baremetal -o kernel.img -run
+
+# Build an x86-32 Multiboot v1 kernel
+dotnet run -- kernel.zv -target x86-32-baremetal-multiboot -o kernel.elf
+
+# Boot it with QEMU
+dotnet run -- kernel.zv -target x86-32-baremetal-multiboot -o kernel.elf -run
 ```
 
 ---
@@ -382,18 +392,16 @@ ZV/
 ## CLI Usage
 
 ```text
-ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]
+ZV <file or directory> [-o output] [-target <triple>] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]
 ZV checkdeps
 ```
 
 | Flag | Description |
 |------|-------------|
-| `-o` | Output path. `.exe`/no extension forces a linked executable. |
-| `-target exe` | Default. Hosted application linked with Clang. |
-| `-target lib` | Shared library (`.dll`/`.so`). Only `export`ed functions are visible. |
-| `-target os-x86` | Freestanding x86 kernel. |
+| `-o` | Output path. `.exe`/no extension forces a linked executable on hosted targets. |
+| `-target <triple>` | Target triple such as `x86-32-hosted`, `amd64-hosted`, `x86-16-baremetal`, `x86-32-baremetal`, or `amd64-baremetal`. Defaults to a native hosted triple. |
 | `-L <dir>` | Add a directory to the linker's library search path. Repeatable. |
-| `-run` | After building an `os-x86` kernel, launch it in QEMU. |
+| `-run` | After building an x86-16 bare-metal image, launch it in QEMU (`qemu-system-i386 -fda`). |
 | `-O`, `--optimize` | Run LLVM's in-process optimization pipeline (mem2reg, instcombine, simplifycfg, reassociate, gvn) before emitting. Opt-in; off by default. |
 | `-copt <level>` | Optimization level passed to clang as `-O<level>` when linking (`O0`, `O1`, `O2`, `O3`, `Os`, `Oz`). Defaults to `O2`. Use `-copt list` to print the available levels. |
 | `-v`, `--verbose` | Print each compiler stage (lexing/parsing per file, codegen, optimization passes, emission, linking) with timing, prefixed `[verbose]`. |
@@ -412,11 +420,10 @@ ones are available, without invoking any of them:
 
 | Tool | Required | Used for |
 |------|----------|----------|
-| `clang` | Yes | Compiling/linking `exe`, `lib`, and `os-x86` targets. |
-| `ld.lld` | No | Linking freestanding `os-x86` kernels. |
+| `clang` | Yes | Compiling/linking hosted `exe`/`lib` targets. |
 | `llvm-readobj` | No | Reading a DLL's export table (for `extern "path/to.dll"`). |
 | `llvm-dlltool` | No | Generating a Windows import library from a DLL's exports. |
-| `qemu-system-i386` | No | Booting `os-x86` kernels with `-run`. |
+| `qemu-system-i386` | No | Booting x86-16 bare-metal images with `-run`. |
 
 Exits with a non-zero status if a required tool is missing.
 
@@ -515,9 +522,10 @@ UINT32 main(CSTRING[] args) {
 }
 ```
 
-`@entry` marks the program entry point. It should accept `CSTRING[] args` and
-return an integer. For `os-x86`, the compiler emits a Multiboot `_start` stub
-that calls this function.
+`@entry` marks the program entry point. For hosted targets it should accept
+`CSTRING[] args` and return an integer. For the x86-16 bare-metal target the
+entry function must be `VOID` and take no arguments; the backend emits a boot
+sector that loads and jumps to it.
 
 ```zv
 export INT32 add(INT32 a, INT32 b) {
@@ -525,8 +533,8 @@ export INT32 add(INT32 a, INT32 b) {
 }
 ```
 
-`export` marks a function as part of the public ABI of a `-target lib` build. It
-has no effect for `exe`/`os-x86` targets. See [Compilation Targets](#compilation-targets).
+`export` marks a function as part of the public ABI of a shared-library build. It
+has no effect for executable or x86-16 bare-metal targets. See [Compilation Targets](#compilation-targets).
 
 ### Control Flow
 
@@ -999,9 +1007,10 @@ You can also jump from an `#include` to its target file in the language server
 
 Attributes use the `@` prefix and appear before the declaration they modify:
 
-* **`@entry`** — Marks the following function as the program entry point. It must
-  accept `CSTRING[] args` and return an integer type. For `-target os-x86`, the
-  compiler emits a Multiboot `_start` stub that calls it.
+* **`@entry`** — Marks the following function as the program entry point. For
+  hosted targets it must accept `CSTRING[] args` and return an integer type. For
+  the x86-16 bare-metal target it must be `VOID` with no arguments; the backend
+  emits a boot sector that jumps to it.
 * **`@export`** — Marks a function as part of the public ABI (same as `export`
   keyword).
 * **`@packed`** — Marks a struct with no padding between fields (same as `packed`
@@ -1294,90 +1303,36 @@ curses_end();
 
 ### Bare Metal / Kernel
 
-Available only for `-target os-x86`. This target is mostly a tech demo: it shows
-the same frontend can emit a freestanding x86 kernel, but it is not meant as a
-production kernel toolchain.
-
-**CPU / interrupts / raw memory**
-
-| Function | Description |
-|----------|-------------|
-| `halt()` | Executes `hlt`. |
-| `cli()` | Executes `cli` (disable interrupts). |
-| `sti()` | Executes `sti` (enable interrupts). |
-| `port_out8/16/32(port, value)` | Writes an 8/16/32-bit value to an I/O port. |
-| `port_in8/16/32(port)` | Reads an 8/16/32-bit value from an I/O port. |
-| `volatile_read(ptr)` | Performs a volatile load through `ptr`. |
-| `volatile_write(ptr, value)` | Performs a volatile store of `value` through `ptr`. |
-
-**Serial (UART 8250/16550)**
-
-| Function | Description |
-|----------|-------------|
-| `serial_init(port)` | Initializes the UART at `port` (38400 baud, 8N1, FIFO enabled). |
-| `serial_write_char(port, ch)` | Writes a single character, blocking until the transmitter is ready. |
-| `serial_write(port, str)` | Writes a NUL-terminated string, one character at a time. |
-| `serial_read_char(port)` | Blocks until a byte is available, then returns it (`UINT8`). |
-| `serial_has_data(port)` | Returns `true` if a byte is available to read without blocking. |
-
-**VGA text mode** (writes directly to the 0xB8000 text buffer, 80x25)
-
-| Function | Description |
-|----------|-------------|
-| `vga_putc(col, row, ch, color)` | Writes one character and color/attribute byte at `(col, row)`. |
-| `vga_clear(color)` | Fills the entire screen with spaces using `color`. |
-| `vga_print(col, row, str, color)` | Writes a string starting at `(col, row)`, wrapping to the next row. |
-
-**PS/2 keyboard controller (8042)**
-
-| Function | Description |
-|----------|-------------|
-| `ps2_has_data()` | Returns `true` if the controller's output buffer has data waiting. |
-| `ps2_read_data()` | Blocks until data is available, then reads a byte from the data port (0x60). |
-| `ps2_write_data(byte)` | Writes a byte to the data port (0x60). |
-| `ps2_send_command(byte)` | Writes a byte to the command/status port (0x64). |
-| `ps2_scancode_to_ascii(scancode)` | Maps a Scan Code Set 1 make-code to its US QWERTY ASCII value (0 if unmapped). |
-| `keyboard_getchar()` | Blocks until a printable key is pressed (ignoring key-releases and non-printable keys) and returns its ASCII value (`CHAR`). |
-
-**Linear framebuffer** (parsed from the Multiboot info structure; requires a bootloader such as GRUB that sets up a video mode)
-
-| Function | Description |
-|----------|-------------|
-| `fb_available()` | Returns `true` if the bootloader reported a usable framebuffer. |
-| `fb_width()` / `fb_height()` | Returns the framebuffer's width/height in pixels (`INT32`). |
-| `fb_pitch()` | Returns the number of bytes per scanline (`INT32`). |
-| `fb_bpp()` | Returns the bits per pixel (`INT32`); 32bpp and 16bpp are supported by the pixel-writing builtins. |
-| `fb_set_pixel(x, y, color)` | Sets the pixel at `(x, y)` to `color`. |
-| `fb_fill_rect(x, y, w, h, color)` | Fills a `w`x`h` rectangle starting at `(x, y)` with `color`. |
-| `fb_clear(color)` | Fills the entire framebuffer with `color`. |
+The x86-16 bare-metal target is handled by a dedicated 16-bit real-mode backend
+that lowers a small ZV subset directly to machine code. It produces a bootable
+raw disk image suitable for `qemu-system-i386 -fda`.
 
 ```zv
-halt();      // HLT instruction
-cli();       // Clear interrupts
-sti();       // Enable interrupts
-
-port_out8(0x3F8, 'A');
-UINT8 b = port_in8(0x3F8);
-
-UINT8 v = volatile_read(mmio_ptr);
-volatile_write(mmio_ptr, 0xFF);
-
-serial_init(0x3F8);
-serial_write(0x3F8, "Hello, serial!\n");
-UINT8 ch = serial_read_char(0x3F8);
-
-vga_clear(0x0F);
-vga_putc(0, 0, 'H', 0x0F);
-vga_print(0, 1, "Hello, VGA!", 0x0F);
-
-CHAR key = keyboard_getchar();
-UINT8 sc = ps2_read_data();
-
-if (fb_available()) {
-    fb_clear(0x000000);
-    fb_set_pixel(100, 100, 0xFF0000);
-    fb_fill_rect(200, 200, 50, 50, 0x00FF00);
+extern "" {
+    VOID print(CSTRING s);   // runtime routine: BIOS teletype via int 0x10
+    VOID halt();             // halt forever
 }
+
+@entry
+VOID kmain() {
+    print("Hello from ZV!");
+    halt();
+}
+```
+
+The `extern ""` block declares runtime services provided by the tiny 16-bit
+runtime embedded in the kernel. The `@entry` function is jumped to by the boot
+loader; for x86-16 it must return `VOID` and take no arguments.
+
+```bash
+dotnet run -- kernel.zv -target x86-16-baremetal -o kernel.img -run
+```
+
+**#embed directives** work on bare-metal targets too:
+
+```zv
+#embed "font.bin" resource            // appended to the kernel binary
+#embed "logo.raw" file "assets/logo"  // stored in the disk image file table
 ```
 
 ---
@@ -1555,7 +1510,7 @@ Concretely:
   above.
 
 `respawn()` and `exit()` require a hosted OS process and are rejected at
-compile time when targeting a freestanding/kernel target (`-target os-x86`).
+compile time when targeting a bare-metal target.
 
 ---
 
@@ -1917,42 +1872,43 @@ set_temperature(f); // ERROR: Fahrenheit is not a Celsius
 
 ## Compilation Targets
 
-### `exe` (Hosted)
+Targets are written as triples: `<arch>-<env>-<options...>`. Supported forms
+include `x86-16-baremetal`, `x86-32-hosted`, `x86-32-baremetal`, `amd64-hosted`,
+and `amd64-baremetal`. The default target is a native hosted triple.
+
+### Hosted executable / shared library
 
 * Linked with Clang against `user32`, `kernel32`, `msvcrt`, and
-`legacy_stdio_definitions`.
+`legacy_stdio_definitions` on Windows, or the platform libc on Linux.
 * `extern` libraries are appended as `-l<name>`. Each one is printed to the
 console (e.g. `Linking against native library 'shell32.dll' (-lshell32)`),
 along with the full `clang` command line that is actually run, so it's always
 clear which DLLs/`.so` files the output depends on.
-* Kernel-only builtins and `os-x86` are rejected.
+* Bare-metal-only builtins are rejected on hosted targets.
+* For a shared library, append `lib` to the target triple (e.g.
+`-target x86-32-hosted lib`). Functions marked `export` get external linkage
+and, on Windows, the LLVM `dllexport` storage class.
 
-### `lib` (Shared Library)
+### `x86-16-baremetal` (16-bit real-mode kernel)
 
-* Compiled the same as `exe`, but linked with Clang using `-shared` (plus
-`-fPIC` on non-Windows) instead of producing an executable.
-* Defaults to a `.dll` output on Windows and `.so` on other platforms when
-`-o` isn't given.
-* Functions marked `export` get external linkage and (on Windows) the LLVM
-`dllexport` storage class, so they are visible in the resulting DLL/SO's symbol
-table.
-* Every other top-level function gets `internal` linkage — it can still be
-called from other ZV functions in the same module, but it is not part of the
-library's public ABI and won't show up as an exported symbol.
-* `@entry` functions are not required for a `lib` build.
+* Uses a dedicated 16-bit backend that lowers a small ZV subset directly to
+x86 machine code. There is no IR layer for this path.
+* Produces a bootable raw disk image with an MBR-style boot sector, the kernel,
+and any file embedded with `#embed ... file`.
+* The boot loader reads the kernel from disk and jumps to 0x0000:0x7E00.
+* QEMU is launched with `-fda` when `-run` is used.
 
-### `os-x86` (Freestanding Kernel — tech demo)
+### `x86-32-baremetal` (32-bit protected-mode Multiboot kernel)
 
-* Emits a Multiboot v1 header (section `.multiboot`) and an x86 `_start` entry
-point. This target is mostly a proof-of-concept; it shows the same frontend can
-reach bare metal, but it is not a serious production kernel toolchain.
-* Compiles to `-target i686-unknown-none-elf -ffreestanding -m32 -c` and links
-with `ld.lld` and a custom linker script placing the image at 1 MiB.
-* No libc, no CRT, no `extern` declarations.
-* Framebuffer information is parsed from the Multiboot info structure passed by
-the bootloader.
-* QEMU is launched with `-serial stdio` so `serial_write` output appears in the
-terminal.
+* Add `multiboot` to the target triple (e.g. `-target x86-32-baremetal-multiboot`).
+* Uses the LLVM backend with `i686-unknown-none-elf`, emits a Multiboot v1 header,
+and links with `ld.lld` + a custom linker script that loads the image at 1 MiB.
+* Produces a bootable ELF that `qemu-system-i386 -kernel` can run directly.
+
+### `amd64-baremetal` (64-bit long-mode kernel)
+
+* The target triple and data layout are wired through, but the bootable-image
+pipeline (Multiboot v2 / UEFI) is not yet implemented.
 
 ---
 
@@ -2127,7 +2083,7 @@ UINT32 main(CSTRING[] args) {
 Build and run:
 
 ```bash
-dotnet run -- kernel.zv -target os-x86 -o kernel.elf -run
+dotnet run -- kernel.zv -target x86-16-baremetal -o kernel.img -run
 ```
 
 ---

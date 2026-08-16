@@ -4,6 +4,7 @@ using System.Linq;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
@@ -501,7 +502,7 @@ public partial class LlvmGenerator
     private static bool IsUnsignedPrimitiveTypeNode(TypeNode? type)
     {
         return type is PrimitiveTypeNode p && p.Type.Type is TokenType.UINT8 or TokenType.UINT16
-            or TokenType.UINT32 or TokenType.UINT64 or TokenType.UINT128;
+            or TokenType.UINT32 or TokenType.UINT64 or TokenType.UINT128 or TokenType.USIZE;
     }
 
     // Best-effort check to recover the signedness of an integer expression for printing.
@@ -511,12 +512,12 @@ public partial class LlvmGenerator
         if (expr is LiteralExpr lit)
         {
             return lit.Type is TokenType.UINT8 or TokenType.UINT16 or TokenType.UINT32
-                or TokenType.UINT64 or TokenType.UINT128;
+                or TokenType.UINT64 or TokenType.UINT128 or TokenType.USIZE;
         }
         return IsUnsignedPrimitiveTypeNode(InferExprTypeNode(expr));
     }
 
-    private static int PrimitiveIntWidth(TypeNode? type)
+    private int PrimitiveIntWidth(TypeNode? type)
     {
         if (type is not PrimitiveTypeNode p) return 0;
         return p.Type.Type switch
@@ -526,6 +527,7 @@ public partial class LlvmGenerator
             TokenType.INT32 or TokenType.UINT32 => 32,
             TokenType.INT64 or TokenType.UINT64 => 64,
             TokenType.INT128 or TokenType.UINT128 => 128,
+            TokenType.ISIZE or TokenType.USIZE => Target.DataLayout.SizeTypeBits,
             _ => 0,
         };
     }
@@ -658,6 +660,8 @@ public partial class LlvmGenerator
             TokenType.UINT64 => GetInt64Type(),
             TokenType.INT128 => GetInt128Type(),
             TokenType.UINT128 => GetInt128Type(),
+            TokenType.ISIZE => GetSizeType(),
+            TokenType.USIZE => GetSizeType(),
             TokenType.FLOAT32 => GetFloatType(),
             TokenType.FLOAT64 => GetDoubleType(),
             TokenType.BOOL => GetInt1Type(),
@@ -671,6 +675,17 @@ public partial class LlvmGenerator
             TokenType.EXCEPTION => GetExceptionType(),
             TokenType.PROCESS => GetProcessType(),
             _ => throw new NotImplementedException($"Type mapping for {type} not implemented.")
+        };
+    }
+
+    private LLVMTypeRef GetSizeType()
+    {
+        return Target.DataLayout.SizeTypeBits switch
+        {
+            16 => GetInt16Type(),
+            32 => GetInt32Type(),
+            64 => GetInt64Type(),
+            _ => throw new NotSupportedException($"Unsupported size type width {Target.DataLayout.SizeTypeBits} for the current target.")
         };
     }
 

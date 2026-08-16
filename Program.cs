@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ZV.Compiler.Lexer;
 using ZV.Compiler.Parser;
 using ZV.Compiler.Backend;
 using ZV.Compiler.AST;
+using ZV.Compiler.Target;
 
 namespace ZV;
 
@@ -55,7 +57,8 @@ public class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target exe|lib|os-x86] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]");
+            Console.WriteLine("Usage: ZV <file or directory> [-o output] [-target <target>] [-L libdir]... [-run] [-O|--optimize] [-copt O0|O1|O2|O3|Os|Oz|list] [-v|--verbose]");
+            Console.WriteLine("  <target> examples: x86-16-baremetal, x86-32-hosted, x86-32-baremetal, amd64-hosted");
             Console.WriteLine("       ZV checkdeps");
             Console.WriteLine("       ZV --lsp");
             return;
@@ -76,7 +79,7 @@ public class Program
 
         string inputPath = args[0];
         string? outputPath = null;
-        string targetMode = "exe";
+        string? targetText = null;
         bool runAfterBuild = false;
         bool optimize = false;
         string clangOptLevel = DefaultClangOptLevel;
@@ -91,7 +94,7 @@ public class Program
             }
             else if (args[i] == "-target" && i + 1 < args.Length)
             {
-                targetMode = args[i + 1];
+                targetText = args[i + 1];
                 i++;
             }
             else if (args[i] == "-L" && i + 1 < args.Length)
@@ -141,7 +144,7 @@ public class Program
             }
         }
 
-        LogVerbose($"input='{inputPath}', output='{outputPath ?? "(default)"}', target='{targetMode}', run={runAfterBuild}, optimize={optimize}, clangOptLevel=O{clangOptLevel}");
+        LogVerbose($"input='{inputPath}', output='{outputPath ?? "(default)"}', target='{targetText ?? "(default)"}', run={runAfterBuild}, optimize={optimize}, clangOptLevel=O{clangOptLevel}");
 
         // Always include the input directory in the library search path so local
         // DLLs/.lib files next to the source can be linked without extra -L flags.
@@ -171,44 +174,49 @@ public class Program
 
         LogVerbose($"Library search paths: [{string.Join(", ", libSearchDirs)}]");
 
-        if (targetMode != "exe" && targetMode != "lib" && targetMode != "os-x86")
+        TargetInfo target;
+        try
         {
-            Console.WriteLine($"Error: Unknown target '{targetMode}'. Supported targets: exe, lib, os-x86.");
+            if (string.IsNullOrEmpty(targetText))
+            {
+                string defaultArch = RuntimeInformation.ProcessArchitecture switch
+                {
+                    Architecture.X64 => "amd64",
+                    Architecture.X86 => "x86-32",
+                    _ => "amd64"
+                };
+                target = TargetParser.Parse($"{defaultArch}-hosted");
+            }
+            else
+            {
+                target = TargetParser.Parse(targetText);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
             Environment.ExitCode = 1;
             return;
         }
 
-        bool isFreestandingOsX86 = targetMode == "os-x86";
-        bool isLibraryTarget = targetMode == "lib";
+        bool isExecutable = target.OutputFormat == OutputFormat.Executable;
+        bool isLibraryTarget = target.OutputFormat == OutputFormat.SharedLibrary;
+        bool isBareMetalImage = target.IsBareMetal && target.OutputFormat == OutputFormat.RawImage;
 
-        bool isExecutable = false;
-        if (isFreestandingOsX86)
+        if (string.IsNullOrEmpty(outputPath))
         {
-            isExecutable = true;
-            if (string.IsNullOrEmpty(outputPath))
+            outputPath = target.OutputFormat switch
             {
-                outputPath = Path.ChangeExtension(inputPath, ".elf");
-            }
-        }
-        else if (isLibraryTarget)
-        {
-            if (string.IsNullOrEmpty(outputPath))
-            {
-                string libExt = OperatingSystem.IsWindows() ? ".dll" : ".so";
-                outputPath = Path.ChangeExtension(inputPath, libExt);
-            }
-        }
-        else if (!string.IsNullOrEmpty(outputPath))
-        {
-            string ext = Path.GetExtension(outputPath).ToLower();
-            if (ext == ".exe" || ext == "")
-            {
-                isExecutable = true;
-            }
+                OutputFormat.RawImage => Path.ChangeExtension(inputPath, ".img"),
+                OutputFormat.SharedLibrary => Path.ChangeExtension(inputPath, OperatingSystem.IsWindows() ? ".dll" : ".so"),
+                _ => inputPath
+            };
         }
 
-        string outputFile = !string.IsNullOrEmpty(outputPath) ? outputPath : inputPath;
-        string bcPath = (isExecutable || isLibraryTarget) ? Path.ChangeExtension(outputFile, ".bc") : (outputFile + ".bc");
+        string outputFile = outputPath;
+        string bcPath = (isExecutable || isLibraryTarget)
+            ? Path.ChangeExtension(outputFile, ".bc")
+            : (outputFile + ".bc");
 
         List<string> filesToProcess = new List<string>();
         if (File.Exists(inputPath))
@@ -279,70 +287,99 @@ public class Program
                 return;
             }
 
-            LogVerbose("Generating LLVM IR...");
-            var codegenStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            LogVerbose($"Selected target: {target.ShortName} ({target.OutputFormat}, ABI {target.Abi})");
 
-            using var generator = new LlvmGenerator("zv_module");
-            generator.IsFreestandingTarget = isFreestandingOsX86;
-            generator.IsLibraryTarget = isLibraryTarget;
-            generator.Verbose = Verbose;
-            generator.Generate(allStatements);
-            LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
-            PrintWarnings(generator.Warnings);
-
-            if (isFreestandingOsX86)
+            // Collect binary embed directives before code generation so both the compiler
+            // backend and the image builder can see them.
+            var embeds = EmbedCollector.Collect(allStatements, inputDir ?? Path.GetFullPath(inputPath));
+            if (embeds.Count > 0)
             {
-                LogVerbose("Generating freestanding entry stub (os-x86 target)...");
-                generator.GenerateFreestandingEntry();
+                LogVerbose($"Discovered {embeds.Count} embed directive(s).");
             }
 
-            // Run LLVM's optimization pipeline in-process before emitting. This generator
-            // never emits SSA directly (every local is an alloca/load/store), so mem2reg
-            // (and everything that only becomes effective after it) matters regardless of
-            // whether the subsequent clang invocation below also optimizes - it's the only
-            // optimization that happens at all for outputs that skip clang entirely. Opt-in
-            // via -O/--optimize since this pass pipeline can be slow (or hang) on some setups.
-            if (optimize)
+            if (target.Architecture == TargetArchitecture.X86_16)
             {
-                LogVerbose("Running in-process LLVM optimization passes (mem2reg, instcombine, simplifycfg, reassociate, gvn)...");
-                var optStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                generator.RunOptimizationPasses();
-                LogVerbose($"Optimization passes complete ({optStopwatch.ElapsedMilliseconds}ms).");
-            }
-            else
-            {
-                LogVerbose("Skipping in-process LLVM optimization passes (pass -O/--optimize to enable).");
-            }
+                LogVerbose("Generating x86-16 bare-metal image...");
+                var codegenStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                var x86Pipeline = new X86_16BareMetalPipeline(target, Verbose);
+                x86Pipeline.Build(allStatements, embeds, outputFile);
+                LogVerbose($"Image build complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
 
-            generator.EmitToFile(bcPath);
-            Console.WriteLine($"Bitcode written to {bcPath}");
-            if (Verbose && File.Exists(bcPath))
-            {
-                LogVerbose($"Bitcode file size: {new FileInfo(bcPath).Length} bytes.");
-            }
-
-            if (isFreestandingOsX86)
-            {
-                LogVerbose("Compiling to a freestanding x86 kernel (clang + ld.lld)...");
-                if (CompileToOsX86Kernel(bcPath, outputFile) && runAfterBuild)
+                if (runAfterBuild)
                 {
-                    LogVerbose("Launching QEMU for debugging...");
-                    LaunchQemuForDebugging(outputFile);
+                    QemuLauncher.RunImage(outputFile);
                 }
             }
-            else if (isLibraryTarget)
-            {
-                LogVerbose($"Linking as a shared library via clang -> '{outputFile}'...");
-                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true, optLevel: clangOptLevel);
-            }
-            else if (isExecutable)
-            {
-                LogVerbose($"Linking as an executable via clang -> '{outputFile}'...");
-                CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, optLevel: clangOptLevel);
-            }
             else
             {
-                Console.WriteLine("Compilation successful.");
+                LogVerbose("Generating LLVM IR...");
+                var codegenStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                using var generator = new LlvmGenerator("zv_module") { Target = target, Verbose = Verbose };
+                generator.Generate(allStatements);
+                LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
+                PrintWarnings(generator.Warnings);
+
+                // Run LLVM's optimization pipeline in-process before emitting. This generator
+                // never emits SSA directly (every local is an alloca/load/store), so mem2reg
+                // (and everything that only becomes effective after it) matters regardless of
+                // whether the subsequent clang invocation below also optimizes - it's the only
+                // optimization that happens at all for outputs that skip clang entirely. Opt-in
+                // via -O/--optimize since this pass pipeline can be slow (or hang) on some setups.
+                if (optimize)
+                {
+                    LogVerbose("Running in-process LLVM optimization passes (mem2reg, instcombine, simplifycfg, reassociate, gvn)...");
+                    var optStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    generator.RunOptimizationPasses();
+                    LogVerbose($"Optimization passes complete ({optStopwatch.ElapsedMilliseconds}ms).");
+                }
+                else
+                {
+                    LogVerbose("Skipping in-process LLVM optimization passes (pass -O/--optimize to enable).");
+                }
+
+                generator.EmitToFile(bcPath);
+                Console.WriteLine($"Bitcode written to {bcPath}");
+                if (Verbose && File.Exists(bcPath))
+                {
+                    LogVerbose($"Bitcode file size: {new FileInfo(bcPath).Length} bytes.");
+                }
+
+                if (target.Environment == TargetEnvironment.BareMetal)
+                {
+                    if (target.BootMethod == BootMethod.Multiboot1)
+                    {
+                        LogVerbose("Building x86-32 Multiboot v1 ELF kernel...");
+                        BuildMultiboot1Kernel(bcPath, outputFile);
+
+                        if (runAfterBuild)
+                        {
+                            QemuLauncher.RunKernel(outputFile);
+                        }
+                    }
+                    else if (target.BootMethod == BootMethod.Multiboot2)
+                    {
+                        throw new NotSupportedException("AMD64 Multiboot v2 bootable image is not implemented yet.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Compilation successful. Bitcode written; no bootable image requested.");
+                    }
+                }
+                else if (isLibraryTarget)
+                {
+                    LogVerbose($"Linking as a shared library via clang -> '{outputFile}'...");
+                    CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, shared: true, optLevel: clangOptLevel);
+                }
+                else if (isExecutable)
+                {
+                    LogVerbose($"Linking as an executable via clang -> '{outputFile}'...");
+                    CompileWithClang(bcPath, outputFile, generator.GetExternalLibraries(), libSearchDirs, optLevel: clangOptLevel);
+                }
+                else
+                {
+                    Console.WriteLine("Compilation successful.");
+                }
             }
         }
         catch (CompileException ex)
@@ -363,11 +400,11 @@ public class Program
     {
         var deps = new (string FileName, string Description, bool Required)[]
         {
-            ("clang", "Compiles LLVM IR and links exe/lib/os-x86 targets", true),
-            (OperatingSystem.IsWindows() ? "ld.lld.exe" : "ld.lld", "Links freestanding os-x86 kernels", false),
+            ("clang", "Compiles LLVM IR and links hosted exe/lib targets", true),
+            (OperatingSystem.IsWindows() ? "ld.lld.exe" : "ld.lld", "Links x86-32 bare-metal Multiboot kernels", false),
             ("llvm-readobj", "Reads a DLL's export table to auto-generate an import library", false),
             ("llvm-dlltool", "Generates a Windows import library (.lib) from a DLL's exports", false),
-            ("qemu-system-i386", "Boots os-x86 kernels when using -run", false),
+            ("qemu-system-i386", "Boots x86-16 raw images and x86-32 Multiboot kernels when using -run", false),
         };
 
         Console.WriteLine("Checking ZV toolchain dependencies...");
@@ -585,9 +622,53 @@ public class Program
         }
     }
 
-    // Linker script that lays out a freestanding x86 kernel starting at the 1 MiB mark,
-    // which is where a Multiboot-compliant bootloader (e.g. GRUB) loads the image.
-    private const string OsX86LinkerScript = @"
+    private static void BuildMultiboot1Kernel(string inputLl, string outputElf)
+    {
+        Console.WriteLine("Building x86-32 Multiboot v1 kernel...");
+        try
+        {
+            string basePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(basePath);
+            try
+            {
+                string bootAsm = Path.Combine(basePath, "boot.S");
+                string linkerScript = Path.Combine(basePath, "kernel.ld");
+                string bootObj = Path.Combine(basePath, "boot.o");
+                string kernelObj = Path.Combine(basePath, "kernel.o");
+
+                File.WriteAllText(bootAsm, @"
+.set ALIGN,    1<<0
+.set MEMINFO, 1<<1
+.set FLAGS,    ALIGN | MEMINFO
+.set MAGIC,    0x1BADB002
+.set CHECKSUM, -(MAGIC + FLAGS)
+
+.section .multiboot
+.align 4
+.long MAGIC
+.long FLAGS
+.long CHECKSUM
+
+.section .bss
+.align 16
+stack_bottom:
+.skip 16384
+stack_top:
+
+.section .text
+.global _start
+_start:
+    movl $stack_top, %esp
+    pushl $0
+    pushl $0
+    call main
+    addl $8, %esp
+    cli
+    hlt
+    jmp _start
+");
+
+                File.WriteAllText(linkerScript, @"
 ENTRY(_start)
 SECTIONS
 {
@@ -600,14 +681,49 @@ SECTIONS
     .rodata : ALIGN(4K) { *(.rodata*) }
     .data : ALIGN(4K) { *(.data) }
     .bss : ALIGN(4K) { *(COMMON) *(.bss) }
-
-    /* Discard sections we don't need for a freestanding kernel. Crucially, this
-       keeps them from being placed as ""orphans"" ahead of .text, which would
-       otherwise push the Multiboot header past the first 8KiB of the image where
-       bootloaders (GRUB, QEMU) are required to find it. */
     /DISCARD/ : { *(.eh_frame*) *(.note.*) *(.comment) }
 }
-";
+");
+
+                // Compile the ZV module to a 32-bit freestanding ELF object.
+                string compileArgs = $"-target i686-unknown-none-elf -O2 -ffreestanding -fno-stack-protector -fno-pic -fno-pie -fno-asynchronous-unwind-tables -m32 -c \"{inputLl}\" -o \"{kernelObj}\"";
+                if (!RunProcess("clang", compileArgs, out string compileError))
+                {
+                    Console.WriteLine("Clang compilation failed:");
+                    Console.WriteLine(compileError);
+                    return;
+                }
+
+                // Assemble the tiny boot stub.
+                string asmArgs = $"-target i686-unknown-none-elf -c \"{bootAsm}\" -o \"{bootObj}\"";
+                if (!RunProcess("clang", asmArgs, out string asmError))
+                {
+                    Console.WriteLine("Assembler failed:");
+                    Console.WriteLine(asmError);
+                    return;
+                }
+
+                // Link with lld directly against our own linker script.
+                string linkArgs = $"-m elf_i386 -T \"{linkerScript}\" \"{bootObj}\" \"{kernelObj}\" -o \"{outputElf}\"";
+                if (!RunProcess(OperatingSystem.IsWindows() ? "ld.lld.exe" : "ld.lld", linkArgs, out string linkError))
+                {
+                    Console.WriteLine("Linking failed:");
+                    Console.WriteLine(linkError);
+                    return;
+                }
+
+                Console.WriteLine($"Successfully built bootable kernel: {outputElf}");
+            }
+            finally
+            {
+                Directory.Delete(basePath, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error building Multiboot kernel: {ex.Message}");
+        }
+    }
 
     private static bool RunProcess(string fileName, string arguments, out string error)
         => RunProcess(fileName, arguments, out _, out error);
@@ -744,77 +860,4 @@ SECTIONS
         }
     }
 
-    private static bool CompileToOsX86Kernel(string inputLl, string outputElf)
-    {
-        Console.WriteLine("Building freestanding x86 kernel (os-x86 target)...");
-        try
-        {
-            string objPath = Path.ChangeExtension(outputElf, ".o");
-            string linkerScriptPath = Path.ChangeExtension(outputElf, ".ld");
-
-            File.WriteAllText(linkerScriptPath, OsX86LinkerScript);
-
-            // Compile the LLVM IR to a 32-bit freestanding ELF object. No CRT, no libc.
-            string compileArgs = $"-target i686-unknown-none-elf -O2 -ffreestanding -fno-stack-protector " +
-                                  $"-fno-pic -fno-pie -fno-asynchronous-unwind-tables -m32 -c \"{inputLl}\" -o \"{objPath}\"";
-
-            if (!RunProcess("clang", compileArgs, out string compileError))
-            {
-                Console.WriteLine("Clang compilation failed:");
-                Console.WriteLine(compileError);
-                return false;
-            }
-
-            // Link with lld directly against our own linker script (no host CRT/linker involved).
-            string linkArgs = $"-m elf_i386 -T \"{linkerScriptPath}\" \"{objPath}\" -o \"{outputElf}\"";
-
-            if (!RunProcess("ld.lld.exe", linkArgs, out string linkError))
-            {
-                Console.WriteLine("Linking failed:");
-                Console.WriteLine(linkError);
-                return false;
-            }
-
-            Console.WriteLine($"Successfully built bootable kernel: {outputElf}");
-            Console.WriteLine("Boot it with e.g.: qemu-system-i386 -kernel " + outputElf);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error building os-x86 kernel: {ex.Message}");
-            Console.WriteLine("Make sure Clang and ld.lld (LLVM linker) are installed and available in your PATH.");
-            return false;
-        }
-    }
-
-    // Launches an interactive QEMU window with the freshly-built kernel loaded, so it can be
-    // used right away for debugging (VGA output window + serial console in this terminal).
-    private static void LaunchQemuForDebugging(string kernelElf)
-    {
-        Console.WriteLine("Launching QEMU for debugging...");
-        try
-        {
-            var startInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "qemu-system-i386",
-                Arguments = $"-kernel \"{kernelElf}\" -serial stdio -m 128",
-                UseShellExecute = false
-            };
-
-            var process = System.Diagnostics.Process.Start(startInfo);
-            if (process == null)
-            {
-                Console.WriteLine("Error: Could not start qemu-system-i386. Make sure it is in your PATH.");
-                return;
-            }
-
-            Console.WriteLine("QEMU launched. Serial output (if any) will appear in this console.");
-            Console.WriteLine("Use the QEMU monitor (Ctrl+Alt+2) for breakpoints/inspection, close the window to stop.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error launching QEMU: {ex.Message}");
-            Console.WriteLine("Make sure QEMU (qemu-system-i386) is installed and available in your PATH.");
-        }
-    }
 }

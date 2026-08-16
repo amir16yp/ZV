@@ -74,3 +74,7 @@ public record SwitchStmt(Expression Discriminant, List<SwitchCase> Cases, Source
 // Explicit opt-in to fall through from one `switch` case into the next one's body. Only
 // legal as (effectively) the last statement of a case body; see VisitFallthrough.
 public record FallthroughStmt(SourceLocation Location) : Statement(Location);
+
+// `#embed "path" resource|file ["dest"]` - a compile-time binary data dependency.
+// `Kind` is either "resource" or "file". `DestinationPath` is only used for file embeds.
+public record EmbedStmt(Token Path, Token Kind, Token? DestinationPath, SourceLocation Location) : Statement(Location);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
@@ -112,13 +113,13 @@ public partial class LlvmGenerator
     }
 
     // respawn()-only builtins (and exit()) need a real OS process to make sense; reject them
-    // outright on a freestanding/kernel target rather than emitting nonsensical IR.
+    // outright on a bare-metal target rather than emitting nonsensical IR.
     private void CheckHostedBuiltinAvailable(string name)
     {
-        if (IsFreestandingTarget)
+        if (Target.Environment != TargetEnvironment.Hosted)
         {
             throw new Exception($"'{name}' requires a hosted OS process and is not available when targeting a " +
-                                 "freestanding/kernel target (e.g. 'os-x86').");
+                                 "bare-metal target.");
         }
     }
 

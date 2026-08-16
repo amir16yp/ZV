@@ -16,8 +16,7 @@ namespace ZV.Compiler.Backend;
 // Thread and mutex handles are opaque PTR (void*) values that wrap a small heap-allocated
 // platform object. Handles must be released explicitly with thread_join()/mutex_destroy().
 //
-// These require a hosted OS process, so they are rejected when targeting a freestanding
-// kernel (e.g. 'os-x86').
+// These require a hosted OS process, so they are rejected when targeting a bare-metal target.
 public partial class LlvmGenerator
 {
     private static readonly HashSet<string> ThreadBuiltinNames = new()

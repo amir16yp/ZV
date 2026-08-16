@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
@@ -62,7 +63,7 @@ public partial class LlvmGenerator
 
     private void MakeThreadLocalIfSupported(LLVMValueRef global)
     {
-        if (!IsFreestandingTarget)
+        if (Target.Environment == TargetEnvironment.Hosted)
         {
             global.ThreadLocalMode = LLVMThreadLocalMode.LLVMGeneralDynamicTLSModel;
         }
@@ -346,6 +347,8 @@ public partial class LlvmGenerator
             TokenType.UINT32 => "u32",
             TokenType.UINT64 => "u64",
             TokenType.UINT128 => "u128",
+            TokenType.ISIZE => "isize",
+            TokenType.USIZE => "usize",
             TokenType.FLOAT32 => "f32",
             TokenType.FLOAT64 => "f64",
             TokenType.BOOL => "bool",

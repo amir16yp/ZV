@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
@@ -232,17 +233,24 @@ public partial class LlvmGenerator : IDisposable
     // returned to the caller.
     private readonly Dictionary<string, (LLVMValueRef Head, LLVMValueRef Used)> _variableCleanupIndices = new();
 
-    // Set by the driver (Program.cs) when compiling for a freestanding/kernel target
-    // (e.g. "os-x86"). Builtins that require a hosted OS (like curses) are rejected
-    // when this is set.
-    public bool IsFreestandingTarget { get; set; }
+    // Target configuration selected by the driver (Program.cs). Defaults to the host
+    // architecture in hosted mode so tests and the language server continue to work
+    // without explicit target selection.
+    public TargetInfo Target { get; set; } = DefaultTarget();
 
-    // Set by the driver (Program.cs) when compiling for a shared library target
-    // (e.g. "lib"). Functions not marked with the `export` keyword get internal
-    // linkage so they aren't visible outside the resulting DLL/SO, while exported
-    // functions get external linkage plus a DLL export storage class (honored on
-    // Windows/PE, ignored on ELF).
-    public bool IsLibraryTarget { get; set; }
+    public bool IsHostedTarget => Target.Environment == TargetEnvironment.Hosted;
+    public bool IsLibraryTarget => Target.OutputFormat == OutputFormat.SharedLibrary;
+
+    private static TargetInfo DefaultTarget()
+    {
+        string arch = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => "amd64",
+            Architecture.X86 => "x86-32",
+            _ => "amd64"
+        };
+        return TargetParser.Parse($"{arch}-hosted");
+    }
 
     // Set by callers (e.g. the -v/--verbose CLI flag in Program.cs) to print a play-by-play
     // of codegen as it happens: each declaration visited, target/pass-pipeline setup, and
@@ -333,7 +341,7 @@ public partial class LlvmGenerator : IDisposable
         }
 
         var elementPtrType = GetPointerType(elementType);
-        var lengthType = GetInt64Type();
+        var lengthType = GetSizeType();
         var structType = _context.CreateNamedStruct("array_" + elementType.Handle.ToString("X"));
         if (structType.StructElementTypesCount == 0)
         {
@@ -350,7 +358,7 @@ public partial class LlvmGenerator : IDisposable
             return _stringStructType.Value;
 
         var dataPtrType = GetPointerType(GetInt8Type());
-        var lengthType = GetInt64Type();
+        var lengthType = GetSizeType();
         var structType = _context.CreateNamedStruct("STRING");
         if (structType.StructElementTypesCount == 0)
         {
@@ -449,66 +457,13 @@ public partial class LlvmGenerator : IDisposable
         string? triple;
         string? dataLayout;
 
-        if (IsFreestandingTarget)
+        if (Target.Architecture == TargetArchitecture.X86_16)
         {
-            triple = "i686-unknown-none-elf";
-            dataLayout = "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128";
+            throw new NotSupportedException("The LLVM backend does not support the x86-16 target; use the x86-16 native backend.");
         }
-        else
-        {
-            var arch = RuntimeInformation.ProcessArchitecture;
 
-            if (OperatingSystem.IsWindows())
-            {
-                triple = arch switch
-                {
-                    Architecture.X64 => "x86_64-pc-windows-msvc",
-                    Architecture.Arm64 => "aarch64-pc-windows-msvc",
-                    _ => "x86_64-pc-windows-msvc"
-                };
-                dataLayout = arch switch
-                {
-                    Architecture.X64 => "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-                    Architecture.Arm64 => "e-m:w-p270:32:32-p271:32:32-p272:64:64-p:64:64-i32:32-i64:64-i128:128-n32:64-S128-Fn32",
-                    _ => null
-                };
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                triple = arch switch
-                {
-                    Architecture.X64 => "x86_64-pc-linux-gnu",
-                    Architecture.Arm64 => "aarch64-pc-linux-gnu",
-                    _ => "x86_64-pc-linux-gnu"
-                };
-                dataLayout = arch switch
-                {
-                    Architecture.X64 => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-                    Architecture.Arm64 => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
-                    _ => null
-                };
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                triple = arch switch
-                {
-                    Architecture.X64 => "x86_64-apple-darwin",
-                    Architecture.Arm64 => "arm64-apple-darwin",
-                    _ => "x86_64-apple-darwin"
-                };
-                dataLayout = arch switch
-                {
-                    Architecture.X64 => "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-                    Architecture.Arm64 => "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
-                    _ => null
-                };
-            }
-            else
-            {
-                triple = null;
-                dataLayout = null;
-            }
-        }
+        triple = Target.LlvmTriple;
+        dataLayout = Target.LlvmDataLayout;
 
         if (!string.IsNullOrEmpty(triple))
         {

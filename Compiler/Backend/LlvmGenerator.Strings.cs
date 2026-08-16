@@ -219,6 +219,37 @@ public partial class LlvmGenerator
         return str;
     }
 
+    // Iterates a NUL-terminated CSTRING, invoking `body(ch, index)` for each byte before the
+    // terminator. Used to implement in-place string helpers like to_upper/to_lower.
+    private void BuildCStringLoop(LLVMValueRef str, Action<LLVMValueRef, LLVMValueRef> body)
+    {
+        var i8 = GetInt8Type();
+        var i64 = GetInt64Type();
+        var func = _builder.InsertBlock.Parent;
+        var condBlock = func.AppendBasicBlock("loop_cond");
+        var bodyBlock = func.AppendBasicBlock("loop_body");
+        var endBlock = func.AppendBasicBlock("loop_end");
+
+        var indexPtr = _builder.BuildAlloca(i64, "loop_idx");
+        _builder.BuildStore(LLVMValueRef.CreateConstInt(i64, 0), indexPtr);
+        _builder.BuildBr(condBlock);
+
+        _builder.PositionAtEnd(condBlock);
+        var index = _builder.BuildLoad2(i64, indexPtr, "loop_index");
+        var charPtr = _builder.BuildGEP2(i8, str, new[] { index }, "loop_charptr");
+        var ch = _builder.BuildLoad2(i8, charPtr, "loop_ch");
+        var done = _builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, ch, LLVMValueRef.CreateConstInt(i8, 0), "loop_done");
+        _builder.BuildCondBr(done, endBlock, bodyBlock);
+
+        _builder.PositionAtEnd(bodyBlock);
+        body(ch, index);
+        var next = _builder.BuildAdd(index, LLVMValueRef.CreateConstInt(i64, 1), "loop_next");
+        _builder.BuildStore(next, indexPtr);
+        _builder.BuildBr(condBlock);
+
+        _builder.PositionAtEnd(endBlock);
+    }
+
     private void EmitAsciiCaseConvertLoop(LLVMValueRef str, bool isUpper)
     {
         var i8 = GetInt8Type();

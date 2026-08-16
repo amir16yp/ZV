@@ -124,6 +124,10 @@ public class Lexer
         { "BOOL", TokenType.BOOL },
         { "CHAR", TokenType.CHAR },
         { "VOID", TokenType.VOID },
+        { "ISIZE", TokenType.ISIZE },
+        { "USIZE", TokenType.USIZE },
+        { "isize", TokenType.ISIZE },
+        { "usize", TokenType.USIZE },
         { "PTR", TokenType.PTR },
         { "FUNCPTR", TokenType.FuncPtr },
         { "funcptr", TokenType.FuncPtr },
@@ -342,6 +346,49 @@ public class Lexer
             string macroValue = _source[valueStart.._current].Trim();
 
             _defines[macroName] = macroValue;
+        }
+        else if (directive == "embed")
+        {
+            // #embed "path" resource|file ["dest"]
+            // Emit a directive token plus the path string and embed kind.
+            AddToken(TokenType.EmbedDirective);
+
+            int savedStart = _start;
+
+            while (!IsAtEnd() && (Peek() == ' ' || Peek() == '\t')) Advance();
+            if (Peek() == '"')
+            {
+                _start = _current;
+                Advance(); // consume opening quote so String() sees the contents
+                String();
+                _start = savedStart;
+            }
+            else
+            {
+                // Malformed #embed: backtrack to keep scanning.
+                _current = _start + 1;
+                _column -= (_current - _start);
+                return;
+            }
+
+            while (!IsAtEnd() && (Peek() == ' ' || Peek() == '\t')) Advance();
+            if (IsAlpha(Peek()))
+            {
+                int kindStart = _current;
+                while (!IsAtEnd() && IsAlphaNumeric(Peek())) Advance();
+                string kindText = _source[kindStart.._current];
+                _start = kindStart;
+                AddToken(TokenType.Identifier, kindText);
+                _start = savedStart;
+
+                if (kindText.Equals("file", StringComparison.OrdinalIgnoreCase) && Peek() == '"')
+                {
+                    _start = _current;
+                    Advance(); // consume opening quote
+                    String();
+                    _start = savedStart;
+                }
+            }
         }
         else
         {

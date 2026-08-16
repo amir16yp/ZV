@@ -4,14 +4,14 @@ using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
 using ZV.Compiler.Lexer;
+using ZV.Compiler.Target;
 
 namespace ZV.Compiler.Backend;
 
 // Universal curses builtins: a thin, cross-platform wrapper over the native curses
 // library (ncurses on Linux/macOS, PDCurses on Windows) for building terminal UIs.
 // These require a hosted OS with a real terminal, so they are rejected outright when
-// compiling for a freestanding/kernel target (e.g. the "os-x86" target) - see
-// LlvmGenerator.IsFreestandingTarget and CheckCursesAvailable() below.
+// compiling for a bare-metal target. See CheckCursesAvailable() below.
 public partial class LlvmGenerator
 {
     private static readonly HashSet<string> CursesBuiltinNames = new()
@@ -26,14 +26,14 @@ public partial class LlvmGenerator
 
     private bool _cursesLibraryLinked;
 
-    // Rejects curses builtins on freestanding/kernel targets and, otherwise, makes sure
+    // Rejects curses builtins on bare-metal targets and, otherwise, makes sure
     // the platform-appropriate curses library gets linked in.
     private void CheckCursesAvailable(string name)
     {
-        if (IsFreestandingTarget)
+        if (Target.Environment != TargetEnvironment.Hosted)
         {
-            throw new Exception($"'{name}' is a curses builtin and is not available when targeting 'os-x86': " +
-                                 "kernel/freestanding builds have no hosted terminal for curses to drive.");
+            throw new Exception($"'{name}' is a curses builtin and is not available when targeting a bare-metal target: " +
+                                 "bare-metal builds have no hosted terminal for curses to drive.");
         }
 
         if (!_cursesLibraryLinked)
