@@ -16,13 +16,15 @@ public sealed class X86_16Backend
 
     private readonly X86_16Assembler _asm = new(KernelBase);
     private readonly List<Statement> _statements;
+    private readonly IReadOnlyList<EmbedInfo> _embeds;
     private readonly HashSet<string> _runtimeFunctions = new();
     private readonly Dictionary<string, string> _stringLabels = new();
     private int _stringCounter;
 
-    public X86_16Backend(List<Statement> statements)
+    public X86_16Backend(List<Statement> statements, IReadOnlyList<EmbedInfo>? embeds = null)
     {
         _statements = statements;
+        _embeds = embeds ?? Array.Empty<EmbedInfo>();
     }
 
     public byte[] Compile()
@@ -42,6 +44,7 @@ public sealed class X86_16Backend
 
         EmitRuntimeFunctions();
         EmitStringData();
+        EmitEmbedLayout();
 
         return _asm.Build();
     }
@@ -211,6 +214,14 @@ public sealed class X86_16Backend
     private string FunctionLabel(string name) => "fn_" + name;
     private string RuntimeLabel(string name) => "rt_" + name;
     private string VarLabel(string name) => "var_" + name;
+
+    private void EmitEmbedLayout()
+    {
+        if (_embeds.Count == 0) return;
+
+        _asm.DefineLabel("__zv_embed_start");
+        _asm.EmitBytes(EmbedLayout.Build(_embeds));
+    }
 
     private string StringLabel(string text)
     {

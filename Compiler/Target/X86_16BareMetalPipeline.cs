@@ -26,7 +26,7 @@ public sealed class X86_16BareMetalPipeline
 
     public void Build(List<Statement> statements, List<EmbedInfo> embeds, string outputImagePath)
     {
-        var kernel = new X86_16Backend(statements).Compile();
+        var kernel = new X86_16Backend(statements, embeds).Compile();
         int kernelSectors = (kernel.Length + ImageBuilder.SectorSize - 1) / ImageBuilder.SectorSize;
 
         if (_verbose)
@@ -37,27 +37,6 @@ public sealed class X86_16BareMetalPipeline
         var builder = new ImageBuilder();
         builder.SetBootSector(BootSectorGenerator.GenerateLoader(kernelSectors));
         builder.SetKernel(kernel);
-
-        foreach (var embed in embeds)
-        {
-            byte[] data = File.ReadAllBytes(embed.SourcePath);
-            if (embed.Kind == EmbedKind.File)
-            {
-                builder.AddImageFile(embed.DestinationPath ?? Path.GetFileName(embed.SourcePath), data);
-            }
-            else if (embed.Kind == EmbedKind.Resource)
-            {
-                // Resources are currently appended to the kernel binary. Runtime access to
-                // resources via a stable handle will be added once the backend supports it.
-                var extended = new List<byte>(kernel);
-                extended.AddRange(data);
-                kernel = extended.ToArray();
-                kernelSectors = (kernel.Length + ImageBuilder.SectorSize - 1) / ImageBuilder.SectorSize;
-                builder.SetKernel(kernel);
-                // The boot sector was already generated with the smaller count; rebuild it.
-                builder.SetBootSector(BootSectorGenerator.GenerateLoader(kernelSectors));
-            }
-        }
 
         byte[] image = builder.BuildImage();
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputImagePath)) ?? "");

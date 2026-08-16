@@ -1346,6 +1346,8 @@ public partial class LlvmGenerator
         var builtins = new HashSet<string>
         {
             "print", "copy", "move", "fopen", "fclose", "fread", "fwrite", "fseek", "ftell", "feof", "ferror", "fgets", "fputs", "tmpfile", "memcpy", "memset", "remove", "rename", "mkdir", "rmdir", "len", "alloc", "realloc", "cstr", "wstr", "array_copy", "get_timestamp", "get_timestamp_ms",
+            "resource_count", "resource_name", "resource_ptr", "resource_size",
+            "file_count", "file_name", "file_ptr", "file_size", "find_file",
             "strlen", "strcmp", "strncmp", "strcpy", "strncpy", "strcat", "strncat", "strchr", "strstr",
             "strdup", "str_concat", "str_equals", "to_upper", "to_lower",
             "Exception", "respawn", "exit",

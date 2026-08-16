@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using LLVMSharp.Interop;
 using ZV.Compiler.AST;
@@ -386,6 +387,218 @@ public partial class LlvmGenerator : IDisposable
         LogVerbose("Codegen for all top-level statements complete.");
     }
 
+    /// <summary>
+    /// Embeds a binary resource/file table into the module for bare-metal targets. The layout
+    /// is emitted as a private constant byte array named <c>__zv_embed_layout</c> that the
+    /// runtime can locate by symbol name.
+    /// </summary>
+    private IReadOnlyList<EmbedInfo> _embeds = Array.Empty<EmbedInfo>();
+    private LLVMValueRef? _resourceCountGlobal;
+    private LLVMValueRef? _resourceDataArray;
+    private LLVMValueRef? _resourceSizeArray;
+    private LLVMValueRef? _resourceNameArray;
+    private LLVMValueRef? _fileCountGlobal;
+    private LLVMValueRef? _fileDataArray;
+    private LLVMValueRef? _fileSizeArray;
+    private LLVMValueRef? _fileNameArray;
+
+    public void EmitBareMetalEmbeds(IReadOnlyList<EmbedInfo> embeds)
+    {
+        if (embeds.Count == 0) return;
+
+        var layout = EmbedLayout.Build(embeds);
+        var i8 = GetInt8Type();
+        var values = new LLVMValueRef[layout.Length];
+        for (int i = 0; i < layout.Length; i++)
+        {
+            values[i] = LLVMValueRef.CreateConstInt(i8, layout[i], false);
+        }
+
+        var arrayType = LLVMTypeRef.CreateArray(i8, (uint)layout.Length);
+        var initializer = LLVMValueRef.CreateConstArray(i8, values);
+        var global = _module.AddGlobal(arrayType, "__zv_embed_layout");
+        global.Initializer = initializer;
+        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        global.IsGlobalConstant = true;
+
+        _embeds = embeds;
+        LogVerbose($"Embedded {embeds.Count} resource/file(s) ({layout.Length} bytes).");
+    }
+
+    /// <summary>
+    /// For hosted targets, emits typed global arrays for resources and files so builtins
+    /// like <c>get_resource_count()</c> and <c>find_file()</c> can access them at runtime.
+    /// </summary>
+    public void EmitHostedEmbeds(IReadOnlyList<EmbedInfo> embeds)
+    {
+        _embeds = embeds;
+        if (embeds.Count == 0) return;
+
+        var resources = embeds.Where(e => e.Kind == EmbedKind.Resource).ToList();
+        var files = embeds.Where(e => e.Kind == EmbedKind.File).ToList();
+
+        _resourceCountGlobal = EmitEmbedCount("__zv_resource_count", resources.Count);
+        _resourceDataArray = EmitEmbedDataArray("__zv_resource_data", resources);
+        _resourceSizeArray = EmitEmbedSizeArray("__zv_resource_sizes", resources);
+        _resourceNameArray = EmitEmbedNameArray("__zv_resource_names", resources);
+
+        _fileCountGlobal = EmitEmbedCount("__zv_file_count", files.Count);
+        _fileDataArray = EmitEmbedDataArray("__zv_file_data", files);
+        _fileSizeArray = EmitEmbedSizeArray("__zv_file_sizes", files);
+        _fileNameArray = EmitEmbedNameArray("__zv_file_names", files);
+
+        if (files.Count > 0)
+        {
+            BuildFindFileHelper(files.Count);
+        }
+
+        LogVerbose($"Embedded {resources.Count} resource(s) and {files.Count} file(s) for hosted target.");
+    }
+
+    private void BuildFindFileHelper(int fileCount)
+    {
+        var i8 = GetInt8Type();
+        var i8Ptr = GetPointerType(i8);
+        var i32 = GetInt32Type();
+        var sizeType = GetSizeType();
+
+        var funcType = LLVMTypeRef.CreateFunction(i32, new[] { i8Ptr, GetPointerType(i8Ptr), GetPointerType(sizeType) });
+        var func = _module.AddFunction("__zv_find_file", funcType);
+        func.Linkage = LLVMLinkage.LLVMInternalLinkage;
+
+        var entryBlock = func.AppendBasicBlock("entry");
+        var loopCond = func.AppendBasicBlock("loop_cond");
+        var loopBody = func.AppendBasicBlock("loop_body");
+        var loopInc = func.AppendBasicBlock("loop_inc");
+        var foundBlock = func.AppendBasicBlock("found");
+        var notFoundBlock = func.AppendBasicBlock("not_found");
+
+        var nameParam = func.GetParam(0);
+        var outPtrParam = func.GetParam(1);
+        var outSizeParam = func.GetParam(2);
+
+        var fileCountGlobal = _fileCountGlobal ?? EmitEmbedCount("__zv_file_count", 0);
+        var fileNameArray = _fileNameArray ?? throw new InvalidOperationException("File name array not emitted.");
+        var fileDataArray = _fileDataArray ?? throw new InvalidOperationException("File data array not emitted.");
+        var fileSizeArray = _fileSizeArray ?? throw new InvalidOperationException("File size array not emitted.");
+
+        var namesArrayType = LLVMTypeRef.CreateArray(i8Ptr, (uint)fileCount);
+        var dataArrayType = LLVMTypeRef.CreateArray(i8Ptr, (uint)fileCount);
+        var sizeArrayType = LLVMTypeRef.CreateArray(sizeType, (uint)fileCount);
+
+        _builder.PositionAtEnd(entryBlock);
+        var iPtr = _builder.BuildAlloca(i32, "i");
+        _builder.BuildStore(LLVMValueRef.CreateConstInt(i32, 0), iPtr);
+        _builder.BuildBr(loopCond);
+
+        _builder.PositionAtEnd(loopCond);
+        var iVal = _builder.BuildLoad2(i32, iPtr, "i");
+        var countVal = _builder.BuildLoad2(i32, fileCountGlobal, "count");
+        var cond = _builder.BuildICmp(LLVMIntPredicate.LLVMIntSLT, iVal, countVal, "cond");
+        _builder.BuildCondBr(cond, loopBody, notFoundBlock);
+
+        _builder.PositionAtEnd(loopBody);
+        var namePtr = _builder.BuildLoad2(i8Ptr,
+            _builder.BuildGEP2(namesArrayType, fileNameArray, new[] { LLVMValueRef.CreateConstInt(i32, 0), iVal }, "name_ptr"),
+            "file_name");
+
+        var strcmpFunc = GetOrAddFunction("strcmp", i32, new[] { i8Ptr, i8Ptr });
+        var cmp = _builder.BuildCall2(_functionTypes["strcmp"], strcmpFunc, new[] { namePtr, nameParam }, "cmp");
+        var isMatch = _builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, cmp, LLVMValueRef.CreateConstInt(i32, 0), "match");
+        _builder.BuildCondBr(isMatch, foundBlock, loopInc);
+
+        _builder.PositionAtEnd(loopInc);
+        var next = _builder.BuildAdd(iVal, LLVMValueRef.CreateConstInt(i32, 1), "next");
+        _builder.BuildStore(next, iPtr);
+        _builder.BuildBr(loopCond);
+
+        _builder.PositionAtEnd(foundBlock);
+        var dataPtr = _builder.BuildLoad2(i8Ptr,
+            _builder.BuildGEP2(dataArrayType, fileDataArray, new[] { LLVMValueRef.CreateConstInt(i32, 0), iVal }, "data_ptr_ptr"),
+            "data_ptr");
+        var sizeVal = _builder.BuildLoad2(sizeType,
+            _builder.BuildGEP2(sizeArrayType, fileSizeArray, new[] { LLVMValueRef.CreateConstInt(i32, 0), iVal }, "size_ptr"),
+            "size");
+        _builder.BuildStore(dataPtr, outPtrParam);
+        _builder.BuildStore(sizeVal, outSizeParam);
+        _builder.BuildRet(LLVMValueRef.CreateConstInt(i32, 1));
+
+        _builder.PositionAtEnd(notFoundBlock);
+        _builder.BuildRet(LLVMValueRef.CreateConstInt(i32, 0));
+    }
+
+    private LLVMValueRef EmitEmbedCount(string name, int count)
+    {
+        var global = _module.AddGlobal(GetInt32Type(), name);
+        global.Initializer = LLVMValueRef.CreateConstInt(GetInt32Type(), (uint)count);
+        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        global.IsGlobalConstant = true;
+        return global;
+    }
+
+    private LLVMValueRef EmitEmbedDataArray(string name, IReadOnlyList<EmbedInfo> embeds)
+    {
+        var i8 = GetInt8Type();
+        var ptrType = GetPointerType(i8);
+        var arrayType = LLVMTypeRef.CreateArray(ptrType, (uint)embeds.Count);
+        var values = new LLVMValueRef[embeds.Count];
+        for (int i = 0; i < embeds.Count; i++)
+        {
+            var data = File.ReadAllBytes(embeds[i].SourcePath);
+            var dataType = LLVMTypeRef.CreateArray(i8, (uint)data.Length);
+            var dataGlobal = _module.AddGlobal(dataType, $"{name}_data_{i}");
+            dataGlobal.Initializer = LLVMValueRef.CreateConstArray(i8, data.Select(b => LLVMValueRef.CreateConstInt(i8, b, false)).ToArray());
+            dataGlobal.Linkage = LLVMLinkage.LLVMInternalLinkage;
+            dataGlobal.IsGlobalConstant = true;
+            values[i] = LLVMValueRef.CreateConstGEP2(dataType, dataGlobal,
+                new[] { LLVMValueRef.CreateConstInt(GetInt32Type(), 0), LLVMValueRef.CreateConstInt(GetInt32Type(), 0) });
+        }
+        var global = _module.AddGlobal(arrayType, name);
+        global.Initializer = LLVMValueRef.CreateConstArray(ptrType, values);
+        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        global.IsGlobalConstant = true;
+        return global;
+    }
+
+    private LLVMValueRef EmitEmbedSizeArray(string name, IReadOnlyList<EmbedInfo> embeds)
+    {
+        var sizeType = GetSizeType();
+        var arrayType = LLVMTypeRef.CreateArray(sizeType, (uint)embeds.Count);
+        var values = embeds.Select(e => LLVMValueRef.CreateConstInt(sizeType, (ulong)e.Size)).ToArray();
+        var global = _module.AddGlobal(arrayType, name);
+        global.Initializer = LLVMValueRef.CreateConstArray(sizeType, values);
+        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        global.IsGlobalConstant = true;
+        return global;
+    }
+
+    private LLVMValueRef EmitEmbedNameArray(string name, IReadOnlyList<EmbedInfo> embeds)
+    {
+        var i8 = GetInt8Type();
+        var ptrType = GetPointerType(i8);
+        var arrayType = LLVMTypeRef.CreateArray(ptrType, (uint)embeds.Count);
+        var values = new LLVMValueRef[embeds.Count];
+        for (int i = 0; i < embeds.Count; i++)
+        {
+            string n = embeds[i].Kind == EmbedKind.File
+                ? (embeds[i].DestinationPath ?? Path.GetFileName(embeds[i].SourcePath))
+                : Path.GetFileName(embeds[i].SourcePath);
+            var nameBytes = System.Text.Encoding.ASCII.GetBytes(n + '\0');
+            var nameType = LLVMTypeRef.CreateArray(i8, (uint)nameBytes.Length);
+            var nameGlobal = _module.AddGlobal(nameType, $"{name}_name_{i}");
+            nameGlobal.Initializer = LLVMValueRef.CreateConstArray(i8, nameBytes.Select(b => LLVMValueRef.CreateConstInt(i8, b, false)).ToArray());
+            nameGlobal.Linkage = LLVMLinkage.LLVMInternalLinkage;
+            nameGlobal.IsGlobalConstant = true;
+            values[i] = LLVMValueRef.CreateConstGEP2(nameType, nameGlobal,
+                new[] { LLVMValueRef.CreateConstInt(GetInt32Type(), 0), LLVMValueRef.CreateConstInt(GetInt32Type(), 0) });
+        }
+        var global = _module.AddGlobal(arrayType, name);
+        global.Initializer = LLVMValueRef.CreateConstArray(ptrType, values);
+        global.Linkage = LLVMLinkage.LLVMInternalLinkage;
+        global.IsGlobalConstant = true;
+        return global;
+    }
+
     // Short human-readable description of a top-level statement for verbose logging, e.g.
     // "function 'foo'" or "struct 'Bar'". Falls back to just the statement's type name for
     // anything not called out explicitly.
@@ -618,6 +831,10 @@ public partial class LlvmGenerator : IDisposable
                 break;
             case FallthroughStmt fallthroughStmt:
                 VisitFallthrough(fallthroughStmt);
+                break;
+            case EmbedStmt:
+                // Embed directives are consumed ahead of code generation by EmbedCollector
+                // and emitted into the bare-metal image or module data section.
                 break;
             default:
                 throw new NotImplementedException($"Statement type {stmt.GetType().Name} not implemented.");

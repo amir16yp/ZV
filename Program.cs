@@ -316,7 +316,18 @@ public class Program
                 var codegenStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
                 using var generator = new LlvmGenerator("zv_module") { Target = target, Verbose = Verbose };
+
+                if (target.Environment == TargetEnvironment.Hosted)
+                {
+                    generator.EmitHostedEmbeds(embeds);
+                }
+                else if (target.Environment == TargetEnvironment.BareMetal)
+                {
+                    generator.EmitBareMetalEmbeds(embeds);
+                }
+
                 generator.Generate(allStatements);
+
                 LogVerbose($"LLVM IR generation complete ({codegenStopwatch.ElapsedMilliseconds}ms).");
                 PrintWarnings(generator.Warnings);
 

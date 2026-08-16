@@ -1328,12 +1328,49 @@ loader; for x86-16 it must return `VOID` and take no arguments.
 dotnet run -- kernel.zv -target x86-16-baremetal -o kernel.img -run
 ```
 
-**#embed directives** work on bare-metal targets too:
+**#embed directives** work on every target. On hosted targets the embedded data
+is bundled into the binary and can be looked up at runtime:
 
 ```zv
-#embed "font.bin" resource            // appended to the kernel binary
-#embed "logo.raw" file "assets/logo"  // stored in the disk image file table
+#embed "data.bin" resource
+#embed "style.css" file "assets/style.css"
+
+@entry
+INT32 main(CSTRING[] args) {
+    INT32 n = resource_count();
+    for (INT32 i = 0; i < n; i++) {
+        CSTRING name = resource_name(i);
+        PTR<UINT8> data = resource_ptr(i);
+        USIZE size = resource_size(i);
+        print("%s: %d bytes", name, size as INT32);
+    }
+
+    INT32 m = file_count();
+    for (INT32 i = 0; i < m; i++) {
+        CSTRING path = file_name(i);
+        PTR<UINT8> data = file_ptr(i);
+        USIZE size = file_size(i);
+        print("%s: %d bytes", path, size as INT32);
+    }
+    return 0;
+}
 ```
+
+Supported builtins:
+
+| Builtin | Returns | Description |
+|---------|---------|-------------|
+| `resource_count()` | `INT32` | Number of `#embed ... resource` entries. |
+| `resource_name(i)` | `CSTRING` | Name of the i-th resource. |
+| `resource_ptr(i)` | `PTR<UINT8>` | Pointer to the i-th resource's data. |
+| `resource_size(i)` | `USIZE` | Size in bytes of the i-th resource. |
+| `file_count()` | `INT32` | Number of `#embed ... file` entries. |
+| `file_name(i)` | `CSTRING` | Path/name of the i-th file embed. |
+| `file_ptr(i)` | `PTR<UINT8>` | Pointer to the i-th file embed's data. |
+| `file_size(i)` | `USIZE` | Size in bytes of the i-th file embed. |
+
+If no `#embed` directives are present, the compiler emits no embed table or
+runtime helpers, keeping binaries unchanged.
 
 ---
 
